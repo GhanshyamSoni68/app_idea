@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Cloud backup is disabled: the database is encrypted with a device-bound key
+     that cannot be restored onto another device. Users export an encrypted
+     backup file instead (Settings > Backup). -->
+<full-backup-content>
+    <exclude domain="database" path="." />
+    <exclude domain="sharedpref" path="." />
+    <exclude domain="file" path="." />
+</full-backup-content>

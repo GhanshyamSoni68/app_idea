@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Expiry</string>
+
+    <!-- Navigation and screen titles -->
+    <string name="title_items">Expiry</string>
+    <string name="title_add_item">Add item</string>
+    <string name="title_edit_item">Edit item</string>
+    <string name="title_settings">Settings</string>
+    <string name="title_scan">Scan document</string>
+
+    <!-- Item list -->
+    <string name="empty_title">Nothing tracked yet</string>
+    <string name="empty_body">Add a passport, licence, insurance policy, warranty or subscription and Expiry will remind you before it runs out.</string>
+    <string name="empty_action">Add your first item</string>
+    <string name="search_hint">Search items</string>
+    <string name="filter_all">All</string>
+    <string name="no_matches">Nothing matches that search.</string>
+
+    <!-- Urgency buckets -->
+    <string name="bucket_expired">Expired</string>
+    <string name="bucket_this_week">This week</string>
+    <string name="bucket_this_month">This month</string>
+    <string name="bucket_later">Later</string>
+
+    <!-- Relative expiry phrasing -->
+    <string name="expires_today">Expires today</string>
+    <string name="expires_tomorrow">Expires tomorrow</string>
+    <string name="expired_today">Expired today</string>
+    <plurals name="expires_in_days">
+        <item quantity="one">Expires in %d day</item>
+        <item quantity="other">Expires in %d days</item>
+    </plurals>
+    <plurals name="expired_days_ago">
+        <item quantity="one">Expired %d day ago</item>
+        <item quantity="other">Expired %d days ago</item>
+    </plurals>
+
+    <!-- Editor -->
+    <string name="field_title">Name</string>
+    <string name="field_title_hint">e.g. Passport, Car insurance</string>
+    <string name="field_category">Category</string>
+    <string name="field_expiry_date">Expiry date</string>
+    <string name="field_notes">Notes</string>
+    <string name="field_notes_hint">Policy number, renewal link, anything useful</string>
+    <string name="field_reminders">Remind me before</string>
+    <string name="action_save">Save</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_scan">Scan a document</string>
+    <string name="action_pick_date">Pick a date</string>
+    <string name="error_title_required">Give the item a name</string>
+    <string name="error_date_required">Choose an expiry date</string>
+    <string name="delete_confirm_title">Delete this item?</string>
+    <string name="delete_confirm_body">This removes it and its reminders from this device. It cannot be undone.</string>
+
+    <!-- Scanning -->
+    <string name="scan_instruction">Point the camera at the expiry date on your document</string>
+    <string name="scan_no_dates">No dates found. Try again with better lighting, or type the date in yourself.</string>
+    <string name="scan_pick_date">Which date is the expiry?</string>
+    <string name="scan_permission_rationale">Expiry needs the camera to read dates off your documents. Images are processed on this device and are never uploaded.</string>
+    <string name="action_grant_camera">Allow camera</string>
+    <string name="action_enter_manually">Enter it manually</string>
+
+    <!-- Notifications -->
+    <string name="notification_channel_name">Expiry reminders</string>
+    <string name="notification_channel_description">Reminders before your documents, policies and subscriptions expire</string>
+
+    <!-- Security -->
+    <string name="lock_title">Unlock Expiry</string>
+    <string name="lock_subtitle">Your items are encrypted on this device</string>
+    <string name="lock_retry">Try again</string>
+
+    <!-- Settings -->
+    <string name="settings_security">Security</string>
+    <string name="settings_app_lock">Require unlock to open</string>
+    <string name="settings_app_lock_summary">Ask for fingerprint, face or screen lock each time Expiry opens</string>
+    <string name="settings_app_lock_unavailable">No screen lock is set up on this device</string>
+    <string name="settings_reminders">Reminders</string>
+    <string name="settings_reminder_time">Daily reminder time</string>
+    <string name="settings_default_offsets">Default reminder schedule</string>
+    <string name="settings_default_offsets_summary">Applied to new items. Existing items keep their own schedule.</string>
+    <string name="settings_data">Data</string>
+    <string name="settings_export">Export encrypted backup</string>
+    <string name="settings_import">Restore from backup</string>
+    <string name="settings_about">About</string>
+    <string name="settings_privacy_summary">Expiry has no account, no ads and no analytics. Nothing you enter leaves this device unless you export a backup yourself.</string>
+    <string name="settings_version">Version %1$s</string>
+
+    <!-- Backup -->
+    <string name="backup_passphrase_title">Choose a backup passphrase</string>
+    <string name="backup_passphrase_body">The backup file is encrypted with this passphrase. If you lose it the backup cannot be recovered — not by us, not by anyone.</string>
+    <string name="backup_passphrase_hint">Passphrase</string>
+    <string name="backup_passphrase_confirm_hint">Confirm passphrase</string>
+    <string name="backup_restore_passphrase_body">Enter the passphrase this backup was created with.</string>
+    <string name="backup_error_mismatch">Passphrases do not match</string>
+    <string name="backup_error_too_short">Use at least 8 characters</string>
+    <string name="backup_error_wrong_passphrase">Wrong passphrase, or the file is damaged</string>
+    <string name="backup_error_corrupt">That file is not an Expiry backup, or it is damaged</string>
+    <string name="backup_error_file">Could not read or write that file</string>
+    <plurals name="backup_export_success">
+        <item quantity="one">Exported %d item</item>
+        <item quantity="other">Exported %d items</item>
+    </plurals>
+    <plurals name="backup_import_success">
+        <item quantity="one">Restored %d item</item>
+        <item quantity="other">Restored %d items</item>
+    </plurals>
+
+    <!-- Categories -->
+    <string name="category_identity">Identity</string>
+    <string name="category_vehicle">Vehicle</string>
+    <string name="category_insurance">Insurance</string>
+    <string name="category_warranty">Warranty</string>
+    <string name="category_subscription">Subscription</string>
+    <string name="category_health">Health</string>
+    <string name="category_professional">Professional</string>
+    <string name="category_home">Home</string>
+    <string name="category_other">Other</string>
+
+    <!-- Reminder offsets -->
+    <string name="offset_on_the_day">On the day</string>
+    <plurals name="offset_days_before">
+        <item quantity="one">%d day before</item>
+        <item quantity="other">%d days before</item>
+    </plurals>
+
+    <!-- Content descriptions -->
+    <string name="cd_add_item">Add item</string>
+    <string name="cd_back">Back</string>
+    <string name="cd_settings">Settings</string>
+    <string name="cd_clear_search">Clear search</string>
+</resources>

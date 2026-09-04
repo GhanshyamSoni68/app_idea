@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Hourglass, drawn inside the 72dp safe zone of the adaptive icon. -->
+    <path
+        android:fillColor="#FFF3FBF9"
+        android:pathData="M31,26h46a3,3 0 0 1 0,7h-46a3,3 0 0 1 0,-7z" />
+    <path
+        android:fillColor="#FFF3FBF9"
+        android:pathData="M31,75h46a3,3 0 0 1 0,7h-46a3,3 0 0 1 0,-7z" />
+    <path
+        android:fillColor="#FFF3FBF9"
+        android:pathData="M38,33h32l-16,20z" />
+    <path
+        android:fillColor="#FF7FD1C1"
+        android:pathData="M54,55l16,20h-32z" />
+</vector>

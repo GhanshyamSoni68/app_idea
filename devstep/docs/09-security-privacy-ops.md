@@ -662,7 +662,7 @@ No pilot invitation is sent until every box is ticked and the evidence is linked
 
 ## 10. Open questions for discussion
 
-1. **Login method for the pilot?** *Recommended default:* the framework's built-in email and password, with email verification, a breached-password check and long rolling sessions. Passwordless email links would make an email outage block sign-in, which conflicts with **PRD** §12. Consider "Sign in with GitHub" later, on demand. Offer TOTP after launch.
+1. **Login method for the pilot?** *Recommended default:* the framework's built-in email and password, with email verification, a breached-password check and long rolling sessions. Passwordless email links would make an email outage block sign-in, which works against **PRD** §12 (an email failure must not block learning). Consider "Sign in with GitHub" later, on demand. Offer TOTP after launch.
 2. **Backup retention window?** *Recommended default:* 30 days rolling, with point-in-time recovery if included in the chosen tier. That gives the published commitment "active data ≤ 30 days, backups ≤ a further 30 days".
 3. **Deletion grace period?** *Recommended default:* 7 days, cancellable, with the purge on day 7. This sits well inside the PRD's 30 days and protects against accidental or malicious deletion.
 4. **Analytics on account deletion?** *Recommended default:* delete the learner's `analytics_events` and keep only aggregate pilot results. Keeping events that are merely unlinked would need legal review, because pseudonymous data is still personal data.

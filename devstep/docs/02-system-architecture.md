@@ -229,20 +229,8 @@ Envelope (all events): `event_id`, `name`, `schema_version`, `occurred_at` (UTC)
 - Every response carries `X-Request-Id`. Replayed idempotent responses add `Idempotent-Replayed: true`.
 - Browser auth: HttpOnly, Secure, SameSite session cookie plus a CSRF token on unsafe methods. Operator auth: scoped bearer token, never a learner cookie.
 
-| Auth | Meaning |
-| --- | --- |
-| `public` | No login; rate-limited. |
-| `token` | No login; signed single-purpose token (unsubscribe, recovery). |
-| `guest` | Guest or signed-in learner; owner = principal. |
-| `learner` | Signed-in learner only; guests get `403 account_required`. |
-| `operator` | Scoped bearer token held by CI or the operator. |
-
-| Idempotency | Meaning |
-| --- | --- |
-| `key` | `Idempotency-Key` header required; replay returns the stored response (§6.2). |
-| `natural` | Repeating the same input yields the same state (full replace, target state, unique constraint). |
-| `revision` | Optimistic concurrency with `base_revision` (§5.5). |
-| `safe` | Read only. |
+- **Auth values:** `public` (no login, rate-limited); `token` (no login, signed single-purpose token for unsubscribe or recovery); `guest` (guest or signed-in learner, owner = principal); `learner` (signed-in only, guests get `403 account_required`); `operator` (scoped bearer token held by CI or the operator).
+- **Idempotency values:** `key` (`Idempotency-Key` header required, replay returns the stored response, §6.2); `natural` (same input yields the same state: full replace, target state or unique constraint); `revision` (optimistic concurrency on `base_revision`, §5.5); `safe` (read only).
 
 ### 5.2 Endpoints
 
@@ -343,11 +331,7 @@ Response `200`: `revision`, `saved_at`. Stale `base_revision`: `409 draft_confli
 
 Response `201`: `attempt_id`; `outcome` (examples `correct`, `partly_correct`, `incorrect`, `self_assessed`; final list in `05`); `assistance` (server-recorded `none`, `hint` with count, `worked_example`, `solution_revealed`; the client cannot assert it); `feedback` (authored text, misconception note, exemplar and self-check prompts); `evidence_changes[]` (`skill_id`, `from_level`, `to_level`, `basis`); `next_step_index`; `revisit_hint` (neutral text such as "We'll bring this back in a few days").
 
-**`POST /v1/sessions/{id}/complete`** (request, `Idempotency-Key` required)
-
-| Field | Type | Notes |
-| --- | --- | --- |
-| `base_revision` | int | Client must sync its draft first; a newer server revision → `409 draft_conflict`. |
+**`POST /v1/sessions/{id}/complete`** (request, `Idempotency-Key` required): one field, `base_revision` (int). The client must sync its draft first; a newer server revision → `409 draft_conflict`.
 
 Response `200`: `session_id`, `completed_at`; `summary` (`steps_done`, `attempts`, aggregated `evidence_changes`, `effort_highlights` such as `started`, `returned_after_gap`, `corrected_misconception`, kept separate from evidence, PRD §6); `topic_changes[]` (`topic_id`, `from_state`, `to_state`, applied once, R02); `roadmap_progress` (`completed_required`, `total_required`, `percent`); `milestone` (when the roadmap completes, R04) or null; `next_suggestion` (next planned day, not a demand). A repeat returns the identical stored body.
 
@@ -586,15 +570,15 @@ Mechanics: jobs live in `background_jobs` (added) in the relational database; wo
 
 | ID | Decision | Rationale | Revisit when |
 | --- | --- | --- | --- |
-| AD-01 | Modular monolith, nine modules | One part-time operator; in-process calls and single-database transactions keep progress consistent; Fowler's "Monolith First" [8] and PRD §11 | A module needs independent scaling or release cadence, a second team owns part of the system, or a component needs a separate security or cost boundary |
+| AD-01 | Modular monolith, nine modules | One part-time operator; in-process calls and single-database transactions keep progress consistent; PRD source [8] (Fowler, *Monolith First*, practitioner guidance, not a universal rule) and PRD §11 | A module needs independent scaling or release cadence, a second team owns part of the system, or a component needs a separate security or cost boundary |
 | AD-02 | Database-backed job queue and scheduler in the same codebase | Enqueue in the business transaction gives an outbox with no extra infrastructure (PRD §11) | Queue polling measurably affects database latency or job volume outgrows it |
 | AD-03 | No Redis or other in-memory store | PRD §11: only when measurements justify; queue, sessions, rate limits and caching are covered | Multiple instances need shared rate limits, or Today p95 nears budget after query tuning |
 | AD-04 | No microservices; the worker is the same build | Avoid distributed transactions and extra deploy and observability cost (PRD §2, [8]) | Same triggers as AD-01 |
 | AD-05 | REST + JSON under `/v1`, cookie sessions | Simple, debuggable, CDN-friendly for public reads, usable by future native clients | Round trips slow the first screen, or native apps arrive (add token auth, keep REST) |
 | AD-06 | Rendering approach (SPA vs server-rendered) deferred to `01` | Cost and operations weighting belongs there. Constraint from here: local draft store and one API contract | Decided in `01` |
 | AD-07 | In-process events: core in-transaction, downstream after commit | Consistent progress; side systems cannot block learning (PRD §12) | Long transactions or many subscribers |
-| AD-08 | Business logic in app modules; database enforces integrity only (FK, unique, check) | Testable, explainable rules (PRD §9); one place to read logic | — |
-| AD-09 | Server-side evaluation; public bundles exclude answer keys | Evidence integrity (F04) | — |
+| AD-08 | Business logic in app modules; database enforces integrity only (FK, unique, check) | Testable, explainable rules (PRD §9); one place to read logic | A measured hot path cannot meet its budget without moving work into the database |
+| AD-09 | Server-side evaluation; public bundles exclude answer keys | Evidence integrity (F04) | Offline practice becomes a validated need (then ship keys only for low-stakes practice items) |
 | AD-10 | Server-side guest bound to a device cookie | Uniform owner scoping; trustworthy claim; no duplicate client logic | Guest abuse or storage cost becomes material |
 
 ## Open questions for discussion
@@ -613,24 +597,14 @@ Mechanics: jobs live in `background_jobs` (added) in the relational database; wo
 
 | PRD | Covered in |
 | --- | --- |
-| F01 | §4.3 `profile`, §5.2 preferences, goal, diagnostic |
-| F02 | §5.3 `GET /v1/today` |
-| F03 | §5.3 sessions, drafts, attempts; §6.9 |
-| F04 | §4.4 `AttemptEvaluated`; §5.3 assistance; AD-09 |
-| F05 | §4.4 scheduling subscribers; review cap in Today |
-| F06 | §5.3 `welcome_back`, `smaller_option`; §8 edge cases |
-| F07 | §2, §3 lab kits; `POST /v1/labs/{id}/artifacts` |
-| F08 | `GET /v1/evidence`; §4.3 `assessment` |
-| F09 | §5.2 identity endpoints; §6.2; §7 export and purge |
-| F10 | §5.2 notifications; §6.3; §7 reminder jobs |
-| F11 | §3 content pipeline; §7 content import; admin endpoints |
-| F12 | §4.4 envelope; §6.11; `POST /v1/events` |
-| F13–F15 | §9 seams |
+| F01, F02 | §4.3 `profile`; §5.2 preferences, goal, diagnostic; §5.3 `GET /v1/today` |
+| F03, F04 | §5.3 sessions, drafts, attempts, assistance; §4.4 `AttemptEvaluated`; §6.9; AD-09 |
+| F05, F06 | §4.4 scheduling subscribers; §5.3 review cap, `welcome_back`, `smaller_option`; §8 edge cases |
+| F07, F08 | §2, §3 lab kits; `POST /v1/labs/{id}/artifacts`; `GET /v1/evidence`; §4.3 `assessment` |
+| F09, F10 | §5.2 identity and notification endpoints; §6.2; §6.3; §7 export, purge and reminder jobs |
+| F11, F12 | §3 content pipeline; §7 content import; admin endpoints; §4.4 envelope; §6.11; `POST /v1/events` |
+| F13–F15, R07, R08 | §9 seams |
 | R01–R06 | §4.3 `roadmap`; §5.2 enrolment endpoints; §6.4 |
-| R07, R08 | §9 seams |
-| §5 Onboarding (guest first value) | §6.8 |
-| §9 Adaptation rules | §4.4, §5.3; algorithms in `05` |
-| §11 Technical boundaries | §3, §4, §7, §10 |
-| §12 Quality, privacy, operations | §6, §7, §8 |
-| §13 Events | §4.4 (mapping in `10`) |
-| [8] Fowler | AD-01, AD-04 |
+| §5, §9 | §6.8 guest first value; §4.4, §5.3 adaptation hooks (algorithms in `05`) |
+| §11, §12, §13 | §3, §4, §6, §7, §8, §10; event mapping in `10` |
+| Source [8] (Fowler, *Monolith First*) | AD-01, AD-04 |

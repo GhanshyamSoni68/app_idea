@@ -77,7 +77,7 @@ flowchart TD
 | Primary nav | Bottom tab bar: Today, Roadmap, Evidence. Icon plus visible text. | Top bar, same order and labels. |
 | Settings | Header button with the text "Settings", not an icon alone. | Header, right side. |
 | Player | Focus mode: tab bar hidden, **Save and exit** top left, step count top right. | Same focus mode in a centred reading column. |
-| Lab | Overview only (see §10). | Top nav stays visible; two-pane layout (W13). |
+| Lab | Overview only (see §10). | Top nav stays visible; two-pane layout (W12). |
 | Back | Browser or OS back from the player returns to Today; draft already saved. | Same. |
 | Deep links | Each main screen and each open session has its own URL, so "Continue" links and reminder emails land in the right place. | Same. |
 
@@ -88,24 +88,24 @@ Operation names follow the starting vocabulary in `00-conventions.md`; `02-syste
 | ID | Screen | Reached from | Wireframe | Main operations |
 | --- | --- | --- | --- | --- |
 | S01 | Landing | Public link | — | none |
-| S02 | Sample scenario | S01 | W02–W05 | local only until claim |
-| S03 | Keep your progress | End of sample | W07 | none |
+| S02 | Sample scenario | S01 | W02–W04 | local only until claim |
+| S03 | Keep your progress | End of sample | W06 | none |
 | S04 | Sign in / create account | S01, S03, any guest prompt | — | `POST /v1/guest/claim` after sign-up |
-| S05 | Onboarding | First sign-in | W09 | `PUT /v1/me/preferences`, `PUT /v1/me/goal`, `POST /v1/me/diagnostic`, `POST /v1/enrolments` |
+| S05 | Onboarding | First sign-in | W08 | `PUT /v1/me/preferences`, `PUT /v1/me/goal`, `POST /v1/me/diagnostic`, `POST /v1/enrolments` |
 | S06 | Today | Tab bar, after every session | W01 | `GET /v1/today` |
-| S07 | Return screen | Today after an absence | W08 | `GET /v1/today` (return variant) |
-| S08 | Player | Today, topic detail, skill detail | W02–W05 | `POST /v1/sessions`, `PUT …/draft`, `POST …/hints`, `POST …/reveal`, `POST …/attempts` |
-| S09 | Session complete | Player | W06 | `POST /v1/sessions/{id}/complete` |
-| S10 | Roadmap | Tab bar | W10 | `GET /v1/roadmaps/{slug}` |
+| S07 | Return screen | Today after an absence | W07 | `GET /v1/today` (return variant) |
+| S08 | Player | Today, topic detail, skill detail | W02–W04 | `POST /v1/sessions`, `PUT …/draft`, `POST …/hints`, `POST …/reveal`, `POST …/attempts` |
+| S09 | Session complete | Player | W05 | `POST /v1/sessions/{id}/complete` |
+| S10 | Roadmap | Tab bar | W09 | `GET /v1/roadmaps/{slug}` |
 | S11 | Roadmap overview and enrol | Roadmap, onboarding | — | `GET /v1/roadmaps`, `POST /v1/enrolments` |
 | S12 | Topic detail | Roadmap row | — | `POST /v1/topics/{id}/challenge`, `POST /v1/topics/{id}/defer` |
-| S13 | Version migration offer | Roadmap banner | W16 | `POST /v1/enrolments/{id}/migrate` |
-| S14 | Roadmap completion summary | Last required topic completed | W11 | `GET /v1/evidence` |
-| S15 | Evidence | Tab bar | W12 | `GET /v1/evidence` |
+| S13 | Version migration offer | Roadmap banner | W15 | `POST /v1/enrolments/{id}/migrate` |
+| S14 | Roadmap completion summary | Last required topic completed | W10 | `GET /v1/evidence` |
+| S15 | Evidence | Tab bar | W11 | `GET /v1/evidence` |
 | S16 | Skill evidence detail | Evidence row | — | `GET /v1/evidence` |
-| S17 | Lab | Today, Roadmap | W13 | `POST /v1/labs/{id}/artifacts` |
+| S17 | Lab | Today, Roadmap | W12 | `POST /v1/labs/{id}/artifacts` |
 | S18 | Preferences | Settings | — | `GET/PUT /v1/me/preferences` |
-| S19 | Reminders | Settings, onboarding | W14 | `GET/PUT /v1/me/notifications` |
+| S19 | Reminders | Settings, onboarding | W13 | `GET/PUT /v1/me/notifications` |
 | S20 | Account: export and delete | Settings | — | `POST /v1/me/export`, `DELETE /v1/me` |
 | S21 | Unsubscribe confirmation | Email footer link | — | `POST /v1/notifications/unsubscribe` |
 
@@ -145,7 +145,7 @@ flowchart TD
   A7 -.->|No invite in pilot| A14["Join waitlist<br/>sample stays on device"]
 ```
 
-- The device-only message appears **before** the learner chooses, in plain words (W07). "Saved" alone is never used for guest work. *(PRD §5)*
+- The device-only message appears **before** the learner chooses, in plain words (W06). "Saved" alone is never used for guest work. *(PRD §5)*
 - Pilot access is invite-only *(PRD §15)*; the waitlist branch is a Proposal *(Open question 2)*.
 
 ### 3b. Onboarding
@@ -364,7 +364,7 @@ flowchart TD
 
 ## 4. Low-fidelity wireframes
 
-Phone frames are 40 characters wide; the lab is 80. Bracketed text is a control; `[x]`/`[ ]` are checkboxes, `(X)`/`( )` radio buttons. Evidence icons use the ASCII stand-ins defined in §9.3. These show content and hierarchy, not visual design.
+Phone frames are 40 characters wide; the lab is 80. Bracketed text is a control; `[x]`/`[ ]` are checkboxes, `(X)`/`( )` radio buttons. Evidence icons use the ASCII stand-ins listed in §7.3. These show content and hierarchy, not visual design.
 
 ### W01 · Today
 
@@ -456,11 +456,8 @@ Variants: **Continue** (card reads "Continue: Indexes and pagination · step 3 o
 | recorded and still counts as         |
 | practice.                            |
 |                                      |
-| ( ) Add a read replica               |
 | (X) Look at this query's plan        |
-| ( ) Add more app servers             |
-| ( ) Cache the whole dashboard        |
-|                                      |
+|     ...other options as in W02...    |
 | Saving...                            |
 | [ Check answer ]                     |
 +--------------------------------------+
@@ -508,32 +505,9 @@ hint or after an incorrect attempt (IR-04).
 
 Incorrect variant: "[!] Not quite" heading, an explanation of why the chosen option may not help under the stated assumptions, the worked example expanded, and "A similar question will come back sooner." Status is carried by the marker and the word, never by colour alone. *(PRD §5 step 5, §9)*
 
-### W05 · Open-ended response with self-check
+Open-ended variant (written explanations, architecture choices): after submitting, the panel shows **Show example answer**, a three-item self-check ("Does yours name what the plan showed? Say what you would measure? State one limitation?") and the line "This is self-assessed. A person has not reviewed it." *(PRD §9)*
 
-```text
-+--------------------------------------+
-| [<] Save and exit       Step 4 of 5  |
-+--------------------------------------+
-| Your explanation                     |
-| "Index site_id and created_at so the |
-| sort can use the index..."           |
-|                                      |
-| Compare with an example answer       |
-| [>] Show example answer              |
-|                                      |
-| Does yours...                        |
-| [ ] name what the plan showed?       |
-| [ ] say what you would measure?      |
-| [ ] state one limitation?            |
-|                                      |
-| This is self-assessed. A person has  |
-| not reviewed it.                     |
-|                                      |
-| [ Next ]                             |
-+--------------------------------------+
-```
-
-### W06 · Stopping point: session complete
+### W05 · Stopping point: session complete
 
 ```text
 +--------------------------------------+
@@ -568,7 +542,7 @@ Incorrect variant: "[!] Not quite" heading, an explanation of why the chosen opt
 
 The headline is the evidence-based reward from PRD §5. Effort recognition, if any, sits in "What you did", never in the evidence block. *(PRD §6)*
 
-### W07 · Guest: keep your progress
+### W06 · Guest: keep your progress
 
 ```text
 +--------------------------------------+
@@ -593,7 +567,7 @@ The headline is the evidence-based reward from PRD §5. Effort recognition, if a
 +--------------------------------------+
 ```
 
-### W08 · Return screen
+### W07 · Return screen
 
 ```text
 +--------------------------------------+
@@ -620,7 +594,7 @@ The headline is the evidence-based reward from PRD §5. Effort recognition, if a
 +--------------------------------------+
 ```
 
-### W09 · Onboarding step (3 of 6)
+### W08 · Onboarding step (3 of 6)
 
 ```text
 +--------------------------------------+
@@ -649,7 +623,7 @@ The headline is the evidence-based reward from PRD §5. Effort recognition, if a
 +--------------------------------------+
 ```
 
-### W10 · Roadmap
+### W09 · Roadmap
 
 ```text
 +--------------------------------------+
@@ -689,7 +663,7 @@ The headline is the evidence-based reward from PRD §5. Effort recognition, if a
 - Optional topics and labs carry the word **Optional** and are excluded from the count. *(PRD §8A)*
 - **Options** menu: Pause roadmap, Change pace (opens Preferences), Show all topics, Version details, Switch roadmap (shown once R07 adds roadmaps).
 
-### W11 · Roadmap completion summary
+### W10 · Roadmap completion summary
 
 ```text
 +--------------------------------------+
@@ -727,7 +701,7 @@ The headline is the evidence-based reward from PRD §5. Effort recognition, if a
 
 No confetti or animation. **See other roadmaps** shows a "more coming" note until R07 ships; no automatic enrolment. *(PRD §8A, R04)*
 
-### W12 · Evidence
+### W11 · Evidence
 
 ```text
 +--------------------------------------+
@@ -771,7 +745,7 @@ No confetti or animation. **See other roadmaps** shows a "more coming" note unti
 - Each skill appears once, under its highest current level. Skill detail (S16) lists every record with date, level, basis, help used, task version and a plain limitation. *(PRD F04, F08)*
 - Skills never attempted (including skipped diagnostic areas) appear under a collapsed **Not checked yet** group, not as zero. *(PRD F01)*
 
-### W13 · Lab (desktop, 80 characters)
+### W12 · Lab (desktop, 80 characters)
 
 ```text
 +------------------------------------------------------------------------------+
@@ -809,7 +783,7 @@ No confetti or animation. **See other roadmaps** shows a "more coming" note unti
 
 Phone variant: the left column becomes the whole screen, tasks are readable, and the primary button is **Save for my computer**. Task content and rubric criteria come from `07-curriculum-plan.md`; the ones above are placeholders.
 
-### W14 · Reminder settings
+### W13 · Reminder settings
 
 ```text
 +--------------------------------------+
@@ -846,14 +820,14 @@ Reminder days are a subset of learning days, so "at most one per scheduled learn
 
 ## 5. Screen state catalogue
 
-Every screen in §2.3 must define the states below where they apply. W15 and W16 follow the table.
+Every screen in §2.3 must define the states below where they apply. W14 and W15 follow the table.
 
 | State | Where | What the learner sees | Actions | Never |
 | --- | --- | --- | --- | --- |
 | Loading | Today, Roadmap, Evidence, Player | Layout-shaped placeholders with the real heading. After about 1 s: "Getting your next step…" *(Proposal)* | none | Blank screen; spinner covering a typed answer. |
 | Empty | Evidence, Roadmap (not enrolled) | "Nothing here yet. Evidence appears after your first answer with feedback." / "Choose a roadmap to get a daily next step." | Go to Today; See roadmap | Sample data dressed as real progress. |
 | Offline, unsynced draft | Player, Lab | Banner: "You're offline. Your answer is saved on this device and will sync when you reconnect." Indicator: "Saved on this device, not synced". **Check answer** disabled with the reason shown. | Keep writing; Save and exit | Discarding the local draft; showing "Saved" for a local-only draft. *(PRD §12)* |
-| Sync conflict | Player, Lab | W15: both versions with device and time; learner chooses. | Keep this device's; Keep the other | Silent overwrite or last-write-wins without asking. *(PRD §12)* |
+| Sync conflict | Player, Lab | W14: both versions with device and time; learner chooses. | Keep this device's; Keep the other | Silent overwrite or last-write-wins without asking. *(PRD §12)* |
 | Completed elsewhere | Player | "You finished this session on another device." Any unsynced local text is offered for copying. | Back to Today | Double credit (completion is idempotent, F09). |
 | Error | Any | "Couldn't load Today. Your progress is safe." / "Couldn't check your answer. It's saved; try again." | Try again | Losing the answer; error codes as the only message. |
 | Signed out mid-task | Player, Lab | "You've been signed out. Your answer is saved on this device. Sign in to continue." Returns to the same step. | Sign in | Expiring work (no timed answers). |
@@ -861,13 +835,13 @@ Every screen in §2.3 must define the states below where they apply. W15 and W16
 | All prerequisites unmet | Today, Roadmap | "The next topics build on Query plans, which is deferred. Start it (about 10 min) or take its challenge." Rows read "Needs: Query plans (deferred)". | Start; Take the challenge; Preview | A dead end; a padlock with no explanation. |
 | Enrolment paused | Today, Roadmap | "Your roadmap is paused. Progress and drafts are kept." Roadmap header: "Paused since 3 Oct". | Resume; Three-minute refresher | "You're losing progress"; auto-resume countdown. *(R05)* |
 | Roadmap completed | Today | Maintenance card: "Maintenance: 1 short review, about 3 min." | Start; See other roadmaps; Take a break | Automatic enrolment. *(PRD §8A)* |
-| New roadmap version | Roadmap banner only | "Version 1.1 is available. You can stay on 1.0." → W16 | See changes; Not now | Silent migration; unexplained drop in percentage. *(R06)* |
+| New roadmap version | Roadmap banner only | "Version 1.1 is available. You can stay on 1.0." → W15 | See changes; Not now | Silent migration; unexplained drop in percentage. *(R06)* |
 | Content updated mid-session | Player | "This task was updated after you started. Finish your version or start the updated one. Your history is kept." | Finish mine; Start updated | Losing the draft or past evidence. *(PRD §12)* |
 | Guest storage unavailable | Sample | "This browser isn't saving. Your answers will be lost when you close this tab." | Create an account; Continue anyway | Implying the work is saved. |
 | Lab setup fails | Lab | "The setup check didn't pass." Troubleshooting list, then "Still stuck? Try the no-setup version. It is recorded as different evidence." | Retry check; No-setup version | Blocking the roadmap on lab setup (labs are optional). *(PRD §16)* |
 | Missed planned session | Today | Normal recommendation; at most "Your plan moved on. Nothing to catch up." | Start; Start small | "You missed…", doubled load. *(PRD §6)* |
 
-### W15 · Sync conflict
+### W14 · Sync conflict
 
 ```text
 +--------------------------------------+
@@ -894,7 +868,7 @@ Every screen in §2.3 must define the states below where they apply. W15 and W16
 +--------------------------------------+
 ```
 
-### W16 · New roadmap version: migration offer
+### W15 · New roadmap version: migration offer
 
 ```text
 +--------------------------------------+
@@ -937,7 +911,7 @@ Which credit carries over is decided by `05-learning-engine.md` and `06-content-
 | IR-08 | Leave at any time | **Save and exit** is always visible in the player. No "are you sure?" when the draft is saved. | PRD R05 |
 | IR-09 | Limited choice on Today | One primary action, at most two secondary ones (Start small or Continue, Rest today). No browsing needed to start. | PRD F02 |
 | IR-10 | Feedback before moving on | **Next** sits inside the feedback panel, so feedback is seen before the next step. Practised evidence depends on engaging with feedback. | PRD §9 |
-| IR-11 | Open-ended answers | After submitting, show an example answer and a short self-check (W05). The record is labelled **Self-assessed**. | PRD §9 |
+| IR-11 | Open-ended answers | After submitting, show an example answer and a short self-check (open-ended variant under W04). The record is labelled **Self-assessed**. | PRD §9 |
 | IR-12 | Safe repeat taps | **Check answer** and **Finish** disable on press and show "Checking…"; repeat taps cannot create duplicate attempts or completions. | PRD F09, R02 |
 | IR-13 | No surprise navigation | Nothing auto-advances to a new session, step or roadmap. Every transition follows a learner action. | Proposal |
 | IR-14 | Context on every task | Today and the player header show roadmap, module, topic and practical purpose. | PRD §8A |
@@ -980,23 +954,25 @@ Which credit carries over is decided by `05-learning-engine.md` and `06-content-
 
 ### 7.3 Display labels for canonical enums
 
-| Enum value | Label shown | Short explanation (skill detail, help text) |
-| --- | --- | --- |
-| Session mode `small` / `practise` / `build` | Start small / Practise / Build | About 3 min / about 10 min / 30–45 min on a computer |
-| Topic `not_started` | Not started | — |
-| Topic `in_progress` | In progress | — |
-| Topic `completed` | Completed (or "Completed by challenge") | Activities and topic check done, or challenge passed. |
-| Topic `deferred` | Deferred, no credit | Moved aside; the roadmap can't complete until it's done. |
-| Topic kind `optional` | Optional | Not counted in progress. |
-| Evidence `introduced` | Introduced | You've met the concept. |
-| Evidence `practised` | Practised | You attempted it and reviewed feedback. |
-| Evidence `demonstrated` | Demonstrated | You met the rubric on a different scenario without the solution. |
-| Evidence `retained` | Retained | You passed a different check at least 7 days later. |
-| Basis `auto_scored` | Checked automatically | Scored against an authored answer key. |
-| Basis `self_assessed` | Self-assessed | You compared your answer with an example. |
-| Basis `learner_submitted` | Submitted by you | Results from your machine; not verified by DevStep. |
-| Basis `human_reviewed` | Reviewed by a person | A reviewer checked it against the rubric. |
-| Assistance `none` / `hint` / `worked_example` / `solution_revealed` | No help / Used N hints / Used a worked example / Solution shown | Shown on every evidence record. |
+Icons and markers (see §9.3) are always paired with the label; the stand-in is what the wireframes use.
+
+| Enum value | Label shown | Icon or marker (stand-in) | Short explanation (skill detail, help text) |
+| --- | --- | --- | --- |
+| Session mode `small` / `practise` / `build` | Start small / Practise / Build | none | About 3 min / about 10 min / 30–45 min on a computer |
+| Topic `not_started` | Not started | Empty square `[ ]` | — |
+| Topic `in_progress` | In progress | Part-filled square `[~]` | — |
+| Topic `completed` | Completed (or "Completed by challenge") | Square with tick `[x]` | Activities and topic check done, or challenge passed. |
+| Topic `deferred` | Deferred, no credit | Square with dash `[-]` | Moved aside; the roadmap can't complete until it's done. |
+| Topic kind `optional` | Optional | Text tag only | Not counted in progress. |
+| Evidence `introduced` | Introduced | Outline circle `(.)` | You've met the concept. |
+| Evidence `practised` | Practised | Half-filled circle `(+)` | You attempted it and reviewed feedback. |
+| Evidence `demonstrated` | Demonstrated | Filled circle `(#)` | You met the rubric on a different scenario without the solution. |
+| Evidence `retained` | Retained | Filled circle with outer ring `(@)` | You passed a different check at least 7 days later. |
+| Basis `auto_scored` | Checked automatically | Text tag only | Scored against an authored answer key. |
+| Basis `self_assessed` | Self-assessed | Text tag only | You compared your answer with an example. |
+| Basis `learner_submitted` | Submitted by you | Text tag only | Results from your machine; not verified by DevStep. |
+| Basis `human_reviewed` | Reviewed by a person | Text tag only | A reviewer checked it against the rubric. |
+| Assistance `none` / `hint` / `worked_example` / `solution_revealed` | No help / Used N hints / Used a worked example / Solution shown | Text only | Shown on every evidence record. |
 
 ## 8. Accessibility acceptance checklist
 
@@ -1007,20 +983,20 @@ These are product acceptance requirements, not a claim of certified compliance *
 | A-01 | Every action works by keyboard alone, in a logical order, with no traps. | Complete onboarding, a `practise` session, a lab task and reminder setup with keyboard only. | 2.1.1, 2.1.2, 2.4.3 |
 | A-02 | Focus is always visible in both themes and never hidden by sticky headers or tab bars. | Tab through every screen at 100% and 200% zoom. | 2.4.7, 2.4.11 |
 | A-03 | Landmarks (header, nav, main), one `h1` per screen, step title as heading; skip link to main content. | Screen reader heading and landmark lists. | 1.3.1, 2.4.1 |
-| A-04 | All controls have accessible names; icon buttons have text; evidence icons always have a text label. | Screen reader pass on W01–W16 equivalents. | 4.1.2, 1.1.1 |
+| A-04 | All controls have accessible names; icon buttons have text; evidence icons always have a text label. | Screen reader pass on W01–W15 equivalents. | 4.1.2, 1.1.1 |
 | A-05 | Feedback results, offline, conflict and save-failure messages are announced politely; routine autosaves are not. | Screen reader on desktop and mobile. | 4.1.3 |
 | A-06 | Focus management: on **Next**, focus moves to the new step heading; on feedback, to the feedback heading; dialogs take focus, trap it, close with Escape and return focus to the trigger; errors move focus to the error summary; **Save and exit** lands on Today's `h1`. | Scripted walkthrough per transition. | 2.4.3, 3.2.1 |
 | A-07 | Mobile code blocks: monospace at least 14 CSS px *(Proposal)*, line height about 1.4, no wrap by default, horizontal scroll inside the block only, a **Wrap** toggle remembered per device, and a **Copy** button. | Check every W02-type block at 320 CSS px width. | 1.4.10 |
 | A-08 | A scrollable code block is focusable, named (for example "SQL, 4 lines, scrolls sideways") and scrolls with arrow keys. Line numbers, if any, are not copied or read. | Keyboard and screen reader on a long query plan. | 2.1.1, 1.3.1 |
 | A-09 | The page never scrolls sideways at 320 CSS px; only code and plan blocks may. | Resize test on every screen. | 1.4.10 |
 | A-10 | Text resizes to 200% without loss of content or controls. | Browser zoom and OS text size. | 1.4.4 |
-| A-11 | Reduced motion: the OS setting is honoured, transitions removed, no parallax, nothing essential conveyed by motion; completion is static. | Toggle OS setting; repeat W06, W11. | 2.3.3 |
+| A-11 | Reduced motion: the OS setting is honoured, transitions removed, no parallax, nothing essential conveyed by motion; completion is static. | Toggle OS setting; repeat W05, W10. | 2.3.3 |
 | A-12 | Status never relies on colour alone: correct/incorrect uses a marker and a word; topic states use markers and text; progress bars have a count; diffs use `+`/`-`. | Greyscale review of every state in §5. | 1.4.1 |
 | A-13 | Contrast: text at least 4.5:1, large text and UI components at least 3:1, in light and dark themes, including syntax highlighting. | Contrast tool on tokens and both code themes. | 1.4.3, 1.4.11 |
 | A-14 | Light and dark themes follow the system setting, with a manual override in Preferences. | Switch both ways on each screen. | Proposal |
 | A-15 | No timed answers: no countdowns, no auto-advance; sign-in expiry keeps the draft and returns to the same step. | Leave a step open past session expiry. | 2.2.1 |
-| A-16 | Targets at least 24 × 24 CSS px; primary actions, tab bar items and choice rows about 44 × 44 *(Proposal)*. | Measure on W01, W02, W09. | 2.5.8 |
-| A-17 | Forms: visible labels, text errors beside the field and in a summary; time can be typed; time-zone picker is searchable. | Keyboard and screen reader on W09, W14. | 3.3.1, 3.3.2 |
+| A-16 | Targets at least 24 × 24 CSS px; primary actions, tab bar items and choice rows about 44 × 44 *(Proposal)*. | Measure on W01, W02, W08. | 2.5.8 |
+| A-17 | Forms: visible labels, text errors beside the field and in a summary; time can be typed; time-zone picker is searchable. | Keyboard and screen reader on W08, W13. | 3.3.1, 3.3.2 |
 | A-18 | No single-key shortcuts in the MVP (or they can be turned off). | Review key handlers. | 2.1.4 |
 | A-19 | Page language set to `en-GB`; abbreviations expanded on first use in content. | Markup review; content checklist in 06. | 3.1.1 |
 | A-20 | Illustrations have text alternatives; decorative images are hidden from assistive technology. No audio or video in the MVP. | Screen reader pass. | 1.1.1 |
@@ -1036,23 +1012,14 @@ Semantic tokens only, resolved per theme. Values are chosen in the design phase 
 
 ```yaml
 # Illustrative structure, not values
-color:
-  text: [primary, secondary]
-  surface: [base, raised, sunken]
-  border: [default, strong]
-  focus: ring
-  action: [primary, primary-text, quiet]
-  status: [positive, attention, info]   # always paired with a marker and text
-  code: [background, text, syntax-*]    # syntax palette contrast-checked per theme
-type:
-  family: [ui, mono]
-  size: [sm, base, lg, xl]              # base at least 16 CSS px; mono at least 14
-space: [1, 2, 3, 4, 6, 8]               # multiples of a 4 CSS px unit
-radius: [sm, md]
-motion:
-  duration: [none, short]               # none under reduced motion
-breakpoint: [compact, medium, wide]     # see §10
-theme: [light, dark]                    # system default, manual override
+color: {text: [primary, secondary], surface: [base, raised], border: [default, strong],
+        focus: ring, action: [primary, quiet], status: [positive, attention, info],
+        code: [background, text, syntax]}   # status always paired with marker and text
+type:  {family: [ui, mono], size: [sm, base, lg, xl]}  # base >= 16 CSS px, mono >= 14
+space: [1, 2, 3, 4, 6, 8]                    # multiples of a 4 CSS px unit
+motion: {duration: [none, short]}            # none under reduced motion
+breakpoint: [compact, medium, wide]          # see §10
+theme: [light, dark]                         # follows system, manual override
 ```
 
 ### 9.2 Component inventory
@@ -1082,23 +1049,7 @@ Deliberately excluded: toasts (easy to miss), numeric badges, carousels, confett
 
 ### 9.3 Evidence and topic iconography
 
-Shape carries the meaning; colour is decoration. The text label is always shown beside the icon, including in compact rows.
-
-| Level | Icon shape | Wireframe stand-in | Label |
-| --- | --- | --- | --- |
-| `introduced` | Outline circle | `(.)` | Introduced |
-| `practised` | Half-filled circle | `(+)` | Practised |
-| `demonstrated` | Filled circle | `(#)` | Demonstrated |
-| `retained` | Filled circle with outer ring | `(@)` | Retained |
-
-| Topic state | Marker | Label |
-| --- | --- | --- |
-| `not_started` | Empty square | Not started |
-| `in_progress` | Square with partial fill | In progress |
-| `completed` | Square with tick | Completed |
-| `deferred` | Square with dash | Deferred, no credit |
-
-Basis is shown as a text tag, never an icon alone: **Checked automatically**, **Self-assessed**, **Submitted by you**, **Reviewed by a person**.
+Shapes and labels are listed in §7.3. Rules: shape carries the meaning and colour is decoration only; the four evidence-level shapes progress from outline to filled-with-ring so they read in greyscale; the text label is always shown beside the icon, including in compact rows; evidence basis is a text tag, never an icon alone. One small icon set (about 12 glyphs: four levels, four topic states, hint, feedback correct, feedback not quite, offline) covers the MVP.
 
 ## 10. Phone and desktop responsibilities
 
@@ -1116,7 +1067,7 @@ Breakpoints *(Proposal)*: compact below 600 CSS px, medium 600–1023, wide 1024
 | Evidence | Supported | Supported; list and detail side by side |
 | Reminder settings | Supported | Supported |
 | Export and delete | Supported | Supported; downloading the export is usually easier here |
-| Cross-device continuity | Open sessions and drafts resume on either device; conflicts use W15 | Same |
+| Cross-device continuity | Open sessions and drafts resume on either device; conflicts use W14 | Same |
 
 Hypothesis to test in discovery: learners practise on the phone between desktop labs. *(PRD §16 open question)* If they do not, phone stays supported but is no longer the primary design target.
 
@@ -1155,45 +1106,24 @@ Hypothesis: a companion improves return visits. The PRD says the research does n
 9. **Should Today show weekly progress at all?** *Recommended default:* yes, as "N of M sessions this week" with no streak; learners can hide it in Preferences.
 10. **Is a progress illustration in the MVP?** *Recommended default:* text-only progress for the alpha; add the static workshop illustration before the pilot only if it does not delay core work.
 11. **Can Practise now on Evidence override Today's recommendation?** *Recommended default:* yes, it starts a session on that skill and Today recalculates afterwards; `05` confirms selection rules.
-12. **How are sync conflicts resolved?** *Recommended default:* W15: show both versions with device and time, the learner chooses, and the other version stays visible for copying until the step is submitted.
+12. **How are sync conflicts resolved?** *Recommended default:* W14: show both versions with device and time, the learner chooses, and the other version stays visible for copying until the step is submitted.
 
 ## PRD traceability
 
-| PRD reference | Covered in |
-| --- | --- |
-| §1 Responsive web, phone practice, desktop labs; no fear marketing | §2.2, §7.2, §10 |
-| §5 Onboarding (stack, outcome, days, length, reminder, skippable diagnostic) | §3b, W09 |
-| §5 First value before account; device-only saving explained | §2.4, §3a, W07 |
-| §5 Session formats; no countdown; example reward | W01, W06, IR-05, §7.2 |
-| §6 Barriers: too big, tired, don't understand, already know, missed, long absence, many reviews | W01, §3d, IR-03, §3g, §5, §3e, IR-06 |
-| §6 Weekly target, celebrate starting and returning, effort separate from skill | W01, W06, §7.2, §11 |
-| §6 Companion never punishes; simple illustration for MVP | §11 |
-| §6 Reminders: opt-in, one per learning day, snooze, pause, time zones, quiet hours | §3i, W14 |
-| §8A Roadmap list, prerequisites, effort, completion conditions, preview, pause | §3g, W10 |
-| §8A Completion summary, maintenance, no automatic enrolment | W11, §5 |
-| §8A Completion % is not mastery %; count beside percentage | W10, W11, §7.2 |
-| §9 Evidence states; revealed solution; review cap; no red counter | W12, W03, IR-04, IR-06, §9.3 |
-| §10 Primary nav, Today, Player, Path, Lab, Evidence, Return screen | §2, W01–W16 |
-| §10 Accessibility requirements | §8 |
-| §12 Draft persistence, offline, no silent overwrite, edge cases | §5, W15, IR-02 |
-| F01 Goal and baseline | §3b, W09, W12 |
-| F02 Today screen | W01, IR-09 |
-| F03 Authored learning player | W02–W06, IR-01–IR-03 |
-| F04 Evidence-based progress | W06, W12, §7.3 |
-| F05 Review scheduling (surface only) | IR-06 |
-| F06 Recovery flow | §3e, W08 |
-| F07 Continuing project labs | §3f, W13 |
-| F08 Skill evidence view | §3h, W12 |
-| F09 Account and continuity | §3a, §3j, §5, IR-12 |
-| F10 Optional email reminder | §3i, W14 |
-| F12 Instrumentation (no free text) | IR-15 |
-| F15 Optional companion | §11 |
-| R01 Enrolment | §3g, enrolment table |
-| R02 Topic progression | IR-12, W06 |
-| R03 Prerequisites and skips | §3g challenge-out, §5 |
-| R04 Completion milestone | W11 |
-| R05 Pause and return | §3g, §5, IR-08 |
-| R06 Version stability | §5, W16 |
-| R07 Additional roadmaps (switch entry point only) | §3g, W10 Options |
+| PRD section | Requirement IDs | Covered in |
+| --- | --- | --- |
+| §1 Responsive web, phone practice, desktop labs; no fear marketing | — | §2.2, §7.2, §10 |
+| §5 Onboarding, skippable diagnostic, first value before account | F01 | §2.4, §3a, §3b, W06, W08, W11 |
+| §5 Session formats, no countdown, evidence-based reward | F02, F03 | W01–W05, IR-01–IR-05, IR-09, §7.2 |
+| §6 Barriers (too big, tired, don't understand, already know, missed, long absence, many reviews) | F05, F06 | W01, §3d, IR-03, §3g, §5, §3e, W07, IR-06 |
+| §6 Weekly target, effort separate from skill, companion never punishes | F15 | W01, W05, §7.2, §11 |
+| §6 Reminders: opt-in, one per learning day, snooze, pause, time zones, quiet hours | F10 | §3i, W13 |
+| §8A Roadmap list, enrolment, prerequisites, preview, pause, challenge-out and defer | R01, R02, R03, R05, R07 | §3g, W09, IR-08, IR-12, §5 |
+| §8A Completion milestone, count beside percentage, not mastery | R04 | W09, W10, §7.2 |
+| §8A Version stability | R06 | §5, W15 |
+| §9 Evidence states, labels, revealed solution, review cap | F04, F08 | §3h, W03, W05, W11, IR-04, IR-06, §7.3 |
+| §10 Navigation and screens; accessibility requirements | — | §2, W01–W15, §8 |
+| §11–12 Continuity, drafts, offline, conflicts, export and delete, labs local | F07, F09 | §3a, §3f, §3j, W12, W14, §5, IR-02, IR-12 |
+| §13 Instrumentation without free text | F12 | IR-15 |
 
 Not covered here: F11 (content operations, `06`), F13 (AI tutor, P1; the hint panel is its likely home), F14 (relevance briefing, P1), R08 (custom roadmap, later).

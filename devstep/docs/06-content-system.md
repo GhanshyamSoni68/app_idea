@@ -64,10 +64,7 @@ rejecting cycles before publication.
 | No WYSIWYG preview at first | Static preview (§12); the real player locally once it exists |
 | Publishing needs an import step and credentials | Reuse the deploy pipeline (Open question 2); the import is idempotent and atomic |
 | A public repo would leak answer keys | Keep content private; lab kits contain no answer keys, so they can be public (Open question 6) |
-
-**Revisit if:** a non-technical author joins, subject experts need to edit in
-the app, or the file count becomes hard to navigate. A later admin UI should
-write the **same schema** and run the **same validator**.
+| Outgrowing files | Revisit if a non-technical author joins or experts must edit in the app; a later admin UI writes the **same schema** and runs the **same validator** |
 
 ## 3. Content hierarchy
 
@@ -105,41 +102,32 @@ flowchart TD
 content/                                 # private repo (Open question 1)
 ├── schemas/                             # one JSON Schema per file kind
 ├── skills/skills.yaml                   # skills and skill prerequisites
-├── roadmaps/
-│   └── crud-to-reliable/
-│       ├── roadmap.yaml                 # slug, title, outcome
-│       └── versions/
-│           ├── v1.yaml                  # structure immutable once published
-│           └── v2.yaml
+├── roadmaps/crud-to-reliable/
+│   ├── roadmap.yaml                     # slug, title, outcome
+│   └── versions/                        # v1.yaml, v2.yaml: structure immutable
 ├── missions/
 │   └── m-query-plans/                   # directory name = mission ID
 │       ├── mission.md                   # front matter + step bodies
 │       ├── items/                       # primary-1, primary-2 (shown);
 │       │                                # alt-1, alt-2, check-1 (held back)
 │       └── assets/                      # images with alt text, text plans
-├── labs/
-│   └── lab-perf-experiment/
-│       ├── lab.yaml
-│       └── tasks/                       # 01-reproduce.md, ...
-├── assessments/
-│   ├── rubric-transfer.yaml             # shared by baseline and final
-│   ├── ta-baseline/                     # assessment.yaml + items/
-│   └── ta-final/
+├── labs/lab-perf-experiment/            # lab.yaml + tasks/*.md
+├── assessments/                         # rubric-transfer.yaml (shared),
+│                                        # ta-baseline/, ta-final/ (+ items/)
 └── release-notes/2026-11.md             # learner-facing, per month
-.github/                                 # or the Git host's equivalent
-├── pull_request_template.md             # review checklist (§7.3)
-├── ISSUE_TEMPLATE/content-problem.yml   # problem reports (§11.2)
-└── workflows/                           # validate, preview, publish, scheduled
+.github/                                 # or the Git host's equivalent:
+                                         # pull_request_template.md (§7.3),
+                                         # ISSUE_TEMPLATE/content-problem.yml
+                                         # (§11.2), workflows/
 ```
 
-Validator and preview tools are engineering code in the app's chosen language
+Validator and preview tools are engineering code in the app's language
 (`01-tech-stack-and-hosting.md`). Lab starter kits live in a separate,
-downloadable repository; their contents belong to `07-curriculum-plan.md`.
+downloadable repository (contents: `07-curriculum-plan.md`).
 
-**Identifier rules (Proposal).** IDs are lowercase ASCII and stable across
-versions. They never encode order (order lives in manifests) and are never
-reused. Published units are never deleted from the repository, only retired, so
-uniqueness checks always see them.
+**Identifier rules (Proposal).** IDs are lowercase ASCII, stable across
+versions, never encode order, and are never reused. Published units are retired,
+never deleted, so uniqueness checks always see them.
 
 | Unit | Pattern | Example |
 | --- | --- | --- |
@@ -171,13 +159,12 @@ uniqueness checks always see them.
 
 ### 5.2 Per assessment item, lab, transfer assessment and roadmap version
 
-- **Item.** Fields: `id`, `role`, `type` (`single_choice`, `multi_select`,
-  `ordering`, `numeric`, `self_check`), `evidence_basis` (`auto_scored` or
-  `self_assessed`), `skills`, `scenario`, `prompt`, an answer key or a rubric
-  with an exemplar, and feedback for the correct answer, each wrong option, or
-  after a self-check. Also graduated `hints`, a `reveal`, misconception links
-  and a time estimate. Held-back items add `changed_conditions_of`, which feeds
-  the leakage check. Items never have a time-limit field (PRD §5).
+- **Item.** `id`, `role`, `type` (`single_choice`, `multi_select`, `ordering`,
+  `numeric`, `self_check`), `evidence_basis`, `skills`, `scenario`, `prompt`,
+  answer key or rubric with exemplar, feedback (correct, each wrong option, or
+  after self-check), graduated `hints`, `reveal`, misconception links, time
+  estimate. Held-back items add `changed_conditions_of` (leakage check). No
+  time-limit field exists (PRD §5).
 - **Lab.** Mission identity and review fields, plus `starter_kit` (repository,
   immutable tag, checksum, supported environments, setup check),
   `synthetic_data` (generator, seed, scale, `contains_personal_data: false`),
@@ -335,14 +322,12 @@ review: { reviewer: reviewer-a, ran_end_to_end: true, clean_machine: true, minut
 roadmap: crud-to-reliable
 version: 1
 change_class: initial                 # initial | additive | structural
-status: in_review
 modules:
   - id: mod-understand-system
     topics:
       - id: t-request-path
         kind: required
         missions: [{ id: m-request-path, major: 1 }]
-        prerequisites: []
         completion: { rule: attempt_feedback_topic_check }   # rule IDs: 05
       - id: t-requirements-constraints
         kind: required
@@ -397,9 +382,8 @@ stateDiagram-v2
 | Retire a unit | Proposes | Reviews (after the fact in an emergency, §11.3) | Executes |
 | Problem triage, release notes, scheduled review | Fixes and updates | Reviews and re-tries | Triages, schedules, publishes notes |
 
-At first the founder is both author and operator. The reviewer must be a
-different person. With no reviewer, nothing publishes, and that is intended
-(PRD §8, §14).
+The founder starts as author and operator; the reviewer must be someone else.
+With no reviewer, nothing publishes, and that is intended (PRD §8, §14).
 
 ### 7.3 PR review checklist (`pull_request_template.md` content)
 
@@ -419,14 +403,11 @@ different person. With no reviewer, nothing publishes, and that is intended
 | 12 | No fear framing or reward for needless complexity; synthetic data only; no secrets or employer code | Reviewer | PRD §1, §11 |
 | 13 | Breaking or structural change: roadmap-version impact noted | Reviewer | PRD R06 |
 
-**Enforcement (Proposal).** The reviewer commits the `review:` block in the PR.
-Before importing, the publish job checks that the merged PR was approved by
-someone in a reviewers list, that this person is not the unit's author and
-matches the `review:` block, and that checks 5–13 are ticked. If anything
-fails, nothing is published. This does not rely on branch-protection features
-that may need a paid plan for private repositories (unverified). If the
-reviewer's minutes exceed the estimate by more than 1.5 times, the estimate is
-flagged for recalibration.
+**Enforcement (Proposal).** The reviewer commits the `review:` block. Before
+import, the publish job checks: a listed reviewer approved the merged PR; that
+reviewer is not the author and matches `review:`; checks 5–13 are ticked.
+Otherwise nothing publishes. This needs no paid branch protection (unverified).
+Reviewer minutes over 1.5 times the estimate flag it for recalibration.
 
 ## 8. Publish pipeline
 
@@ -459,12 +440,10 @@ flowchart TD
 | `labs/<id>/` | `content_versions`, `labs` (the kit stays in the lab-kit repository) |
 | `assessments/` | `content_versions`, `assessment_items` (roles `baseline` and `final_transfer`; `04-data-model.md` decides whether a grouping record is needed) |
 
-Each published version must carry the following (column names are for
-`04-data-model.md`): unit kind, ID and semantic version; change class; a
-learner-facing content hash (excluding review metadata); source commit SHA;
-author; reviewer; last-reviewed date; tried flag; published-at time; status;
-and retirement reason and replacement where relevant. This gives a full audit
-chain: attempt → content version → commit → PR → review.
+Each published version carries (columns: `04-data-model.md`) kind, ID, version,
+change class, learner-facing hash (excluding review metadata), commit SHA,
+author, reviewer, last-reviewed date, tried flag, published-at, status and any
+retirement reason. Audit chain: attempt → content version → commit → PR → review.
 
 ### 8.2 Publish rules (Proposal)
 
@@ -524,11 +503,9 @@ V15 is a heuristic. Checklist item 8 remains the real control.
 
 ### 10.1 Unit versions (missions, labs, transfer assessments)
 
-**Proposal:** a session pins the content version it started on, and its drafts
-carry that version. `05-learning-engine.md` and `04-data-model.md` confirm the
-mechanics. "Compatible" evidence means the same unit ID and the same **major**
-version, which is how this doc makes PRD §8A's "objectives and assessment
-versions are compatible" concrete.
+**Proposal:** a session and its drafts pin the content version it started on
+(mechanics: `05-learning-engine.md`, `04-data-model.md`). PRD §8A's
+"compatible" evidence means the same unit ID and the same **major** version.
 
 | Class | Examples | Bump | Learner mid-mission | Existing evidence | New roadmap version? |
 | --- | --- | --- | --- | --- | --- |
@@ -588,17 +565,12 @@ flowchart LR
   G --> H
 ```
 
-**Proposal:**
-- The in-app form attaches the content version and step key automatically.
-- The learner picks a category (factual error, wrong answer, broken link, lab
-  setup, unclear, accessibility, outdated) and may add text.
-- Reports are stored as `content_reports` (added). Columns belong to
-  `04-data-model.md` and retention to `09-security-privacy-ops.md`.
-- Report text never enters analytics (F12), and learners never need a Git host
-  account. A prefilled email link is enough during the concierge trial
-  (Open question 8).
-- The issue template has these fields: unit ID and version, step, category,
-  severity, evidence or source, and reproduction steps.
+**Proposal:** an in-app form auto-attaches content version and step; the learner
+picks a category (factual, wrong answer, link, lab setup, unclear,
+accessibility, outdated) and may add text. Stored as `content_reports` (added;
+columns `04`, retention `09`), never in analytics (F12), no Git account needed;
+email link in the concierge trial (Open question 8). Issue template fields:
+unit ID and version, step, category, severity, evidence, reproduction steps.
 
 | Severity | Examples | Target (Proposal; pilot hypothesis) |
 | --- | --- | --- |
@@ -608,26 +580,20 @@ flowchart LR
 
 ### 11.3 Hotfix path
 
-1. **Contain (operator).** If a reviewed fix cannot ship within the target,
-   retire the faulty item through a retire-only PR. Retiring adds nothing
-   unreviewed, so the review can happen afterwards. If this leaves a mission
-   below V06, retire the mission instead; the topic then shows as temporarily
-   unavailable, which must never reduce progress (R06, `05-learning-engine.md`).
-2. **Fix.** Use a `hotfix/<issue>` branch with `change_class: defect_fix`. Every
-   check runs; none can be skipped.
-3. **Expedited review.** The reviewer re-tries only the changed items.
-4. **Publish.** Add a release note and notify learners who attempted the faulty
-   version (§10.1).
-5. **Learn.** If the defect class can be checked automatically, add a
-   validation rule or checklist item.
+1. **Contain (operator):** if a reviewed fix cannot ship within the target,
+   retire the faulty item in a retire-only PR, reviewed afterwards because it
+   adds nothing unreviewed. If the mission falls below V06, retire the mission;
+   the topic shows as temporarily unavailable and progress never drops (R06).
+2. **Fix:** a `hotfix/<issue>` branch with `change_class: defect_fix`. Every
+   check runs. **Review:** the reviewer re-tries only the changed items.
+3. **Publish:** add a release note and notify learners who attempted the faulty
+   version (§10.1). **Learn:** add a rule or checklist item where possible.
 
 ### 11.4 Release notes for learners
 
-The publish job collects each PR's learner-facing note into
-`release-notes/YYYY-MM.md`, and the operator edits it. Only learner-visible
-changes are listed, grouped by roadmap, in a neutral tone with no urgency; patch
-typos are left out. Structural roadmap versions come with the R06 migration
-summary. Display is decided in `08-ux-and-screens.md`.
+The publish job collects PR learner notes into `release-notes/YYYY-MM.md` for
+the operator to edit: learner-visible changes only, by roadmap, neutral tone, no
+typos. Structural versions add the R06 migration summary (display: `08`).
 
 ## 12. Local authoring experience (described, not built)
 
@@ -636,12 +602,9 @@ summary. Display is decided in `08-ux-and-screens.md`.
 | Editing | Any text editor. The JSON Schemas give autocompletion and inline errors in editors that support YAML schemas. |
 | Checks | `content check` runs the same validator as CI. Offline mode skips the link check; `--changed` limits it to changed units. An optional pre-commit hook can run it. |
 | Preview | `content preview` renders missions as static HTML in a phone-width frame, one step at a time. Hints, feedback and reveal stay hidden until clicked, so a reviewer can attempt honestly. CI attaches the same preview to each PR as a downloadable artifact, with no hosting cost. |
-| Real player | Once the app exists, a local import loads working-tree content, drafts included, into the developer's own database. Drafts never reach production. |
+| Real player | Once the app exists, a local import loads working-tree content, drafts included, into the developer's own database. Drafts never reach production. A staging environment is optional, and only if it costs nothing extra (Open question 11). |
 | Labs | Clone the kit at the referenced tag and run the setup check and local checks. Reviewers do the same on a clean machine or container. |
 | Stats | `content stats` reports item counts per mission, time totals per module, units due for review, and estimated versus reviewer minutes. |
-
-A staging environment with the real player is optional, and only worth adding
-if `01-tech-stack-and-hosting.md` finds one at no extra cost (Open question 11).
 
 ## 13. AI-assisted drafting policy
 
@@ -656,10 +619,9 @@ and §12: no employer repositories, no secrets, no learner data.
 | Draft alt text that the author checks | Answer keys accepted without the author working the problem |
 | Ideas for synthetic-data generators | AI as the reviewer, or ticking the checklist; pasting learner data, report text, employer code or secrets into AI tools |
 
-AI use is declared in `ai_assisted` and on the PR. The review bar is the same
-either way. Authors must check that generated text does not reproduce
-third-party material. The effort model (§14) assumes **no** AI time saving until
-one has been measured.
+AI use is declared in `ai_assisted` and on the PR; the review bar is unchanged.
+Authors check generated text does not reproduce third-party material. §14
+assumes **no** AI time saving until one is measured.
 
 ## 14. Content effort model (all figures are hypotheses)
 
@@ -676,12 +638,10 @@ one has been measured.
 | Roadmap manifest, skills list, module introductions, completion rules | 1 | 8 (6–12) | 2 (1–3) | 8 | 2 |
 | **Total** | | | | **≈ 360 (226–557)** | **≈ 65 (47–99)** |
 
-**Total ≈ 425 hours (range ≈ 270–655).** Pipeline tooling (validator, preview,
-import) is engineering work, estimated in `12-delivery-plan.md`. During the
-pilot, ongoing work is estimated at 2–4 author hours and about 1 reviewer hour
-per week, plus about 15 hours per quarter for the volatile review. Reviewer cost
-is these hours times a rate that has not been checked; get quotes first
-(PRD §14).
+**Total ≈ 425 hours (range ≈ 270–655).** Tooling is engineering work
+(`12-delivery-plan.md`). Pilot upkeep: 2–4 author hours and about 1 reviewer
+hour per week, plus about 15 hours per quarter of volatile review. Reviewer cost
+is these hours times an unverified rate; get quotes first (PRD §14).
 
 | Founder content hours per week | 10 | 15 | 20 |
 | --- | --- | --- | --- |
@@ -691,58 +651,38 @@ is these hours times a rate that has not been checked; get quotes first
 8–11 weeks, pilot readiness requires "six modules reviewed" (PRD §14), and the
 same part-time person also builds the app. Levers that stay within the PRD:
 
-1. Start module 1 and lab 1 during discovery. The concierge trial needs them
-   anyway.
-2. **Calibrate after module 1.** If actual hours exceed the model by more than
-   1.3 times, re-plan before writing module 2.
-3. Author the minimum held-back pool. Add items only where pilot data shows
-   failures or an exhausted pool.
-4. Use one starter project for all six labs (already assumed above).
-5. Book the reviewer early, so review never queues behind authoring.
-6. If still short: bring in a second author for labs, or release modules on a
-   rolling basis. A rolling release changes a PRD exit condition
-   (Open question 5).
-
-## 15. Risks
-
-| Risk | Mitigation |
-| --- | --- |
-| Effort overrun delays the pilot | Calibrate after module 1; keep to the PRD §8 scope |
-| No reviewer available, so nothing publishes | Recruit early; containment by retirement only (§11.3) |
-| Answers leak through the repo, the API or similar items | Private repo; API withholds keys (§3); V15 plus checklist item 8 |
-| Volatile content goes stale; AI introduces errors | Volatility tags, V11, quarterly review; §13 policy, `verified_by`, V09–V10 |
+1. Start module 1 and lab 1 during discovery; the concierge trial needs them.
+2. **Calibrate after module 1:** if actual hours exceed the model by more than
+   1.3 times, re-plan before module 2.
+3. Author only the minimum held-back pool; one starter project for all labs.
+4. Book the reviewer early so review never queues behind authoring.
+5. If still short: a second author for labs, or a rolling module release,
+   which changes a PRD exit condition (Open question 5).
 
 ## Open questions for discussion
 
 1. **Where does `content/` live?** *Default:* a folder in the app's private
-   repository, with path-filtered CI, so schema, importer and content change
-   together.
-2. **How does publish reach production?** *Default:* an import command run by
-   the deploy pipeline after merge, with no admin endpoint and no extra secret.
-3. **How is "reviewer is not the author" enforced on a private repo?**
-   *Default:* the publish job's own gate (§7.3) on the free plan. Buy a plan
-   only if the gate proves unreliable (plan features unverified).
-4. **Reviewer recruitment.** *Default:* one paid part-time reviewer, booked
-   before discovery ends, for about 65 hours plus about 1 hour per pilot week.
-   Rate unverified; get quotes.
-5. **What if content is late?** *Default:* follow PRD §14 (all six modules
-   reviewed before the pilot). If module 1 overruns by more than 1.3 times, the
-   founder chooses between delaying the pilot and a rolling release that stays
-   at least two modules ahead of the cohort.
-6. **Lab kits in a separate public repository?** *Default:* yes. Kits contain no
+   repo with path-filtered CI, so schema, importer and content change together.
+2. **How does publish reach production?** *Default:* an import command in the
+   deploy pipeline after merge; no admin endpoint, no extra secret.
+3. **How is "reviewer ≠ author" enforced on a private repo?** *Default:* the
+   publish job's own gate (§7.3) on the free plan (plan features unverified).
+4. **Reviewer recruitment.** *Default:* one paid part-time reviewer booked
+   before discovery ends: about 65 h plus 1 h per pilot week (rate unverified).
+5. **What if content is late?** *Default:* PRD §14, all six modules reviewed
+   before the pilot. If module 1 overruns by more than 1.3 times, the founder
+   picks a later pilot or a rolling release kept at least 2 modules ahead.
+6. **Lab kits in a separate public repo?** *Default:* yes. Kits contain no
    answer keys, and lab evidence is learner-submitted, not a credential.
-7. **Evidence earned on a defective item.** *Default:* keep evidence and credit
-   (never reduce progress), annotate them, and schedule a fresh alternate check.
-   `05-learning-engine.md` confirms.
+7. **Evidence earned on a defective item.** *Default:* keep evidence and
+   credit, annotate, and schedule a fresh alternate check (05 confirms).
 8. **Problem reports.** *Default:* a prefilled email link in the concierge
    trial; an in-app form storing `content_reports` (added) for the pilot.
-9. **Review cadence.** *Default:* 90 days for volatile content and 365 days for
-   stable content, plus a review when a watched technology has a breaking
-   release.
-10. **Held-back pool size.** *Default:* 2 alternates and 1 topic check per
-    mission for the pilot. Add a third where retention or challenge-out uses up
-    the pool.
-11. **Preview fidelity.** *Default:* the static preview as a CI artifact. Add a
+9. **Review cadence.** *Default:* volatile 90 days, stable 365 days, plus a
+   review when a watched technology has a breaking release.
+10. **Held-back pool size.** *Default:* 2 alternates and 1 topic check; add a
+    third where retention or challenge-out uses up the pool.
+11. **Preview fidelity.** *Default:* the static CI-artifact preview; add a
     staging environment only if it costs nothing extra.
 
 ## PRD traceability

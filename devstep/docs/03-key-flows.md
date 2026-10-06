@@ -6,78 +6,74 @@ Status: Proposal — for discussion
 
 Show how the logical modules work together in the fourteen flows that make or
 break the DevStep core loop, so the founder can judge scope, risk and effort
-before choosing a stack. Diagrams show calls, ownership and failure behaviour.
+before choosing a stack. The flows show calls, ownership and failure behaviour.
 Algorithms (`05-learning-engine.md`), columns (`04-data-model.md`), screens
-(`08-ux-and-screens.md`) and vendors (`01-tech-stack-and-hosting.md`) are out of scope.
+(`08-ux-and-screens.md`) and vendors (`01-tech-stack-and-hosting.md`) are
+covered elsewhere.
 
 ## Summary
 
-- One daily loop: Today → one session → attempt → evidence → review schedule →
+- One daily loop: Today → session → attempt → evidence → review schedule →
   completion → next action. Every other flow either feeds this loop or protects it.
 - Before sign-up, guest work exists **only in the learner's browser**. When the
   guest claims it, the server evaluates the answers again, so a guest cannot
   forge evidence. **Proposal**
 - Anything that could run twice (attempt, completion, claim, migration, lab
-  evidence, reminder send) has an idempotency key or a conditional update. The
+  evidence, reminder) has an idempotency key or a conditional update. The
   database guarantees "exactly once". The client does not.
-- Drafts are saved locally first, then sent to the server with `base_revision`.
-  If the revision is stale the server returns `409` and the learner chooses
-  which version to keep. Nothing is silently overwritten across devices or after
-  offline work (PRD §12).
-- Hints, worked examples and reveals are recorded on the server and travel with
-  every attempt. A reveal caps evidence at `practised` and schedules a fresh
-  alternate attempt (PRD §9).
-- A missed session or a long absence never creates catch-up debt. The learner
-  gets resume or a three-minute refresher, and reviews stay capped (F06, R05).
-- Reminders are checked in each learner's IANA time zone, at most one per
-  learning day, and suppressed once a session is completed that day. Missing one
+- Drafts are saved locally first, then sent with `base_revision`. If the
+  revision is stale the server returns `409` and the learner chooses which
+  version to keep. Nothing is silently overwritten (PRD §12).
+- Hints, worked examples and reveals are recorded on the server. A reveal caps
+  evidence at `practised` and schedules a fresh alternate attempt (PRD §9).
+- Missed sessions and long absences create no catch-up debt. The learner gets
+  resume or a three-minute refresher, and reviews stay capped (F06, R05).
+- Reminders are checked in each learner's IANA zone, at most one per learning
+  day, and suppressed once a session is completed that day. Missing one
   reminder is better than sending two. **Proposal**
-- Content and roadmap versions cannot change once published. Retiring keeps
-  history, and roadmap migration is always the learner's explicit choice, with
-  progress before and after shown (F11, R06).
+- Published content and roadmap versions never change. Retiring keeps history.
+  Roadmap migration is always the learner's explicit choice, with progress
+  before and after shown (F11, R06).
 
 ## How to read the diagrams
 
 | Participant | Meaning |
 | --- | --- |
-| Learner, Author, Reviewer | People (see actors in `00-conventions.md`). |
-| Browser | The single-page app (SPA) running in the learner's browser. |
-| Local draft store | Browser-side durable storage for drafts, guest work and queued requests. |
-| API | The HTTP layer of the single deployable (the modular monolith). Authenticates, scopes to owner, opens the DB transaction. |
-| `identity` … `analytics` | Canonical modules. Arrows between them are in-process calls, not network hops (`02-system-architecture.md`). |
-| DB | The one durable database. |
-| Scheduler | A job runner backed by the database (ticks and queued jobs). |
-| Email provider | The outbound email service (choice in `01`). |
+| Learner, Author, Reviewer | People (actors in `00-conventions.md`). |
+| Browser, Local draft store | The single-page app (SPA) and its durable browser storage for drafts, guest work and queued requests. |
+| API | HTTP layer of the single deployable. Authenticates, scopes requests to their owner, opens the transaction. |
+| `identity` … `analytics` | Canonical modules. Arrows between them are in-process calls, not network hops (`02`). |
+| DB, Scheduler | The single database, and a job runner backed by that database (ticks and queued jobs). |
+| Email provider | Outbound email service (choice in `01`). |
 | Content repo, CI publisher | The authoring repository and the continuous-integration (CI) pipeline that validates and publishes content. |
 | Learner machine | Where lab kits run. The server never executes learner code. |
 
-Notation: diagrams write path parameters as `:id` because Mermaid labels avoid
-braces. `/v1/sessions/:id` means `/v1/sessions/{id}`. `(added)` marks an
-endpoint or event not in the conventions list. Unless a note says otherwise,
-each API request is one DB transaction.
+Diagrams write path parameters as `:id` because Mermaid labels avoid braces.
+`(added)` marks an endpoint or event that is not in `00-conventions.md`. Other
+docs are referred to by number (`05` = `05-learning-engine.md`, as in the
+document map).
+Unless a note says otherwise, each API request is one DB transaction.
 
 ## Cross-cutting rules used by every flow
 
 | Rule | Behaviour | Label |
 | --- | --- | --- |
-| Owner scoping | The user ID comes from the login session, never from the request body. Requests for another learner's session, draft, attempt or export return `404`. | PRD §11, §12 |
-| Idempotency keys | The Browser creates one key for each thing the learner means to do (submit, complete, claim, migrate, lab evidence) and stores it with the local draft, so a reload reuses it. The server stores (user, operation, key, request hash, response) in `idempotency_keys` under a unique constraint, in the same transaction as the effect. Same key and same body: the stored response is replayed. Same key and different body: `422`. Key still in flight: the request waits for the first to commit, then replays, or gets `409` to retry. | Proposal |
+| Owner scoping | The user ID comes from the login session, never from the request body. Another learner's session, draft, attempt or export returns `404`. | PRD §11, §12 |
+| Idempotency keys | The Browser creates one key for each thing the learner means to do and stores it with the local draft, so a reload reuses it. The server stores (user, operation, key, request hash, response) in `idempotency_keys`, under a unique constraint, in the same transaction as the effect. Same key and same body: the stored response is replayed. Same key and different body: `422`. Key still in flight: the request waits for the first to commit and then replays, or gets `409` and retries. | Proposal |
 | Conditional transitions | State changes use "update where state = expected". The number of rows changed shows which request won. | Proposal |
 | Drafts | Optimistic concurrency with `base_revision` (flow 4). | PRD §12 |
-| Analytics | Emitted after commit. Domain events come from the server. Events only the UI knows about (for example `recommendation_seen`) use `POST /v1/events`. Payloads hold IDs, content version, mode and timestamps only, never answer text, code or email. An analytics outage never blocks learning. | PRD F12, §12, §13 |
+| Analytics | Emitted after commit. Domain events come from the server. Events only the UI sees use `POST /v1/events`. Payloads hold IDs, content version, mode and timestamps only. An analytics outage never blocks learning. | PRD F12, §12, §13 |
 | Time | Stored in UTC. A **learning day** is the local calendar date in the learner's IANA zone. | PRD §11, Proposal |
 | Content pinning | Sessions and attempts reference the exact published content version. Retired versions stay readable. | PRD §11, §12 |
-| Non-blocking dependencies | An email, AI or analytics failure degrades a feature but never blocks a session. | PRD §12 |
-
-Pseudo-SQL illustrating "exactly once":
+| Non-blocking dependencies | An email, AI or analytics failure degrades one feature and never blocks a session. | PRD §12 |
 
 ```sql
--- topic completion: only the request that changes the row has side effects
+-- "exactly once", illustrated: only the request that changes the row has side effects
 UPDATE topic_progress
    SET state = 'completed', completed_at = now()
  WHERE enrolment_id = :enrolment AND topic_id = :topic AND state <> 'completed';
 -- 1 row  → this request completed the topic (recount progress, maybe milestone)
--- 0 rows → already completed, return the stored summary, no second credit
+-- 0 rows → already completed: return the stored summary, no second credit
 ```
 
 ## Daily core loop overview
@@ -108,7 +104,7 @@ flowchart TD
     REST -.-> REM
 ```
 
-Supporting flows sit outside this loop: guest first visit (1), onboarding (2),
+Supporting flows sit outside the loop: guest first visit (1), onboarding (2),
 challenge-out and defer (8), content publish (11), roadmap migration (12), and
 export and deletion (14).
 
@@ -118,7 +114,7 @@ export and deletion (14).
 | --- | --- | --- | --- | --- |
 | 1 | Guest sample, then sign-up and claim | Public sample link | catalogue, assessment, identity, learning | §5, F03, F04, F09, F12 |
 | 2 | Onboarding | First sign-in | profile, roadmap, notifications, assessment | F01, R01, F10, §5 |
-| 3 | Today recommendation | Learner opens Today | scheduling, learning, roadmap, catalogue | F02, R02, F05, §9 |
+| 3 | Today recommendation | Learner opens Today | scheduling, learning, roadmap, catalogue | F02, F05, R02, §9 |
 | 4 | Start or resume, autosave, offline, second device | Learner starts an action | learning | F03, F09, R05, §12 |
 | 5 | Submit, evaluate, evidence, review | Learner submits an answer | learning, assessment, scheduling | F04, F05, F09, §9 |
 | 6 | Hint and solution reveal | Learner asks for help | learning, scheduling | §9, F03, F04, F05 |
@@ -128,16 +124,16 @@ export and deletion (14).
 | 10 | Reminder dispatch and unsubscribe | Scheduler tick or email link | notifications, learning | F10, §6, §12 |
 | 11 | Content publish and retire | Author opens a pull request | Content repo, CI publisher, catalogue | F11, §8, §8A |
 | 12 | Roadmap version migration | New roadmap version published | roadmap, catalogue | R06, R01, §8A |
-| 13 | Lab with local checks | Learner opens a lab | catalogue, learning, assessment | F07, §9, §10, §16 |
+| 13 | Lab with local checks | Learner opens a lab | catalogue, learning, assessment | F07, §9, §11, §16 |
 | 14 | Export and account deletion | Learner request | identity, all modules | F09, §12 |
 
 ---
 
 ## Flow 1 — First visit as guest, then account and claim
 
-**Trigger:** someone opens the public sample link (PRD §15, recruitment).
+**Trigger:** someone opens the public sample link (PRD §15).
 **Preconditions:** a published sample mission exists. It uses auto-scored items
-only, so feedback needs no self-check UI. **Proposal**
+only, so guests need no self-check UI. **Proposal**
 
 ### 1a · Guest completes one sample scenario
 
@@ -153,8 +149,7 @@ sequenceDiagram
     L->>B: Open public sample link
     B->>API: GET /v1/guest/sample (added, no login)
     API->>CAT: Sample mission at latest published version
-    CAT-->>API: Steps, hints, content version
-    API-->>B: 200 sample, cacheable, no personal data
+    API-->>B: 200 steps, hints, content version, cacheable
     B->>LS: Create random guest id, store sample and empty draft
     B->>L: Notice - guest work is saved only in this browser on this device
     loop Each step
@@ -166,7 +161,7 @@ sequenceDiagram
         B->>L: Authored hint from the sample bundle
     end
     L->>B: Submit answer
-    B->>API: POST /v1/guest/attempts (added, guest id, item, answer, assistance, content version)
+    B->>API: POST /v1/guest/attempts (added, guest id, item, answer, assistance, version)
     API->>ASM: Evaluate against rubric, stateless
     ASM-->>API: Outcome and feedback
     API->>AN: first_answer_submitted and attempt_evaluated with guest pseudonym
@@ -188,7 +183,7 @@ sequenceDiagram
     participant ASM as assessment
     participant AN as analytics
     L->>B: Create account or sign in
-    B->>API: POST /v1/auth/signup (added, owned by 02)
+    B->>API: POST /v1/auth/signup (added, shape owned by 02)
     API->>ID: Create user and login session
     API-->>B: 201 signed in
     B->>LS: Read guest bundle
@@ -217,33 +212,29 @@ sequenceDiagram
 
 | What goes wrong | Behaviour |
 | --- | --- |
-| Browser storage blocked (private window) | The sample still runs in memory. The notice says the work disappears when the tab closes. **Proposal** |
-| Storage cleared, or sign-up on a different device | Guest work cannot be recovered. This is stated before the first answer (PRD §5). The first device can still claim later while signed in there. |
-| Tampered bundle (answers edited, hints hidden) | The server evaluates the answers again. Claimed evidence is capped at `practised`. Guest assistance is self-reported, which is acceptable at that cap. **Proposal** |
+| Storage blocked or cleared, or sign-up on another device | The sample runs in memory. The notice says the work is lost when the tab closes and is not on other devices (PRD §5). The original device can still claim it later while signed in. |
+| Tampered bundle (answers edited, hints hidden) | The server evaluates the answers again and caps claimed evidence at `practised`. Guest assistance is self-reported, which is acceptable at that cap. **Proposal** |
 | Malformed or oversized bundle | `422`. The bundle stays on the device and the learner can retry or skip. |
-| Sample version retired before claim | The claim is accepted. Attempts reference the retired version, and history is kept (PRD §12). |
-| Abuse of the unauthenticated evaluate endpoint | Rate limited per IP address and guest ID. Stateless. No free text stored (PRD §12). |
+| Sample version retired before claim | Accepted. Attempts reference the retired version (PRD §12). |
+| Abuse of the unauthenticated endpoints | Rate limited per IP address and guest ID. Stateless, no free text stored (PRD §12). |
 | Claim request fails on the network | The bundle is kept and the claim is retried on the next app open while signed in. |
-| Pilot invite link | The invite code is held in the local store and sent at sign-up for cohort tagging (`10`). |
 
-**Idempotency and concurrency:** the guest ID is the claim key. `identity`
-records claimed guest IDs under a unique constraint, so a replay returns the
-stored result and a second user cannot claim the same bundle. Attempts imported
-by a claim are marked as guest-sourced (`04` decides how).
-
-**Analytics events:** `first_answer_submitted` and `attempt_evaluated` (server
-side, guest pseudonym), `account_created` (added), `guest_progress_claimed` (added).
-
-**PRD coverage:** §5 (first value before an account; say whether work is saved
-only on the device), F03, F04, F09, F12.
+**Idempotency and concurrency:** the guest ID is the claim key. `identity` keeps
+claimed guest IDs under a unique constraint, so a replay returns the stored
+result and no second account can claim the same bundle.
+**Analytics:** `first_answer_submitted`, `attempt_evaluated` (guest pseudonym),
+`account_created` (added), `guest_progress_claimed` (added). A pilot invite code
+in the link is kept locally and sent at sign-up for cohort tagging (`10`).
+**PRD:** §5 (first value before an account; say whether work is saved only on
+the device), F03, F04, F09, F12.
 
 ---
 
 ## Flow 2 — Onboarding
 
 **Trigger:** first sign-in with no enrolment.
-**Preconditions:** a signed-in user. Guest progress is either claimed or absent
-(flow 1). The browser reports an IANA time zone that the learner confirms.
+**Preconditions:** signed in. Guest progress is either claimed or absent. The
+browser reports an IANA time zone, which the learner confirms.
 
 ```mermaid
 sequenceDiagram
@@ -284,31 +275,26 @@ sequenceDiagram
     B->>L: Go to Today (flow 3)
 ```
 
-Defaults are pre-filled from the PRD pilot schedule: three 10-minute sessions
-and one optional 30–45-minute lab a week (PRD §5).
+The defaults come from the PRD pilot schedule: three 10-minute sessions and one
+optional 30–45-minute lab a week (PRD §5).
 
 | What goes wrong | Behaviour |
 | --- | --- |
-| Learner leaves partway | Each step is saved. On return, onboarding resumes at the first missing step. Today shows "Finish setting up (about 1 min)" until an enrolment exists. **Proposal** |
-| Diagnostic area skipped | No baseline row and no `skill_evidence` is written, so the area shows as unknown (F01). |
+| Learner leaves partway | Each step is saved, and onboarding resumes at the first missing step. Today shows "Finish setting up" until an enrolment exists. **Proposal** |
+| Diagnostic area skipped | No baseline row and no `skill_evidence`, so the area shows as unknown (F01). |
 | Strong diagnostic result | Challenge-out is offered for those topics (flow 8). Topics are never completed automatically (R03). **Proposal** |
-| Weak result, or all prerequisites unmet | No penalty. The path starts from the beginning and nothing is lowered. |
 | Goal does not fit the only launch roadmap | The goal is stored as written and enrolment explains the fit honestly. It counts as a demand signal for R07 (`10`). |
-| Reminder time inside quiet hours | Rejected by validation, with an explanation. **Proposal** |
+| Reminder time inside quiet hours, or no time zone | Rejected by validation with an explanation. Reminders stay off until a zone is stored. **Proposal** |
 | Guest progress already claimed | Enrolment derives starting topic states from existing attempts, so the sample topic becomes `in_progress`. **Proposal** |
-| Time zone undetectable | The learner picks one. Reminders stay off until a zone is stored. |
 
-**Idempotency and concurrency:** the `PUT`s replace whole resources and are
-naturally idempotent. `POST /v1/enrolments` relies on "one active enrolment per
-user", so a retry returns the existing enrolment. The diagnostic is accepted
-once per enrolment and a second `POST` returns the stored result, which keeps
-the baseline stable for comparison (PRD §13). **Proposal**
-
-**Analytics events:** `onboarding_completed` (diagnostic taken, count of skipped
-areas, reminder opt-in flag, session length; no free text), `enrolment_created`
-(added; needed for enrolment-to-first-topic activation, PRD §8A).
-
-**PRD coverage:** F01, R01, F10 (consent), §5 onboarding.
+**Idempotency and concurrency:** the `PUT`s replace whole resources.
+`POST /v1/enrolments` relies on "one active enrolment per user", so a retry
+returns the existing enrolment. The diagnostic is accepted once per enrolment
+so the baseline stays stable for PRD §13 comparisons. **Proposal**
+**Analytics:** `onboarding_completed` (whether the diagnostic was taken, count
+of skipped areas, reminder opt-in flag, session length), `enrolment_created`
+(added; for enrolment-to-first-topic activation, PRD §8A).
+**PRD:** F01, R01, F10 (consent), §5.
 
 ---
 
@@ -316,7 +302,7 @@ areas, reminder opt-in flag, session length; no free text), `enrolment_created`
 
 **Trigger:** the learner opens Today, or the Browser refreshes it after a session.
 **Preconditions:** an active enrolment. The selection rules belong to
-`05-learning-engine.md`. This flow shows only the calls.
+`05-learning-engine.md`. Only the calls are shown here.
 
 ```mermaid
 sequenceDiagram
@@ -360,26 +346,22 @@ sequenceDiagram
 
 | What goes wrong | Behaviour |
 | --- | --- |
-| Smaller requested while a session is open | Today offers "Do the next step only (about 3 min) and stop" at a natural stopping point. The open session is never cut off mid-explanation or thrown away (PRD §9). **Proposal** |
+| Smaller requested while a session is open | Today offers "Do the next step only (about 3 min) and stop" at a natural stopping point. The session is never cut off mid-explanation or thrown away (PRD §9). **Proposal** |
 | More reviews due than the cap allows | Only the cap is shown. The rest stay due and are spread across later sessions. No overdue counter (F05, §6). |
-| No prerequisite-ready topic (for example a deferred prerequisite) | Today names the blocking topic and offers it or a challenge-out (PRD §12 edge case; see open question 3). |
-| Content exhausted, or roadmap complete | Today shows the completion summary, maintenance reviews and an offer of another roadmap, with no automatic enrolment (PRD §8A). |
-| Learner picks a rest day | No session. The Browser offers to snooze today's reminder through `PUT /v1/me/notifications`. The weekly target is flexible and nothing is owed (PRD §6). |
-| Enrolment paused, or learner returning after a gap | See flow 9. |
-| Newer roadmap version published | Non-blocking notice (flow 12). |
-| Slow dependency | Today calls no external service (email, AI, analytics) synchronously. Budget: p95 under 500 ms (PRD §12). |
+| No prerequisite-ready topic | Today names the blocking topic and offers it or a challenge-out (PRD §12; open question 3). |
+| Content exhausted, or roadmap complete | Completion summary, maintenance reviews, and an offer of another roadmap with no automatic enrolment (PRD §8A). |
+| Learner picks a rest day | No session. The Browser offers to snooze today's reminder through `PUT /v1/me/notifications`. Nothing is owed (PRD §6). |
+| Paused, returning, or newer roadmap version | See flows 9 and 12. The version notice never blocks. |
+| Slow dependency | Today calls no email, AI or analytics service synchronously. Budget: p95 under 500 ms (PRD §12). |
 
-**Idempotency and concurrency:** `GET /v1/today` is read-only. The
-recommendation is calculated on request and not stored. The opaque
-`recommendation_id` is echoed back by `POST /v1/sessions` so the funnel can be
-joined in analytics. Two devices see the same recommendation for the same state.
-**Proposal**
-
-**Analytics events:** `recommendation_seen` (kind: resume, review, new or small;
-mode; context: normal, missed or returning; recommendation ID).
-
-**PRD coverage:** F02, F05 (cap), R02 (next prerequisite-ready task), §9
-selection order, §10 Today, §12 performance budget.
+**Idempotency and concurrency:** read-only. The recommendation is calculated on
+request and not stored. `POST /v1/sessions` echoes the opaque
+`recommendation_id` so the funnel can be joined. Two devices with the same state
+see the same recommendation. **Proposal**
+**Analytics:** `recommendation_seen` (kind: resume, review, new or small; mode;
+context: normal, missed or returning).
+**PRD:** F02, F05 (cap), R02 (prerequisite-ready), §9 selection order, §10, §12
+performance budget.
 
 ---
 
@@ -463,27 +445,21 @@ sequenceDiagram
 
 | What goes wrong | Behaviour |
 | --- | --- |
-| Start tapped twice | A unique constraint allows one open session per user and kind. The second insert fails and the existing session is returned. |
-| Browser closed mid-step | The local draft is restored on reopen. If it is newer than the server copy, it syncs with its `base_revision`. |
-| Offline when starting a new session | Not possible, because the server must create the session. An open session already cached can continue offline. **Proposal** |
-| Offline at submit | The submission is queued. See flow 5. |
+| Start tapped twice | A unique constraint allows one open session per user and kind. The losing insert returns the existing session. |
+| Browser closed mid-step | The local draft is restored on reopen and, if newer, synced with its `base_revision`. |
+| Offline when starting a new session | Not possible, because the server creates sessions. An open session already cached can continue offline. **Proposal** |
 | Retried `PUT` whose first try actually succeeded | It gets `409`, but the server draft matches the local content hash, so the client treats it as success. **Proposal** |
 | Learner does not want the open session | Today's secondary option calls `POST /v1/sessions` with a set-aside flag. The old session becomes `abandoned` and its draft is kept (R05). **Proposal** |
-| Different user signs in on the same browser | Local drafts are keyed by user ID. The previous user's drafts are never shown. Signing out warns about unsynced drafts, then clears them (PRD §12). |
-| Content version retired during a long offline period | The session stays pinned to its version and the draft syncs normally. |
-| Draft too large or invalid | `413` or `422`. The local copy is kept and the learner is told. |
+| Different user signs in on the same browser | Local drafts are keyed by user ID and never shown to another user. Signing out warns about unsynced drafts, then clears them (PRD §12). |
 
-**Idempotency and concurrency:** draft saves need no idempotency key because
-`base_revision` makes them conditional. The Browser sends one save per session
-at a time and merges pending edits into the next save. In the MVP a conflict
-asks the learner to choose for the whole draft (see open question 5).
-
-**Analytics events:** `session_started` (new session) or `session_resumed`
-(existing session), both from the server. Conflict counts and unsynced durations
-are operational metrics (`09`), not analytics events.
-
-**PRD coverage:** F03 (drafts between steps), F09 (cross-device progress), R05
-(drafts preserved), §12 (local draft, unsynced status, no silent overwrite).
+**Idempotency and concurrency:** draft saves need no key because `base_revision`
+makes them conditional. The Browser sends one save per session at a time and
+merges pending edits into the next one. Conflicts are resolved for the whole
+draft in the MVP (open question 5).
+**Analytics:** `session_started` or `session_resumed` (server side). Conflict
+counts and unsynced durations are operational metrics (`09`).
+**PRD:** F03, F09 (cross-device), R05, §12 (local draft, unsynced status, no
+silent overwrite).
 
 ---
 
@@ -529,35 +505,26 @@ sequenceDiagram
     B->>L: Feedback that names the evidence
 ```
 
-The level written (`introduced` … `retained`) and the next interval (about 1, 3,
-7 or 21 days) are decided by `05-learning-engine.md`. Feedback names evidence,
-for example "You used a query plan to choose an investigation", never "mastered"
-(PRD §5).
+The level written and the next interval (about 1, 3, 7 or 21 days) are decided
+in `05`. Feedback names evidence ("You used a query plan to choose an
+investigation") and never says "mastered" (PRD §5).
 
 | What goes wrong | Behaviour |
 | --- | --- |
-| Network drops after commit, before the response arrives | The client retries with the same K and gets a replay. No duplicate attempt or evidence (PRD §12). |
-| Double-click, or two tabs sending the same K at once | The unique insert makes the second request wait until the first commits, then it replays. Otherwise it gets `409` and retries. **Proposal** |
-| Two devices submit the same item and draft revision with different keys | Treated as a duplicate on (session, item, draft revision). The existing result is returned. **Proposal** |
-| Offline at submit | The submission is queued in the local store with K and shown as "Saved — will be checked when you're back online". It is sent on reconnect. No feedback while offline. **Proposal** |
-| Evaluation error (rubric defect) | Rollback and `500`. K is not stored as completed, so a retry works. The answer stays in the draft. The operator is alerted (`09`). |
-| Content retired between start and submit | Evaluated against the pinned version, which never changes. |
-| Repeated incorrect answers | A worked example and a prerequisite refresher are offered and an earlier alternate review is scheduled. No punitive wording (PRD §6, §9). |
-| Correct but heavily assisted | Recorded with its assistance, capped below `demonstrated`, with an earlier review (PRD §9). |
-| Item was a due review | `review_completed` is emitted and the interval is extended or shortened (05). |
+| Network drops after commit, before the response arrives | Retry with the same K replays the result. No duplicate attempt or evidence (PRD §12). |
+| Double-click, or two tabs with the same K | The unique insert makes the second request wait, then replay. Otherwise it gets `409` and retries. **Proposal** |
+| Two devices send the same item and draft revision with different keys | Treated as a duplicate on (session, item, draft revision). The existing result is returned. **Proposal** |
+| Offline at submit | Queued in the local store with K and shown as "Saved — checked when you're back online". Sent on reconnect, with no feedback until then. **Proposal** |
+| Evaluation error (rubric defect) | Rollback and `500`. K is not stored, so a retry works and the answer stays in the draft. The operator is alerted (`09`). |
+| Repeated incorrect, or correct but heavily assisted | A worked example and a prerequisite refresher are offered, an earlier alternate review is scheduled, and the level stays below `demonstrated`. No punitive wording (PRD §6, §9). |
 
 **Idempotency and concurrency:** the attempt, the evidence, the review schedule
-and the idempotency record are committed in one transaction (one deployable,
-one database). Evidence is append-only, so a later attempt never edits earlier
-evidence.
-
-**Analytics events:** `first_answer_submitted` (first attempt in the session),
+and the key record are committed in one transaction. Evidence is append-only,
+so a later attempt never edits earlier evidence.
+**Analytics:** `first_answer_submitted` (first attempt in the session),
 `attempt_evaluated` (outcome category, assistance, content version, mode),
 `review_completed` (when the item came from the review queue). No answer text.
-
-**PRD coverage:** F04 (task version, outcome, assistance), F05, F09
-(idempotency), §9, §11 (attempts reference the exact content version), §12
-(duplicate submissions).
+**PRD:** F04, F05, F09, §9, §11 (exact content version), §12 (duplicate submissions).
 
 ---
 
@@ -604,33 +571,27 @@ sequenceDiagram
 
 | What goes wrong | Behaviour |
 | --- | --- |
-| Hint request retried with the same index | Not counted twice. The same hint is returned. |
-| Client asks for a later hint index first | The server returns only the next unused hint, so hints stay graduated. |
-| No hints left | A worked example, then the reveal, is offered. |
-| Offline | Hints come from the API so that assistance is always recorded. Offline, the UI says "Hints need a connection" and the learner can keep writing. **Proposal** (open question 10) |
+| Hint retried with the same index | Not counted twice. The same hint is returned. |
+| Client asks for a later index first, or hints run out | The server returns only the next unused hint. When none are left it offers the worked example, then the reveal. |
+| Offline | Hints come from the server so that assistance is always recorded. Offline, the UI says "Hints need a connection" and the learner can keep writing. **Proposal** (open question 9) |
 | Explanation viewed after an evaluated attempt | That is feedback, not a reveal. Evidence already written is unchanged. |
-| Reveal followed by a correct answer | The attempt is stored with `solution_revealed`, the level is at most `practised`, and a fresh attempt is scheduled (PRD §9). |
-| Reveal on two devices | Recorded once per item per session (unique). |
+| Reveal followed by a correct answer | Stored with `solution_revealed`, capped at `practised`, and a fresh attempt is scheduled (PRD §9). |
 | Repeated reveals over weeks | Tracked as a guardrail metric (PRD §13). No punitive UI. |
-| Future AI tutor (F13, P1) | Its hints would be recorded as `hint` with a source, with authored hints as fallback. Not designed here. |
 
-**Idempotency and concurrency:** the hint index and the "once per item and
-session" rule for reveals make retries safe. Assistance is stored on the session
-step, and the attempt copies the strongest assistance used at submit time.
-
-**Analytics events:** `hint_used` (hint index and kind), `answer_revealed`
-(item, content version).
-
-**PRD coverage:** §9 (reveal never demonstrates, schedule a fresh attempt), F03
-(hints), F04 (assistance recorded), F05, §6 ("I do not understand").
+**Idempotency and concurrency:** the hint index and "once per item and session"
+for reveals make retries and second devices safe. The attempt copies the
+strongest assistance recorded on its step.
+**Analytics:** `hint_used` (index, kind), `answer_revealed` (item, content version).
+**PRD:** §9, F03, F04, F05, §6 ("I do not understand"). A future AI tutor (F13)
+would record its hints as `hint` and fall back to authored hints.
 
 ---
 
 ## Flow 7 — Complete session, update topic exactly once, next task
 
 **Trigger:** the learner finishes the last step or stops at an explicit stopping point.
-**Preconditions:** an open session. The draft is synced, and any `409` conflict
-has been resolved first (flow 4b).
+**Preconditions:** an open session. The draft is synced, and any `409` has been
+resolved first (flow 4b).
 
 ```mermaid
 sequenceDiagram
@@ -674,34 +635,29 @@ sequenceDiagram
 | What goes wrong | Behaviour |
 | --- | --- |
 | Retry after a timeout with the same K | Replays the stored summary (F09 idempotent completion). |
-| Two devices complete the same session with different keys | The conditional close lets only one win. The other gets `200` with "already completed" and no second topic credit. |
-| Two sessions satisfy the same topic at once (for example practice and challenge-out) | The conditional topic update records one `completed_at`. |
-| Completion with unsynced draft | The Browser syncs first. A `409` is resolved before completing. |
-| Stopping before every item is answered | Allowed at any explicit stopping point. Unanswered items stay unattempted and the topic rules decide credit. A `small` session counts as practice, not proof (PRD §5). |
-| Feedback not yet reviewed | The pilot topic rule needs an attempt, a feedback review and an alternate topic check (PRD §8A). Feedback review is recorded when the learner moves past the feedback step (05). |
-| Roadmap completed | The milestone is recorded once. The summary separates optional labs and self-assessed evidence (R04). Later reviews or migration never take it away (PRD §8A). |
-| Delayed review later failed | The topic stays completed. The Evidence view shows the practice need (PRD §8A). |
-| Nothing prerequisite-ready next | Same as flow 3 (maintenance, or explain the blocker). |
+| Two devices complete the same session with different keys | The conditional close lets only one win. The other gets `200` with "already completed" and no second credit. |
+| Two sessions satisfy the same topic at once (practice and challenge-out) | The conditional topic update records one `completed_at`. |
+| Stopping before every item is answered | Allowed at any explicit stopping point, and the topic rules decide credit. A `small` session counts as practice, not proof (PRD §5). |
+| Feedback not yet reviewed | The pilot rule needs an attempt, a feedback review and an alternate topic check (PRD §8A). Feedback review is recorded when the learner moves past the feedback step (`05`). |
+| Roadmap completed, then a delayed review fails | The milestone is recorded once and never revoked. The summary separates optional labs and self-assessed evidence (R04, §8A). |
 
-**Idempotency and concurrency:** there are three guards: the idempotency key
-(retries), the conditional session close (devices), and the conditional topic
-update (sessions racing for the same topic). The milestone row is unique per
-enrolment.
-
-**Analytics events:** `session_completed` (mode, duration bucket, content
-version), `topic_completed` (added; basis is rules met or challenge-out),
+**Idempotency and concurrency:** there are three guards: the key (retries), the
+conditional session close (devices), and the conditional topic update (sessions
+racing for the same topic). The milestone is unique per enrolment.
+**Analytics:** `session_completed` (mode, duration bucket, content version),
+`topic_completed` (added; basis is rules met or challenge-out),
 `roadmap_completed` (added).
-
-**PRD coverage:** R02, R04, F09 (idempotent completion), §8A completion rules
-and progress formula.
+**PRD:** R02, R04, F09, §8A (completion rules, progress = completed required ÷
+all required, count shown beside the percentage).
 
 ---
 
 ## Flow 8 — Challenge-out versus manual defer
 
-**Trigger:** the learner opens a topic in Roadmap, or Today suggests a
-challenge after a strong diagnostic result.
-**Preconditions:** the topic is in the pinned roadmap version and is not completed.
+**Trigger:** the learner opens a topic in Roadmap, or Today suggests a challenge
+after a strong diagnostic result.
+**Preconditions:** the topic is in the pinned version and not completed. No
+short session is open (the Browser offers to finish it or set it aside first).
 
 ```mermaid
 sequenceDiagram
@@ -745,31 +701,26 @@ sequenceDiagram
 | --- | --- |
 | Defer on a completed topic | `409`. Completion is historical. **Proposal** |
 | Returning to a deferred topic | Starting any mission in it moves it to `in_progress`. **Proposal** |
-| Deferred topic is a prerequisite | Dependents become usable with a visible warning. Completion still needs the deferred topic. **Proposal** (open question 3) |
+| Deferred topic is a prerequisite | Dependents are usable with a visible warning. Completion still needs the deferred topic. **Proposal** (open question 3) |
 | Roadmap with deferred required topics | Not complete (R03, R04). The summary lists them and offers a challenge-out. |
 | Challenge failed | Retry no sooner than the next learning day, with different items if any exist, otherwise the normal path. **Proposal** |
-| Challenge left halfway | The session stays open (resume-first) or is set aside. The topic state is unchanged. |
 | Open-ended items | Excluded from challenge sets, because self-report alone leaves skill unverified (PRD §6). |
-| Defer tapped twice | Already deferred, so it returns `200`. |
-| A short session is already open | The Browser offers to finish it or set it aside first (one open short session). |
 
-**Idempotency and concurrency:** both the challenge completion and the defer use
-conditional updates where the state is not `completed`, so a defer can never
-overwrite a challenge pass that raced it.
-
-**Analytics events:** `session_started` (purpose challenge), `attempt_evaluated`,
+**Idempotency and concurrency:** both outcomes use updates conditional on "not
+`completed`", so a defer cannot overwrite a challenge pass that raced it. A
+repeated defer returns `200`.
+**Analytics:** `session_started` (purpose challenge), `attempt_evaluated`,
 `session_completed`, `topic_completed` (added, basis `challenge_out`),
 `topic_deferred` (added).
-
-**PRD coverage:** R03, R04, §6 ("I already know this"), §8A (defer earns no credit).
+**PRD:** R03, R04, §6 ("I already know this"), §8A.
 
 ---
 
 ## Flow 9 — Return after a missed session or a long absence
 
 **Trigger:** the learner opens DevStep after a planned learning day passed with
-no completed session ("missed"), or after 7 or more days with no completed
-session ("long absence"). Both thresholds are a **Proposal** (open question 6).
+no completed session ("missed"), or after 7 or more days with none ("long
+absence"). Thresholds are a **Proposal** (open question 6).
 **Preconditions:** an active or paused enrolment.
 
 ```mermaid
@@ -810,26 +761,20 @@ sequenceDiagram
 
 | What goes wrong | Behaviour |
 | --- | --- |
-| Large review backlog | 2 visible in `practise`, 1 in `small`. The rest stay due and are spread. No red counter (PRD §6, §9). |
+| Large review backlog | 2 visible in `practise`, 1 in `small`. The rest stay due and are spread out. No red counter (PRD §6, §9). |
 | Retrieval check fails | Nothing is lowered. A worked example and an earlier review follow (PRD §9). |
-| Open session is weeks old | Still resumable. The refresher is offered first when the open step depends on recall (05). |
-| Content of the open session retired during the absence | Resumes on the pinned version. If the objective materially changed, "refresh recommended" is shown (PRD §12). |
-| Migration offer pending | Shown only after the learner's first action, to keep the return light. **Proposal** |
+| Open session is weeks old, or its content was retired | Still resumable on the pinned version. The refresher comes first when the step depends on recall. "Refresh recommended" is shown if the objective changed (PRD §12). |
+| Migration offer pending | Shown only after the learner's first action, so the return stays light. **Proposal** |
 | Paused enrolment | No reminders and no "missed" counting while paused (R05). |
 | Learner chooses reschedule | `PUT /v1/me/preferences` changes the planned days. Future work is recalculated and nothing is owed. |
-| Returning on a new device | Server state is used. The old device's unsynced drafts sync when it next comes online (flow 4b if they conflict). |
-| Tone | No guilt, no streak loss, no comparisons (PRD §6). |
 
-**Idempotency and concurrency:** the return context is calculated, not stored.
-It disappears once a session completes. Resuming the enrolment is a conditional
-`PATCH` from paused to active.
-
-**Analytics events:** `recommendation_seen` (context `missed` or `returning`),
+**Idempotency and concurrency:** the return context is calculated, not stored,
+and disappears once a session completes. Resuming is a conditional `PATCH` from
+paused to active. The tone is never guilt, streak loss or comparison (PRD §6).
+**Analytics:** `recommendation_seen` (context `missed` or `returning`),
 `session_resumed` or `session_started` (mode `small`), `review_completed`,
 `session_completed`. The return-after-absence metric is derived from these (`10`).
-
-**PRD coverage:** F06, R05, F05 (cap, deferred items kept), §6 (missed session,
-long absence, many reviews), §10 return screen.
+**PRD:** F06, R05, F05, §6, §10 (return screen).
 
 ---
 
@@ -837,8 +782,7 @@ long absence, many reviews), §10 return screen.
 
 **Trigger:** a Scheduler tick (proposed every 15 minutes), a settings change, or
 an unsubscribe link.
-**Preconditions:** the learner has opted in (F10). A learning day is the local
-date in the learner's IANA zone.
+**Preconditions:** the learner opted in (F10).
 
 ### 10a · Tick, per-learner evaluation, send
 
@@ -910,50 +854,37 @@ sequenceDiagram
         else Token invalid or tampered
             API-->>B: 400, offer sign-in to manage reminders
         end
-    else One-click unsubscribe from the mail client
-        MC->>API: POST /v1/notifications/unsubscribe (token from header link)
-        API->>NTF: Verify and turn reminders off
-        API-->>MC: 200
+        Note over MC,API: Mail clients may POST the same token directly (one-click, RFC 8058)
     end
 ```
 
 | What goes wrong | Behaviour |
 | --- | --- |
-| Clocks go forward (DST), so the reminder time does not exist that day | Send at the next valid local time that day. |
-| Clocks go back (DST), so an hour repeats | Unique (user, learning day) row, so only one send (PRD §12 DST edge case). |
-| Learner changes time zone | The next tick uses the new zone. The unique row prevents a second send on the same date. Crossing many zones may skip a day, which is accepted. |
-| Scheduler down for hours | No backlog burst. A reminder is sent only inside a send window (proposed: 2 h after the reminder time), otherwise it is recorded as skipped. **Proposal** |
-| Overlapping ticks or two workers | Insert-or-skip on the unique delivery row, plus row locks when claiming retries. |
-| Crash after the provider call, before "sent" is recorded | The row stays `sending` and is not sent again unless the provider honours an idempotency key (unverified, `01`). Missing one reminder is better than sending two. **Proposal** |
-| Provider outage | Retries inside the window, then `failed`. Learning is unaffected (PRD §12). An alert fires on a high failure rate (`09`). |
-| Hard bounce | Reminders are paused automatically, with an in-app notice to fix the address. **Proposal** |
-| Session completed after the reminder was sent | Nothing more that day. A `small` session counts as completed. |
-| Paused enrolment or deletion pending | No candidates. |
+| Clock change (DST) | If the reminder time does not exist that day, send at the next valid local time. In a repeated hour, the unique (user, learning day) row allows one send (PRD §12). |
+| Learner changes time zone | The next tick uses the new zone and the unique row prevents a second send on the same date. Crossing many zones may skip a day, which is accepted. |
+| Scheduler down for hours | No backlog burst. Reminders are sent only inside a send window (proposed: 2 h after the reminder time), otherwise recorded as skipped. **Proposal** |
+| Crash after the provider call, before "sent" is recorded | The row stays `sending` and is not resent unless the provider honours an idempotency key (unverified, `01`). Missing one reminder is better than sending two. **Proposal** |
+| Provider outage or hard bounce | Retries inside the window, then `failed`, with an alert on a high failure rate (`09`). A hard bounce pauses reminders and shows an in-app notice. Learning is unaffected (PRD §12). **Proposal** |
 | Link scanners that prefetch the URL | `GET` only shows the confirmation page. Only `POST` changes state. **Proposal** |
-| Token for a deleted account | `200`, no effect, nothing disclosed. |
-| Re-subscribing | Only from signed-in settings, with a new consent timestamp. |
-| Weeks of reminders with no return | Open question 9 (offer to pause or reduce frequency). |
-| Email content | No urgency, no fear of job loss, no comparisons, no answer text (PRD §6). |
+| Token for a deleted account, or re-subscribing | A deleted account's token returns `200` with no effect and discloses nothing. Re-subscribing needs signed-in settings and a new consent time. |
 
-**Idempotency and concurrency:** (user ID, learning day) is the
-email-dispatch idempotency key that PRD §11 requires, enforced by a unique
-constraint on `notification_deliveries`. Each tick is safe to run twice. The
-one-click `POST` follows RFC 8058 (one-click unsubscribe), so mail clients can
-unsubscribe without a page.
-
-**Analytics events:** `reminder_paused`, plus `reminder_sent` (added),
-`reminder_suppressed` (added, with reason) and `reminder_disabled` (added,
-source settings or link) for the "reminders disabled" guardrail (PRD §13).
-
-**PRD coverage:** F10, §6 (at most one per learning day, snooze, pause, quiet
-hours, time zones), §12 (email failure must not block, DST).
+**Idempotency and concurrency:** (user ID, learning day) is the email-dispatch
+key that PRD §11 requires, enforced by a unique constraint on
+`notification_deliveries`. Overlapping ticks or workers are safe (insert or
+skip, row locks when claiming retries). Email copy never creates urgency or
+mentions job loss (PRD §6).
+**Analytics:** `reminder_paused`, plus `reminder_sent` (added),
+`reminder_suppressed` (added, with reason), `reminder_disabled` (added, source
+settings or link) for the "reminders disabled" guardrail (PRD §13).
+**PRD:** F10, §6 (one per learning day, snooze, pause, quiet hours, time zones),
+§12 (email failure must not block, DST).
 
 ---
 
 ## Flow 11 — Content publish and retire
 
 **Trigger:** an Author opens a pull request in the Content repo.
-**Preconditions:** the content format and validation rules are defined in
+**Preconditions:** format and validation rules are defined in
 `06-content-system.md`. The Reviewer is not the Author.
 
 ```mermaid
@@ -992,40 +923,30 @@ sequenceDiagram
     end
 ```
 
-Status mapping (**Proposal**): `draft` is a branch, `in_review` is an open pull
-request, `published` and `retired` exist in `catalogue`. Drafts never reach the
-runtime database, so `catalogue` stays read-only at runtime apart from this path.
+Status mapping (**Proposal**): `draft` is a branch and `in_review` is an open
+pull request. `published` and `retired` exist only in `catalogue`, so it stays
+read-only at runtime apart from this path.
 
 | What goes wrong | Behaviour |
 | --- | --- |
-| Prerequisite cycle in `topic_dependencies` or `skill_prerequisites` | CI rejects it and reports the cycle path (PRD §8A). |
-| Missing source URL, version scope, misconception notes or alternate prompts | CI rejects it (PRD §8, F11). |
-| Accessibility gaps (missing alt text, unlabelled code language) | A CI lint fails (PRD §8 accessibility review). |
-| Author approves their own pull request | Does not count. The repository requires a different approver. With a solo founder, a second reviewer is needed before the pilot (PRD §14). |
-| Publish fails partway | The transaction rolls back. Rerunning is safe because of the content hash. |
-| Same bundle published twice | No change. |
-| Edit to a published mission | Creates a new content version. Open sessions keep their pinned version and attempts keep their reference (PRD §11). |
-| Objective, rubric or topic set changes | Needs a new roadmap version (flow 12). Typo fixes are patch versions inside the topic. Policy in `06`. |
-| Retiring content that is in an open session | The session can finish. New sessions do not select the content. Evidence is kept (PRD §12). |
-| Objective materially changed | Related evidence shows "refresh recommended" (PRD §12). |
-| Bad publish | Publish a newer version that replaces it. Never delete rows that attempts reference. **Proposal** |
+| Prerequisite cycle (`topic_dependencies` or `skill_prerequisites`) | CI rejects it and reports the cycle path (PRD §8A). |
+| Missing sources, version scope, misconception notes, alternate prompts or accessibility basics | CI rejects it (PRD §8, F11). |
+| Author approves their own pull request | Does not count. With a solo founder, a second reviewer is needed before the pilot (PRD §14). |
+| Publish fails partway, or the same bundle is published twice | Rollback. Rerunning is safe because of the content hash. A repeat changes nothing. |
+| Edit to published content | A new content version. Open sessions and attempts keep the old one (PRD §11). Changes to an objective, rubric or topic set need a new roadmap version (flow 12). Policy in `06`. |
+| Retiring content in use, or a bad publish | Open sessions can finish, new sessions skip it, and evidence is kept, flagged "refresh recommended" if the objective changed (PRD §12). A bad publish is fixed by a newer version and is never deleted. |
 
-**Idempotency and concurrency:** the bundle content hash is the publish key.
-Publishes run one after another (one CI job at a time on the main branch).
-
-**Analytics events:** none. Publishes go to an operator audit log (`09`). Every
-learner event already carries the content version.
-
-**PRD coverage:** F11 (draft, review, publish, retire, sources, version,
-reviewer, last-reviewed date), §8 (reviewer tries every exercise), §8A (reject
-cycles), §12 (retired content keeps evidence).
+**Idempotency and concurrency:** the content hash is the publish key, and
+publishes run one at a time on the main branch.
+**Analytics:** none. Publishes go to an operator audit log (`09`).
+**PRD:** F11, §8 (reviewer tries every exercise), §8A (reject cycles), §12.
 
 ---
 
 ## Flow 12 — Roadmap version migration offer
 
-**Trigger:** a newer roadmap version is published (flow 11) while learners are
-enrolled in an older one.
+**Trigger:** a newer roadmap version is published while learners are enrolled
+in an older one.
 **Preconditions:** an enrolment pinned to the older version (R01). The offer is
 calculated on request, with no batch job. **Proposal**
 
@@ -1064,33 +985,26 @@ sequenceDiagram
 ```
 
 Rules that stop progress shrinking without notice (**Proposal**, from R06 and
-§8A): never migrate automatically. Always show the topic count and percentage
-before and after. Carry credit only where the objective and assessment version
-are compatible, and list the others as "needs a short check" with a
-challenge-out. A roadmap milestone already earned stays. `skill_evidence` is
-never changed by a migration.
+§8A): never migrate automatically. Always show the count and percentage before
+and after. Carry credit only where the objective and assessment version are
+compatible, and list the rest as "needs a short check" with a challenge-out.
+Never revoke an earned milestone, and never change `skill_evidence`.
 
 | What goes wrong | Behaviour |
 | --- | --- |
-| Preview is stale at accept (another publish, or progress changed) | `409` with a fresh preview. Nothing changed. |
-| Session open during migration | The learner is asked to finish it or set it aside first, so content never changes mid-session. **Proposal** |
-| New version adds required topics | The denominator grows. This is shown before accepting and never applied silently (R06). |
-| A completed topic was removed | Kept in history as "covered in the previous version", outside the new denominator. Visible in the preview. |
-| Old version later retired | Enrolled learners can still continue and complete it. Retired is not deleted. **Proposal** |
+| Preview is stale at accept | `409` with a fresh preview. Nothing changed. |
+| Session open during migration | Finish it or set it aside first, so content never changes mid-session. **Proposal** |
+| New required topics, or a completed topic removed | The denominator change is shown before accepting (R06). A removed topic stays in history as "covered in the previous version". |
+| Old version later retired | Enrolled learners can still finish it. Retired is not deleted. **Proposal** |
 | Roadmap already completed on the old version | The milestone stays. The new version is offered as "what's new" maintenance practice. |
 | Serious error found in the old version | An in-app notice on the affected topic. Migration stays the learner's choice. **Proposal** |
-| Accept retried | Replayed through the idempotency key. |
-| Reviews from the old version | Continue by default. **Proposal** |
 
-**Idempotency and concurrency:** the idempotency key plus the preview hash, both
-checked inside the migration transaction, prevent applying a migration twice or
-applying an out-of-date one.
-
-**Analytics events:** `migration_offered` (added, client, first time the notice
-is shown), `migration_accepted` (added), `migration_declined` (added).
-
-**PRD coverage:** R06, R01 (pinned version), §8A (reuse evidence only when
-compatible, otherwise challenge-out; milestone never revoked).
+**Idempotency and concurrency:** the key plus the preview hash, both checked in
+the migration transaction, prevent a double or out-of-date migration. Reviews
+from the old version continue by default.
+**Analytics:** `migration_offered` (added, client), `migration_accepted` (added),
+`migration_declined` (added).
+**PRD:** R06, R01, §8A (reuse evidence only when compatible; milestone never revoked).
 
 ---
 
@@ -1098,8 +1012,7 @@ compatible, otherwise challenge-out; milestone never revoked).
 
 **Trigger:** the learner opens a lab from Today or Roadmap, usually on a desktop.
 **Preconditions:** the lab is published with a versioned starter kit, a
-checksum, a setup check, local checks and a rubric (F07). The server never runs
-learner code (PRD §11).
+checksum, a setup check, local checks and a rubric (F07).
 
 ```mermaid
 sequenceDiagram
@@ -1142,25 +1055,19 @@ sequenceDiagram
 | What goes wrong | Behaviour |
 | --- | --- |
 | Setup check fails | Troubleshooting, plus a no-setup scenario clearly labelled as different evidence (PRD §16). |
-| Checksum mismatch | Download again. Do not continue. |
-| Kit version differs from the pinned lab version | Evidence is accepted with a "kit version differs" limitation. **Proposal** |
+| Checksum mismatch, or kit version differs from the lab version | Mismatch: download again. Different version: evidence is accepted with a "kit version differs" limitation. **Proposal** |
 | Learner pastes employer code or secrets | The UI warns before submit. Size limit. No source upload in the MVP. Text is rendered safely (PRD §11, §12). |
 | Report edited by hand | Accepted as learner-submitted evidence, labelled as such, and never shown as a verified credential (PRD §9). |
-| Lab spans several days | The build session stays open and does not block short sessions (open question 2). |
-| Lab opened on a phone | Marked as desktop work. Today on the phone offers a short session instead (PRD §1). |
-| Duplicate submit | Replayed through the idempotency key. |
-| File uploads wanted later | Object storage is added only then (PRD §11). The MVP accepts structured text and JSON only. **Proposal** |
-| Human review later | Adds a new `human_reviewed` evidence row without overwriting the old one. **Proposal** |
-| Labs are optional | They never affect core roadmap completion (PRD §8A). |
+| Lab spans days, or is opened on a phone | The build session stays open without blocking short sessions (open question 2). On a phone, Today offers a short session instead. |
+| File uploads or human review wanted later | Add object storage only then (PRD §11). Human review adds a new `human_reviewed` evidence row and never overwrites. **Proposal** |
 
-**Idempotency and concurrency:** the artifact submission has an idempotency key.
-Lab drafts use `base_revision` as in flow 4.
-
-**Analytics events:** `session_started` (mode `build`), `lab_evidence_submitted`,
-`lab_setup_checked` (added; passed or failed only, reported by the client).
-
-**PRD coverage:** F07, §9 (local test output is learner-submitted evidence), §10
-Lab screen, §11 (no server-side execution), §16 (setup fallback).
+**Idempotency and concurrency:** the artifact submit has a key, and lab drafts
+use `base_revision` as in flow 4. Labs never affect core roadmap completion
+(PRD §8A).
+**Analytics:** `session_started` (mode `build`), `lab_evidence_submitted`,
+`lab_setup_checked` (added; passed or failed only).
+**PRD:** F07, §9 (learner-submitted evidence), §10 (Lab), §11 (no server
+execution), §16 (setup fallback).
 
 ---
 
@@ -1185,13 +1092,7 @@ sequenceDiagram
     API->>ID: Create export_requests as queued, unless one is already active
     API-->>B: 202 export id, status queued
     SJ->>ID: Export job picks the request
-    par Sections for this user only
-        ID->>DB: Read profile, goal, preferences, notification settings
-    and
-        ID->>DB: Read enrolments, topic progress, sessions, drafts, attempts
-    and
-        ID->>DB: Read skill evidence, review schedule, artifacts
-    end
+    ID->>DB: Read every module's records for this user only
     ID->>DB: Save export file with expiry (store chosen in 01), status ready
     ID->>EP: Email - your export is ready, link only, no data
     L->>B: Open export page
@@ -1241,66 +1142,53 @@ sequenceDiagram
 | --- | --- |
 | Export requested while one is active | Returns the active request (`202`, same ID). |
 | Export link used after expiry | `410`. Request a new one. The file is deleted at expiry (proposed: 7 days). **Proposal** |
-| Someone else's export ID | `404` (PRD §12). |
-| Export contents | The learner's own records, including their answer text and notes, as machine-readable JSON with a short readme. No other user's data and no internal secrets. **Proposal** |
-| "Export ready" email fails | The export is still listed in settings (PRD §12). |
-| Learner changes their mind in the undo window | Signing in shows only "Cancel deletion" (`POST /v1/me/deletion/cancel`, added). Reminders stay off until consent is given again. **Proposal** (open question 15) |
-| Purge fails partway | Step progress is recorded, so a rerun is safe. An alert fires if a request is still open on day 25. The deadline is 30 days (PRD §12). |
-| Backups | Deleted data stays until the documented backup expiry (`09`). After any restore, the tombstones are applied again before reopening. **Proposal** |
-| Analytics | Events become unlinkable once the pseudonym mapping is deleted. Aggregates remain. **Proposal**, confirmed in `09`. |
+| Export contents | The learner's own records, including their answer text and notes, as machine-readable JSON with a short readme. No other user's data and no internal secrets. If the "export ready" email fails, the export is still listed in settings. |
+| Learner changes their mind in the undo window | Signing in shows only "Cancel deletion" (`POST /v1/me/deletion/cancel`, added). Reminders stay off until consent is given again. **Proposal** (open question 12) |
+| Purge fails partway | Step progress is recorded, so a rerun is safe. An alert fires if a request is still open on day 25, ahead of the 30-day ceiling (PRD §12). |
+| Backups and analytics | Deleted data stays only until the documented backup expiry. Tombstones are applied again after any restore. Events become unlinkable, and aggregates remain. **Proposal**, confirmed in `09`. |
 | Another device still signed in | The next request returns `401` with an "account deleted" reason, and that Browser clears its local data. |
-| Same email signs up again | A new, empty account. Nothing is restored. |
 
 **Idempotency and concurrency:** a repeated `DELETE /v1/me` returns the existing
-request. Each purge step is an idempotent delete scoped to the user. The
-`users` row goes last so foreign keys never dangle. Exports are limited to one
-active request per user.
-
-**Analytics events:** `export_requested` (added, optional). Nothing is emitted
-for a user after the deletion request. Earlier events are unlinked.
-
-**PRD coverage:** F09 (export, deletion), §12 (removal within 30 days, backup
-expiry, owner-only access to exports).
+request. Purge steps are idempotent deletes scoped to the user, with the `users`
+row last so foreign keys never dangle. One active export per user.
+**Analytics:** `export_requested` (added, optional). Nothing is emitted for a
+user after a deletion request, and earlier events are unlinked.
+**PRD:** F09 (export, deletion), §12 (removal within 30 days, backup expiry,
+owner-only access).
 
 ---
 
 ## Analytics events by flow
 
-| Event | Source | Flows |
+| Events | Source | Flows |
 | --- | --- | --- |
 | `onboarding_completed` | PRD §13 | 2 |
 | `recommendation_seen` | PRD §13 | 3, 9 |
-| `session_started` | PRD §13 | 4, 8, 9, 13 |
-| `session_resumed` | PRD §13 | 4, 9 |
-| `first_answer_submitted` | PRD §13 | 1, 5 |
-| `hint_used` | PRD §13 | 6 |
-| `answer_revealed` | PRD §13 | 6 |
-| `attempt_evaluated` | PRD §13 | 1, 5, 8 |
-| `session_completed` | PRD §13 | 7, 8, 9 |
-| `review_completed` | PRD §13 | 5, 9 |
+| `session_started`, `session_resumed`, `session_completed` | PRD §13 | 4, 7, 8, 9, 13 |
+| `first_answer_submitted`, `attempt_evaluated`, `review_completed` | PRD §13 | 1, 5, 8, 9 |
+| `hint_used`, `answer_revealed` | PRD §13 | 6 |
 | `lab_evidence_submitted` | PRD §13 | 13 |
 | `reminder_paused` | PRD §13 | 10 |
-| `account_created`, `guest_progress_claimed` | added | 1 |
-| `enrolment_created` | added | 2 |
+| `account_created`, `guest_progress_claimed`, `enrolment_created` | added | 1, 2 |
 | `topic_completed`, `roadmap_completed`, `topic_deferred` | added | 7, 8 |
 | `reminder_sent`, `reminder_suppressed`, `reminder_disabled` | added | 10 |
 | `migration_offered`, `migration_accepted`, `migration_declined` | added | 12 |
 | `lab_setup_checked`, `export_requested` | added | 13, 14 |
 
-The final event catalogue and payloads belong to `10-measurement-and-validation.md`.
+The final event catalogue and payloads are owned by `10-measurement-and-validation.md`.
 
 ## Endpoints used in this doc
 
-All the canonical operations from `00-conventions.md` are used. Additions, for
+Every canonical operation in `00-conventions.md` is used. Additions, for
 `02-system-architecture.md` to accept or reject:
 
 | Endpoint | Flow | Why |
 | --- | --- | --- |
 | `GET /v1/guest/sample` (no login) | 1 | Serve the sample before sign-up. |
 | `POST /v1/guest/attempts` (no login, stateless, rate-limited) | 1 | Rubric feedback for guests without storing learner records. |
-| `POST /v1/auth/signup` (and login) | 1 | Account creation. Final shape owned by `02` and `09`. |
-| `GET /v1/me/diagnostic` | 2 | Fetch the diagnostic items for the pinned version. |
-| `GET /v1/enrolments/{id}/migration` | 12 | Migration preview with before and after progress. |
+| `POST /v1/auth/signup` (and login) | 1 | Account creation. Shape owned by `02` and `09`. |
+| `GET /v1/me/diagnostic` | 2 | Diagnostic items for the pinned version. |
+| `GET /v1/enrolments/{id}/migration` | 12 | Migration preview with progress before and after. |
 | `GET /v1/labs/{id}` | 13 | Lab definition, kit link and checksum. |
 | `POST /v1/me/deletion/cancel` | 14 | Cancel during the undo window. |
 | `POST /v1/admin/catalogue/bundles` (operator token) | 11 | CI publishes a validated bundle. |
@@ -1316,48 +1204,43 @@ flag on `POST /v1/sessions`; `kind=worked_example` on the hints endpoint; a
    but stateless (`POST /v1/guest/attempts`). Answers are evaluated again at
    claim, and claimed evidence is capped at `practised`. Evaluating only in the
    client would expose the rubrics.
-2. **How many open sessions can a learner have?** *Default:* one per kind,
-   where `short` covers `small` and `practise`, and `build` covers labs.
-   `POST /v1/sessions` returns the open session of the requested kind, so a
-   multi-day lab never blocks a 10-minute session.
+2. **How many open sessions can a learner have?** *Default:* one per kind:
+   `short` (`small` and `practise`) and `build` (labs). `POST /v1/sessions`
+   returns the open session of the requested kind, so a multi-day lab never
+   blocks a 10-minute session.
 3. **Does deferring a prerequisite block the topics that depend on it?**
-   *Default:* no. Dependents become usable with a visible warning, and
-   completion still requires the deferred topic.
+   *Default:* no. Dependents are usable with a visible warning, and completion
+   still requires the deferred topic.
 4. **Can a learner submit while offline?** *Default:* yes. The submission is
-   queued with its idempotency key and sent on reconnect. No feedback until then.
+   queued with its idempotency key and sent on reconnect, with no feedback
+   until then.
 5. **How fine-grained is draft conflict handling?** *Default:* the learner
    chooses for the whole draft in the MVP. Add per-step merging only if conflict
    metrics show it is needed.
-6. **What counts as missed and as long absence?** *Default:* missed means a
-   planned learning day passed with no completed session. Long absence means 7
-   or more days with none (the same as the PRD §13 metric).
-7. **When does a learning day end?** *Default:* local midnight in the learner's
-   IANA zone.
-8. **What is the reminder send window and delivery rule?** *Default:* send
-   within 2 hours of the reminder time, at most once (a crash may lose a
-   reminder but never duplicates one).
-9. **How do reminders respond to reminder fatigue?** *Default (Hypothesis):*
+6. **What counts as missed, and as long absence?** *Default:* missed is a
+   planned learning day with no completed session. Long absence is 7 or more
+   days with none, matching the PRD §13 metric. A learning day ends at local
+   midnight.
+7. **What is the reminder send window and delivery rule?** *Default:* send
+   within 2 hours of the reminder time, at most once. A crash may lose a
+   reminder but never duplicates one.
+8. **How do reminders respond to reminder fatigue?** *Default (Hypothesis):*
    after 14 days without a completed session, the next reminder offers to pause
    or switch to weekly, and reminders never escalate.
-10. **Are hints served only by the server?** *Default:* yes for signed-in
-    learners, so assistance is always recorded. Only the guest sample bundles
-    hints locally.
-11. **Is the onboarding diagnostic the same as the §13 baseline transfer
+9. **Are hints served only by the server?** *Default:* yes for signed-in
+   learners, so assistance is always recorded. Only the guest sample bundles
+   hints locally.
+10. **Is the onboarding diagnostic the same as the §13 baseline transfer
     assessment?** *Default:* no. The diagnostic is under 5 minutes and only
     places the learner. The baseline is run separately in the pilot (`10`).
-12. **What are the challenge-out rules?** *Default:* auto-scored items only, no
-    hints or reveal, and one retry per learning day.
-13. **Can a learner migrate with a session open?** *Default:* no. Finish it or
-    set it aside first.
-14. **How does content reach the catalogue?** *Default:* CI calls an
+11. **How does content reach the catalogue?** *Default:* CI calls an
     operator-only `POST /v1/admin/catalogue/bundles` with a token held by CI.
     Publishing is idempotent by content hash. The alternative is an import
     command run at release (`01` and `06` decide).
-15. **Should account deletion have an undo window?** *Default:* yes, 7 days,
-    with the purge on day 8 and a hard deadline of 30 days. This saves the
-    operator from restoring backups after accidental deletions.
-16. **How long does an export file stay available?** *Default:* 7 days, then it
-    is deleted.
+12. **Should account deletion have an undo window?** *Default:* yes, 7 days,
+    with the purge on day 8 and a hard ceiling of 30 days. This saves the
+    operator from restoring backups after accidental deletions. Export files
+    also expire after 7 days.
 
 ## PRD traceability
 
@@ -1375,21 +1258,15 @@ flag on `POST /v1/sessions`; `kind=worked_example` on the hints endpoint; a
 | F10 Optional email reminder | Flows 2, 10 |
 | F11 Content operations | Flow 11 |
 | F12 Evaluation instrumentation | Every flow, plus "Analytics events by flow" |
-| F13 Bounded AI tutor (P1) | Flow 6 note only |
-| F14, F15 (P1) | Not covered |
-| R01 Enrolment | Flows 2, 12 |
+| F13 AI tutor (P1) | Flow 6 note only |
+| R01 Enrolment, R06 Version stability | Flows 2, 12 |
 | R02 Topic progression | Flows 3, 7 |
-| R03 Prerequisites and skips | Flow 8 |
-| R04 Completion milestone | Flows 7, 8 |
+| R03 Prerequisites and skips, R04 Completion milestone | Flows 7, 8 |
 | R05 Pause and return | Flows 4, 9 |
-| R06 Version stability | Flow 12 |
-| R07, R08 | Not covered (later) |
-| §5 Onboarding, guest first value | Flows 1, 2 |
+| §5 Onboarding and guest first value | Flows 1, 2 |
 | §6 Motivation and return behaviour | Flows 3, 6, 8, 9, 10 |
-| §8 Content review gates | Flow 11 |
-| §8A Roadmaps and completion rules | Flows 7, 8, 11, 12 |
+| §8, §8A Content gates, roadmaps and completion rules | Flows 7, 8, 11, 12 |
 | §9 Adaptation and assessment | Flows 3, 5, 6, 8, 13 |
-| §10 Screens (Today, Lab, Return) | Flows 3, 9, 13 |
-| §11 Technical boundaries | Cross-cutting rules, flows 5, 13 |
+| §10, §11 Screens and technical boundaries | Flows 3, 5, 9, 13, cross-cutting rules |
 | §12 Quality, privacy, operations | Flows 4, 5, 10, 11, 14 |
-| §13 Events | "Analytics events by flow" |
+| Not covered | F14, F15 (P1), R07, R08 (later) |

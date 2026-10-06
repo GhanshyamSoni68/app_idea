@@ -129,16 +129,10 @@ Journeys are screen-level. The matching system sequences live in `03-key-flows.m
 
 ```mermaid
 flowchart TD
-  A1["Landing page"] --> A2["Try a sample scenario<br/>about 3 min, no account"]
-  A2 --> A3["Player: one scenario<br/>and one decision"]
-  A3 --> A4["Feedback"]
-  A4 --> A5["Stopping point with an<br/>evidence-based message"]
-  A5 --> A6{"Keep this progress?"}
-  A6 -->|Create account| A7["Sign up"]
-  A7 --> A8["Guest work moves<br/>into the account"]
-  A8 --> A9["Onboarding"]
-  A6 -->|Not now| A10["Stay a guest<br/>saved in this browser only"]
-  A10 --> A11{"Back on the same browser<br/>before expiry?"}
+  A1["Landing page"] --> A2["Try a sample scenario<br/>about 3 min, no account"] --> A3["Player: one scenario,<br/>one decision, feedback"]
+  A3 --> A5["Stopping point with an<br/>evidence-based message"] --> A6{"Keep this progress?"}
+  A6 -->|Create account| A7["Sign up"] --> A8["Guest work moves<br/>into the account"] --> A9["Onboarding"]
+  A6 -->|Not now| A10["Stay a guest<br/>saved in this browser only"] --> A11{"Back on the same browser<br/>before expiry?"}
   A11 -->|Yes| A6
   A11 -->|No| A12["Starts fresh<br/>nothing to restore"]
   A2 -.->|Storage blocked| A13["Warning: answers are lost<br/>when this tab closes"]
@@ -180,17 +174,12 @@ flowchart TD
   C1["Today: one action,<br/>time and why it matters"] --> C2{"Open session exists?"}
   C2 -->|Yes| C3["Resume at saved step<br/>draft restored"]
   C2 -->|No| C4["Start a session<br/>in the chosen mode"]
-  C3 --> C5["Player: one step"]
+  C3 --> C5["Player: one step"] --> C6["Answer, draft autosaves"] --> C7{"Want help?"}
   C4 --> C5
-  C5 --> C6["Answer, draft autosaves"]
-  C6 --> C7{"Want help?"}
-  C7 -->|Hint| C8["Next graduated hint"]
-  C8 --> C6
-  C7 -->|No| C9["Check answer<br/>and read feedback"]
-  C9 --> C10{"More steps?"}
+  C7 -->|Hint| C8["Next graduated hint"] --> C6
+  C7 -->|No| C9["Check answer<br/>and read feedback"] --> C10{"More steps?"}
   C10 -->|Yes| C5
-  C10 -->|No| C11["Stopping point<br/>session complete"]
-  C11 --> C12["Today: done for today<br/>next planned session shown"]
+  C10 -->|No| C11["Stopping point<br/>session complete"] --> C12["Today: done for today<br/>next planned session shown"]
   C5 -.->|Save and exit| C13["Today shows Continue"]
   C12 -.->|Next learning day| C1
 ```
@@ -203,9 +192,7 @@ flowchart TD
   D2 -->|Start small| D3["Curated 3-minute task<br/>not a cut-down lesson"]
   D2 -->|Rest today| D4["Planned rest recorded<br/>no reminder today"]
   D2 -->|Another day| D5["Pick a day this week<br/>no extra load added"]
-  D3 --> D6["One recall or decision<br/>and feedback"]
-  D6 --> D7["Stopping point:<br/>You can stop here"]
-  D7 --> D8{"Keep going?"}
+  D3 --> D6["One recall or decision<br/>and feedback"] --> D7["Stopping point:<br/>You can stop here"] --> D8{"Keep going?"}
   D8 -->|Stop| D9["Today: done for today"]
   D8 -->|One more small task| D3
   D4 --> D10["Today: Rest planned<br/>with a quiet Practise anyway link"]
@@ -218,14 +205,11 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  E1["Learner opens the app after<br/>the absence threshold in 05"] --> E2["Return screen<br/>Welcome back"]
-  E2 --> E3["Summary of prior work:<br/>module, last task, topics done"]
-  E3 --> E4{"Choose"}
-  E4 -->|Three-minute refresher| E5["Brief retrieval check<br/>small mode"]
+  E1["Learner opens the app after<br/>the absence threshold in 05"] --> E2["Return screen: Welcome back<br/>and summary of prior work"] --> E4{"Choose"}
+  E4 -->|Refresher| E5["Brief retrieval check<br/>small mode"]
   E4 -->|Continue last task| E6["Resume saved session<br/>draft restored"]
   E4 -->|Change my plan| E7["Days, length or pause"]
-  E5 --> E8["Feedback and stopping point"]
-  E8 --> E9["Today: normal-sized plan<br/>reviews capped, no catch-up"]
+  E5 --> E8["Feedback and stopping point"] --> E9["Today: normal-sized plan<br/>reviews capped, no catch-up"]
   E6 --> E9
   E7 --> E9
   E6 -.->|Content updated meanwhile| E10["Finish your version<br/>or start the updated one"]
@@ -239,18 +223,12 @@ flowchart TD
 ```mermaid
 flowchart TD
   F1["Lab opened from Today<br/>or Roadmap"] --> F2{"Screen width"}
-  F2 -->|Phone| F3["Overview: goal, effort,<br/>prerequisites, task list"]
-  F3 --> F4["Save for my computer<br/>appears on Today there"]
-  F2 -->|Desktop| F5["Prerequisites:<br/>topics and tools"]
-  F5 --> F6["Download lab kit<br/>pinned version"]
-  F6 --> F7{"Setup check passes?"}
-  F7 -->|No| F8["Troubleshooting steps"]
-  F8 --> F7
+  F2 -->|Phone| F3["Overview: goal, effort,<br/>prerequisites, task list"] --> F4["Save for my computer<br/>appears on Today there"]
+  F2 -->|Desktop| F5["Prerequisites:<br/>topics and tools"] --> F6["Download lab kit<br/>pinned version"] --> F7{"Setup check passes?"}
+  F7 -->|No| F8["Troubleshooting steps"] --> F7
   F8 -.->|Still stuck| F9["No-setup scenario version<br/>labelled as different evidence"]
-  F7 -->|Yes| F10["Ordered tasks<br/>each checkpoint saves"]
-  F10 --> F11["Rubric self-check"]
-  F11 --> F12["Submit results<br/>and decision record"]
-  F12 --> F13["Lab summary<br/>Submitted by you, not verified"]
+  F7 -->|Yes| F10["Ordered tasks<br/>each checkpoint saves"] --> F11["Rubric self-check"]
+  F11 --> F12["Submit results<br/>and decision record"] --> F13["Lab summary<br/>Submitted by you, not verified"]
   F10 -.->|Save and come back| F14["Today shows Continue lab"]
 ```
 
@@ -262,17 +240,14 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  G1["Roadmap catalogue<br/>one roadmap in the MVP"] --> G2["Roadmap overview"]
-  G2 --> G3["Before you enrol:<br/>outcome, required topics,<br/>effort, version,<br/>what completion means"]
+  G1["Roadmap catalogue<br/>one roadmap in the MVP"] --> G2["Roadmap overview"] --> G3["Before you enrol:<br/>outcome, required topics,<br/>effort, version,<br/>what completion means"]
   G3 -->|Enrol| G4["Enrolment pinned<br/>to this version"]
   G3 -->|Preview topics| G5["Read-only topic outlines"]
   G5 --> G3
   G4 --> G6["Roadmap: current module open<br/>later modules collapsed"]
   G6 -->|Preview a later topic| G7["Objective, prerequisites,<br/>effort, evidence needed"]
-  G6 -->|Pause| G8{"Also pause reminders?"}
-  G8 --> G9["Paused: topic states<br/>and drafts kept"]
-  G9 -->|Resume| G10["Plan rescheduled from today<br/>no missed-lesson debt"]
-  G10 --> G6
+  G6 -->|Pause| G8{"Also pause reminders?"} --> G9["Paused: topic states<br/>and drafts kept"]
+  G9 -->|Resume| G10["Plan rescheduled from today<br/>no missed-lesson debt"] --> G6
   G2 -.->|Switch roadmap R07| G11["Keep progress and ask<br/>whether old reviews continue"]
 ```
 
@@ -291,12 +266,10 @@ The enrolment screen (S11) must show, before the button *(PRD R01, §8A)*:
 ```mermaid
 flowchart TD
   H1["Topic row:<br/>I already know this"] --> H2{"Choose"}
-  H2 -->|Take the challenge| H3["Alternate challenge assessment<br/>help rules per 05"]
-  H3 --> H4{"Meets the topic rule?"}
+  H2 -->|Take the challenge| H3["Alternate challenge assessment<br/>help rules per 05"] --> H4{"Meets the topic rule?"}
   H4 -->|Yes| H5["Completed by challenge<br/>counts toward progress"]
   H4 -->|Not yet| H6["Topic stays open<br/>attempt counts as practice<br/>start at the gap shown"]
-  H2 -->|Defer| H7["Confirm: no credit, and the<br/>roadmap cannot complete<br/>until this topic is done"]
-  H7 --> H8["Topic shows Deferred<br/>later topics show the need"]
+  H2 -->|Defer| H7["Confirm: no credit, and the<br/>roadmap cannot complete<br/>until this topic is done"] --> H8["Topic shows Deferred<br/>later topics show the need"]
   H8 -.->|Any time later| H1
   H2 -->|Cancel| H9["Back to the topic"]
 ```
@@ -308,13 +281,11 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  I1["Evidence tab"] --> I2["Grouped by level:<br/>retained, demonstrated,<br/>practised, introduced"]
-  I2 --> I3["Skill detail"]
+  I1["Evidence tab"] --> I2["Grouped by level:<br/>retained, demonstrated,<br/>practised, introduced"] --> I3["Skill detail"]
   I3 --> I4["Each record: date, level,<br/>basis label, help used,<br/>task version, limitation"]
   I3 --> I5["Next practice need"]
   I5 -->|Practise now| I6["Player session on this skill"]
-  I2 --> I7["Lab evidence item"]
-  I7 --> I8["Submitted results and decision<br/>labelled Submitted by you"]
+  I2 --> I7["Lab evidence item"] --> I8["Submitted results and decision<br/>labelled Submitted by you"]
   I2 -->|Switch view| I9["By module"]
   I1 -.-> I10["Export from Settings"]
 ```
@@ -323,21 +294,16 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  J1["Settings: Reminders<br/>off by default"] --> J2["Turn on"]
-  J2 --> J3["Consent: what is sent,<br/>how often, how to stop"]
-  J3 -->|Agree| J4["Time, confirm time zone,<br/>quiet hours"]
+  J1["Settings: Reminders<br/>off by default"] --> J2["Turn on"] --> J3["Consent: what is sent,<br/>how often, how to stop"]
+  J3 -->|Agree| J4["Time, confirm time zone,<br/>quiet hours"] --> J5{"Time inside quiet hours?"}
   J3 -->|Not now| J1
-  J4 --> J5{"Time inside quiet hours?"}
-  J5 -->|Yes| J6["Inline message:<br/>choose another time"]
-  J6 --> J4
-  J5 -->|No| J7["Saved: next reminder shown<br/>with date, time and zone"]
-  J7 --> J8{"Later change"}
+  J5 -->|Yes| J6["Inline message:<br/>choose another time"] --> J4
+  J5 -->|No| J7["Saved: next reminder shown<br/>with date, time and zone"] --> J8{"Later change"}
   J8 -->|Snooze| J9["Skip the next reminder"]
   J8 -->|Pause| J10["Pause until a date"]
   J8 -->|Turn off| J11["Off, consent withdrawn"]
   J7 -.->|Device zone differs| J12["Banner: update time zone?"]
-  K1["Email footer: Unsubscribe"] --> K2["Signed link, no login"]
-  K2 --> K3["Confirmation: no more reminders,<br/>progress unchanged"]
+  K1["Email footer: Unsubscribe"] --> K2["Signed link, no login"] --> K3["Confirmation: no more reminders,<br/>progress unchanged"]
 ```
 
 - Reminders only go out on learning days, at most one a day, and not when the learner has already practised that day. *(PRD §6, F10)*
@@ -348,14 +314,9 @@ flowchart TD
 ```mermaid
 flowchart TD
   L1["Settings: Account"] --> L2{"Choose"}
-  L2 -->|Export my data| L3["Request export"]
-  L3 --> L4["Preparing<br/>you can leave this page"]
-  L4 --> L5["Ready: download link<br/>with its expiry shown"]
-  L2 -->|Delete account| L6["What is deleted and when<br/>timing from 09"]
-  L6 --> L7["Offer an export first"]
-  L7 --> L8["Confirm identity,<br/>then confirm deletion"]
-  L8 --> L9["Deletion scheduled<br/>signed out everywhere"]
-  L9 --> L10["Confirmation email<br/>no further reminders"]
+  L2 -->|Export my data| L3["Request export"] --> L4["Preparing<br/>you can leave this page"] --> L5["Ready: download link<br/>with its expiry shown"]
+  L2 -->|Delete account| L6["What is deleted and when<br/>timing from 09"] --> L7["Offer an export first"]
+  L7 --> L8["Confirm identity,<br/>then confirm deletion"] --> L9["Deletion scheduled<br/>signed out everywhere"] --> L10["Confirmation email<br/>no further reminders"]
   L6 -->|Cancel| L1
 ```
 
@@ -398,7 +359,7 @@ Phone frames are 40 characters wide; the lab is 80. Bracketed text is a control;
 +--------------------------------------+
 ```
 
-Variants: **Continue** (card reads "Continue: Indexes and pagination · step 3 of 5 · your draft is saved"); **Done for today** ("Done for today. Next: Thu, about 10 min." plus a quiet "Practise anyway"); **Desktop** adds one line, "Optional lab ready: before/after experiment", below the card, never a second card. The roadmap, module, topic and purpose line is required. *(PRD §8A, F02)*
+Variants: **Continue** (card reads "Continue: Indexes and pagination · step 3 of 5 · your draft is saved"); **Done for today** ("Done for today. Next: Wed, about 10 min." plus a quiet "Practise anyway"); **Desktop** adds one line, "Optional lab ready: before/after experiment", below the card, never a second card. The roadmap, module, topic and purpose line is required. *(PRD §8A, F02)*
 
 ### W02 · Player step: scenario and question
 
@@ -533,7 +494,7 @@ Open-ended variant (written explanations, architecture choices): after submittin
 | comes back in a few days.            |
 |                                      |
 | Topic: Query plans - 2 of 3 parts    |
-| Next planned: Thu, about 10 min      |
+| Next planned: Wed, about 10 min      |
 |                                      |
 | [ Back to Today ]                    |
 | One more task (optional)             |
@@ -831,7 +792,7 @@ Every screen in §2.3 must define the states below where they apply. W14 and W15
 | Completed elsewhere | Player | "You finished this session on another device." Any unsynced local text is offered for copying. | Back to Today | Double credit (completion is idempotent, F09). |
 | Error | Any | "Couldn't load Today. Your progress is safe." / "Couldn't check your answer. It's saved; try again." | Try again | Losing the answer; error codes as the only message. |
 | Signed out mid-task | Player, Lab | "You've been signed out. Your answer is saved on this device. Sign in to continue." Returns to the same step. | Sign in | Expiring work (no timed answers). |
-| Content exhausted | Today | "You've done everything available right now. Next review: Thu." | Revisit a deferred topic; Optional lab; Rest | Filler tasks; unreviewed content. |
+| Content exhausted | Today | "You've done everything available right now. Next review: Fri." | Revisit a deferred topic; Optional lab; Rest | Filler tasks; unreviewed content. |
 | All prerequisites unmet | Today, Roadmap | "The next topics build on Query plans, which is deferred. Start it (about 10 min) or take its challenge." Rows read "Needs: Query plans (deferred)". | Start; Take the challenge; Preview | A dead end; a padlock with no explanation. |
 | Enrolment paused | Today, Roadmap | "Your roadmap is paused. Progress and drafts are kept." Roadmap header: "Paused since 3 Oct". | Resume; Three-minute refresher | "You're losing progress"; auto-resume countdown. *(R05)* |
 | Roadmap completed | Today | Maintenance card: "Maintenance: 1 short review, about 3 min." | Start; See other roadmaps; Take a break | Automatic enrolment. *(PRD §8A)* |
@@ -1012,7 +973,7 @@ Semantic tokens only, resolved per theme. Values are chosen in the design phase 
 
 ```yaml
 # Illustrative structure, not values
-color: {text: [primary, secondary], surface: [base, raised], border: [default, strong],
+colour: {text: [primary, secondary], surface: [base, raised], border: [default, strong],
         focus: ring, action: [primary, quiet], status: [positive, attention, info],
         code: [background, text, syntax]}   # status always paired with marker and text
 type:  {family: [ui, mono], size: [sm, base, lg, xl]}  # base >= 16 CSS px, mono >= 14

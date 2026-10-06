@@ -11,33 +11,27 @@ to exist.
 ## Summary
 
 - Validation runs in three gated stages (PRD §13): 8–12 interviews, then a
-  two-week concierge trial with 10–15 people, then a six-week product pilot
-  with 30–50 people plus delayed checks. Each gate has written pass and fail
-  signals, and nothing gets built before gate 1.
-- Analytics lives in one `analytics_events` table in the app database and is
-  queried with plain SQL. Wherever the server can observe an action, the server
-  emits the event. Events never contain answer text, code, email addresses or
-  any other free text. A per-event allow-list enforces this.
-- In analytics, a learner is known only by a random `analytics_learner_id`.
-  This makes the data pseudonymous, not anonymous, and the mapping can be
-  deleted.
-- North star: the number of learners each week with at least one unassisted
-  success on an alternate task that counts as demonstration or retention.
-  Practice-only and self-assessed-only learners are reported next to it and
-  never counted in it.
-- Every PRD §13 metric has a numerator, a denominator, a time window and
-  pseudo-SQL. Because pilot samples are small, every rate is shown with its
-  raw counts (for example "9/24").
-- The pilot compares DevStep with a structured static checklist that uses the
-  same content and workload. The recommended design is randomised parallel arms
-  across two staggered cohorts. Alternatives and their trade-offs are listed.
-- A decision table maps outcomes to continue, revise the curriculum, revise the
-  loop, pivot or stop. High engagement with no transfer gain means "revise the
-  curriculum", never success.
-- Signals about a finite paid path versus a subscription are collected during
-  the interviews and the pilot. They are recorded as past behaviour or as
-  labelled stated preference. No prices are tested and no willingness-to-pay
-  claim is made.
+  two-week concierge trial with 10–15 people, then a six-week pilot with 30–50
+  people plus delayed checks. Nothing is built before gate 1.
+- Analytics is one `analytics_events` table, queried with SQL. The server emits
+  every event it can observe. A per-event allow-list keeps answer text, code,
+  email and all other free text out.
+- Learners appear in analytics only as a random `analytics_learner_id`. The
+  data is pseudonymous, not anonymous, and the mapping can be deleted.
+- North star: the number of learners each week with at least one unassisted,
+  machine- or reviewer-scored success on an alternate task. Practice-only and
+  self-assessed learners are reported beside it, never inside it.
+- Every PRD §13 metric has a numerator, denominator and window, with
+  pseudo-SQL where the logic is not obvious. Every rate is shown with its raw
+  counts (for example "9/24").
+- The pilot compares DevStep with a static checklist that has the same content
+  and workload. The recommendation is randomised arms within two staggered
+  cohorts, and two alternatives are costed.
+- A decision table maps outcomes to continue, revise or stop. Engagement with
+  no transfer gain means "revise the curriculum", not success.
+- Business signals (paid path or subscription) are recorded only as past
+  behaviour or labelled stated preference. No prices are tested and no
+  willingness-to-pay claim is made.
 
 ## 1. Validation stages at a glance
 
@@ -135,21 +129,14 @@ Never put any of the following in any event (PRD §12, F12):
 
 Enforcement (Proposal):
 
-1. Each event name and schema version has an allow-list of properties. Any
-   unknown property causes the whole event to be rejected.
-2. A string value must be a UUID or a member of a declared enum. Numbers must
-   be bounded integers. No other strings are accepted, so free text has no
-   route in.
-3. Rejected events are counted in logs and never stored with their payload.
-4. `POST /v1/events` accepts only client events (the "client" rows in §3.5
-   and §3.6). Server event names sent from a client are rejected.
-5. A forbidden-data scan runs every week (§3.7, view V10).
-6. Learning never waits on analytics. Client events are fire-and-forget, with
-   an offline queue that is discarded after 24 hours. Server events are
-   recorded together with the state change they describe, so they are
-   exactly-once. `02-system-architecture.md` chooses the mechanism (same
-   transaction or outbox), with the constraint that a failed analytics write
-   must not fail the learner's request.
+| Rule | Detail |
+| --- | --- |
+| Allow-list | Each event name and schema version lists its permitted properties. An unknown property rejects the whole event. |
+| No free strings | Every string must be a UUID or a declared enum member, and every number a bounded integer. Free text has no route in. |
+| Rejections | Rejected events are counted in logs and never stored with their payload. |
+| Source check | `POST /v1/events` accepts only the "client" events in §3.5–§3.6. A server event name sent from a client is rejected. |
+| Weekly scan | A forbidden-data scan runs every week (§3.7, V10). |
+| Never blocking | Client events are fire-and-forget, with an offline queue discarded after 24 hours. Server events are recorded with the state change they describe, so each happens exactly once. `02-system-architecture.md` chooses the mechanism (same transaction or outbox); a failed analytics write must never fail the learner's request. |
 
 ### 3.5 PRD events (§13)
 
@@ -264,18 +251,19 @@ alternate unassisted task. Practice-only users are reported separately.
 
 ### 4.4 Pseudo-SQL
 
-PostgreSQL-flavoured pseudo-SQL. Column names follow §3.3. `04-data-model.md`
-owns the real schema. `:cutoff` is the learner-local cut-off date.
+The three least obvious metrics (north star, return after absence and delayed
+retention) are written out below in PostgreSQL-flavoured pseudo-SQL. Notes for
+the rest follow the queries. Column names follow §3.3, and
+`04-data-model.md` owns the real schema. `:cutoff` is the learner-local
+cut-off date.
 
 ```sql
--- ev: events from consenting, non-internal, non-withdrawn participants
+-- Shared views: consenting, non-internal participants, and meaningful practice tasks
 CREATE VIEW ev AS
 SELECT e.*, p.cohort_id, p.arm, p.cohort_start_date
-FROM analytics_events e
-JOIN pilot_participants p USING (analytics_learner_id)
+FROM analytics_events e JOIN pilot_participants p USING (analytics_learner_id)
 WHERE NOT p.is_internal AND p.withdrawn_at IS NULL;
 
--- mpt: meaningful practice tasks
 CREATE VIEW mpt AS
 SELECT analytics_learner_id AS lid, arm, cohort_start_date, occurred_at, local_date, mode
 FROM ev
@@ -287,12 +275,10 @@ North star and practice-only, per pilot week and arm:
 
 ```sql
 WITH uas AS (
-  SELECT DISTINCT analytics_learner_id AS lid, arm,
-         week_index(local_date, cohort_start_date) AS wk
+  SELECT DISTINCT analytics_learner_id AS lid, arm, week_index(local_date, cohort_start_date) AS wk
   FROM ev
   WHERE event_name = 'attempt_evaluated'
-    AND props->>'outcome' = 'met'
-    AND props->>'assistance' = 'none'
+    AND props->>'outcome' = 'met' AND props->>'assistance' = 'none'
     AND (props->>'is_alternate')::bool
     AND props->>'evidence_basis' IN ('auto_scored', 'human_reviewed')
     AND props->>'evidence_level_after' IN ('demonstrated', 'retained')
@@ -301,77 +287,14 @@ WITH uas AS (
   SELECT DISTINCT lid, arm, week_index(local_date, cohort_start_date) AS wk FROM mpt
 )
 SELECT w.wk, w.arm,
-       (SELECT COUNT(*) FROM uas u WHERE u.wk = w.wk AND u.arm = w.arm)        AS north_star,
-       COUNT(*) FILTER (WHERE NOT EXISTS (
-          SELECT 1 FROM uas u WHERE u.lid = w.lid AND u.wk = w.wk))           AS practice_only,
-       COUNT(*)                                                               AS wal
-FROM wal w
-GROUP BY w.wk, w.arm;
+       (SELECT COUNT(*) FROM uas u WHERE u.wk = w.wk AND u.arm = w.arm)      AS north_star,
+       COUNT(*) FILTER (WHERE (w.lid, w.wk) NOT IN (SELECT lid, wk FROM uas)) AS practice_only,
+       COUNT(*)                                                             AS wal
+FROM wal w GROUP BY w.wk, w.arm;
 ```
 
-Activation (the denominator includes participants who never visited):
-
-```sql
-WITH first_seen AS (
-  SELECT analytics_learner_id AS lid, MIN(occurred_at) AS t0
-  FROM ev WHERE actor = 'learner' GROUP BY 1
-), first_mpt AS (
-  SELECT lid, MIN(occurred_at) AS t1 FROM mpt GROUP BY 1
-)
-SELECT p.cohort_id, p.arm,
-       COUNT(*) FILTER (WHERE m.t1 <= f.t0 + INTERVAL '24 hours') AS activated,
-       COUNT(*)                                                  AS invited,
-       COUNT(*) FILTER (WHERE f.t0 IS NULL)                      AS never_visited
-FROM pilot_participants p
-LEFT JOIN first_seen f ON f.lid = p.analytics_learner_id
-LEFT JOIN first_mpt  m ON m.lid = p.analytics_learner_id
-WHERE NOT p.is_internal AND p.withdrawn_at IS NULL
-GROUP BY p.cohort_id, p.arm;
-```
-
-Start friction (new sessions only):
-
-```sql
-WITH seen AS (
-  SELECT props->>'recommendation_id' AS rec_id, MIN(occurred_at) AS t_seen
-  FROM ev WHERE event_name = 'recommendation_seen' GROUP BY 1
-), started AS (
-  SELECT learning_session_id, props->>'recommendation_id' AS rec_id
-  FROM ev WHERE event_name = 'session_started' AND props ? 'recommendation_id'
-), answered AS (
-  SELECT learning_session_id, occurred_at AS t_ans
-  FROM ev WHERE event_name = 'first_answer_submitted'
-)
-SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY a.t_ans - s.t_seen) AS median_start_friction,
-       percentile_cont(0.75) WITHIN GROUP (ORDER BY a.t_ans - s.t_seen) AS p75,
-       COUNT(*)                                                          AS n_sessions
-FROM seen s
-JOIN started st USING (rec_id)
-JOIN answered a USING (learning_session_id)
-WHERE NOT EXISTS (SELECT 1 FROM ev r
-                  WHERE r.event_name = 'session_resumed'
-                    AND r.learning_session_id = st.learning_session_id
-                    AND r.occurred_at < a.t_ans);
--- Report alongside: A1 = seen with no matching started within 30 min;
---                   A2 = started with no answered (session closed or 24 h passed).
-```
-
-Week-4 retention (`activated` is the set of `lid`s from the activation query):
-
-```sql
-WITH day1 AS (
-  SELECT analytics_learner_id AS lid, MIN(local_date) AS d1
-  FROM ev WHERE actor = 'learner' GROUP BY 1
-)
-SELECT COUNT(*) FILTER (WHERE EXISTS (
-         SELECT 1 FROM mpt m
-         WHERE m.lid = a.lid AND m.local_date BETWEEN d.d1 + 21 AND d.d1 + 27)) AS retained,
-       COUNT(*)                                                                AS activated_mature
-FROM activated a JOIN day1 d USING (lid)
-WHERE d.d1 + 27 <= :cutoff;
-```
-
-Return after absence:
+Return after absence (`activated` is the set of learners meeting the
+activation definition):
 
 ```sql
 WITH days AS (
@@ -381,44 +304,18 @@ WITH days AS (
          local_date - LAG(local_date) OVER (PARTITION BY lid ORDER BY local_date) - 1 AS inactive_days
   FROM days
 )
-SELECT COUNT(*) FILTER (WHERE EXISTS (
-         SELECT 1 FROM mpt m
-         WHERE m.lid = g.lid AND m.local_date BETWEEN g.return_date AND g.return_date + 6)) AS practised_after_return,
-       COUNT(*)              AS return_episodes,
-       COUNT(DISTINCT g.lid) AS learners
+SELECT COUNT(*) FILTER (WHERE EXISTS (SELECT 1 FROM mpt m WHERE m.lid = g.lid
+         AND m.local_date BETWEEN g.return_date AND g.return_date + 6)) AS practised_after_return,
+       COUNT(*) AS return_episodes, COUNT(DISTINCT g.lid) AS learners
 FROM gaps g
-WHERE g.inactive_days >= 7
-  AND g.lid IN (SELECT lid FROM activated)
+WHERE g.inactive_days >= 7 AND g.lid IN (SELECT lid FROM activated)
   AND g.return_date + 6 <= :cutoff;
-```
-
-Transfer gain (latest score per attempt, scored blind; see §8.3):
-
-```sql
-WITH latest AS (
-  SELECT DISTINCT ON (props->>'attempt_id') *
-  FROM ev
-  WHERE event_name = 'attempt_evaluated'
-    AND props->>'attempt_purpose' IN ('transfer_baseline', 'transfer_final')
-  ORDER BY props->>'attempt_id', occurred_at DESC
-), scores AS (
-  SELECT analytics_learner_id AS lid, arm, props->>'attempt_purpose' AS phase,
-         100.0 * SUM((props->>'score_points')::int) / SUM((props->>'score_max')::int) AS pct
-  FROM latest GROUP BY 1, 2, 3
-)
-SELECT b.arm,
-       percentile_cont(0.5) WITHIN GROUP (ORDER BY f.pct - b.pct) AS median_gain_pp,
-       COUNT(*)                                                   AS n_pairs
-FROM scores b
-JOIN scores f ON f.lid = b.lid AND f.phase = 'transfer_final'
-WHERE b.phase = 'transfer_baseline'
-GROUP BY b.arm;
 ```
 
 Delayed retention with missing checks:
 
 ```sql
-WITH checks AS (     -- first delayed check per learner and skill
+WITH checks AS (     -- first qualifying delayed check per learner and skill
   SELECT DISTINCT ON (analytics_learner_id, props->>'skill_id')
          analytics_learner_id AS lid, props->>'skill_id' AS skill_id,
          props->>'outcome' AS outcome, props->>'assistance' AS assistance
@@ -440,19 +337,21 @@ SELECT (SELECT COUNT(*) FROM checks WHERE outcome = 'met' AND assistance = 'none
                            WHERE c.lid = d.lid AND c.skill_id = d.skill_id))      AS missing_checks;
 ```
 
-Burden and response rate:
+How to compute the remaining metrics:
 
-```sql
-SELECT props->>'week_index' AS wk,
-       COUNT(*) FILTER (WHERE event_name = 'weekly_check_answered'
-                          AND (props->>'manageable')::int >= 4)              AS agree,
-       COUNT(*) FILTER (WHERE event_name = 'weekly_check_answered')           AS responses,
-       COUNT(*) FILTER (WHERE event_name = 'weekly_check_shown')              AS shown,
-       COUNT(*) FILTER (WHERE props->>'guilty_or_overwhelmed' = 'yes')        AS guilty_yes
-FROM ev
-WHERE event_name IN ('weekly_check_shown', 'weekly_check_answered')
-GROUP BY 1;
-```
+- **Activation:** start from `pilot_participants` and LEFT JOIN to events, so
+  invited people who never visited stay in the denominator.
+- **Start friction:** join the first `recommendation_seen` per
+  `recommendation_id` to `session_started` with the same `recommendation_id`,
+  then to `first_answer_submitted` with the same `learning_session_id`. Drop
+  sessions that have a `session_resumed` before the first answer. A1 and A2
+  are the rows that drop out at each join.
+- **Transfer gain:** take the latest `attempt_evaluated` per `attempt_id`, to
+  allow for re-scoring. For each learner and phase, compute
+  `100 × Σ score_points ÷ Σ score_max`. Then take the median of final minus
+  baseline, per arm.
+- **Week-4 retention and burden:** direct counts over `mpt` and
+  `weekly_check_*`, as defined in §4.3.
 
 ### 4.5 Roadmap metrics (PRD §8A)
 
@@ -534,12 +433,12 @@ forecast of unit economics.
 | 1 (default) | One saved SQL query per view, created as read-only views in a reporting schema. Run them from any SQL client or a notebook, through a read-only database role, and export each view to CSV every week. | Pilot |
 | 2 | A read-only operator page behind operator authentication that renders the view tables. Plain tables of counts are enough, with no charting. | Only if Level 1 proves painful; treat it as P1 |
 
-- **Frozen snapshots.** Each Monday's run is exported once and never edited
-  afterwards. Late client events and re-scoring would otherwise shift past
-  numbers. Decisions use the frozen snapshots.
+- **Frozen snapshots.** Each Monday's export is never edited afterwards, so
+  late events and re-scoring cannot shift past numbers. Decisions use these
+  snapshots.
 - **No third-party analytics tool.** Only aggregate CSVs leave the database.
-- **Volume.** A rough estimate of 50 learners × about 150 events a week is
-  about 7,500 rows a week, which needs no special infrastructure.
+  The volume needs nothing special: a rough estimate is 50 learners × about
+  150 events a week, or about 7,500 rows a week.
 
 ### 5.3 Weekly review ritual
 
@@ -568,16 +467,10 @@ Change rules during the pilot (Proposal):
 
 ### 6.1 Goals and sample
 
-Goals:
-
-1. Learn how and why real attempts at work-related learning stopped, and at
-   what point.
-2. Learn what people use now (documentation, AI chat, colleagues, courses) and
-   where it falls short.
-3. Learn how much time people realistically have, and on which device.
-4. Learn their history of paying for learning, and which observable skill
-   matters to them.
-5. Answer the PRD §16 questions (§6.9).
+**Goals.** Learn where and why real work-related learning attempts stopped;
+what people use now and where it falls short; how much time they really have,
+and on which device; what they have paid for before and which observable
+skill matters to them. Together these answer the PRD §16 questions (§6.9).
 
 Sample (Proposal):
 
@@ -618,13 +511,13 @@ interviewer acknowledges it, does not probe and records no detail.
 
 Community rules (PRD §15):
 
-- Read each community's rules on research requests and self-promotion first.
-  Where they are unclear, ask a moderator before posting.
-- Post once per community. Do not send bulk unsolicited direct messages. Reply
-  only to people who respond.
-- Say that a product idea is being explored. Do not sell.
-- Never recruit through someone's manager or employer (PRD §15).
-- Record `recruitment_source` for each participant so source bias can be seen.
+- Read each community's rules on research requests and self-promotion first,
+  and ask a moderator if they are unclear. Post once per community. Send no
+  bulk unsolicited messages, and reply only to people who respond.
+- Say openly that a product idea is being explored, and do not sell. Never
+  recruit through someone's manager or employer.
+- Record each participant's `recruitment_source`, so any bias from the source
+  stays visible.
 
 Draft message (about 110 words):
 
@@ -678,34 +571,25 @@ If time runs short, shorten parts 3 and 4. Never shorten part 2.
 
 ### 6.6 Consent and recording
 
-- **Before the call:** send a short consent note covering the purpose, what is
-  recorded, where it is stored, how long it is kept, that participants can
-  withdraw at any time, and that there will be no sales follow-up.
-- **On the call:** get verbal confirmation first. Start recording only after a
-  clear yes, and stop whenever asked.
-- **Storage:** notes and recordings go in the research store under the
-  participant code. Names and emails go in a separate contact sheet.
-- **Retention (Proposal):** delete recordings 90 days after synthesis. Keep
-  pseudonymised notes until the pilot decision. Delete the contact details of
-  anyone who declines further contact.
-- **Quotes:** attribute them by code only, and remove employer and product
-  names.
-- **Third-party transcription:** if used, name it in the consent note.
-  `09-security-privacy-ops.md` owns data-processing obligations. This document
-  is not legal advice.
+| Topic | Practice |
+| --- | --- |
+| Before the call | Send a short consent note covering the purpose, what is recorded, where it is stored and for how long, the right to withdraw at any time, and a promise of no sales follow-up. |
+| On the call | Get verbal confirmation first. Record only after a clear yes, and stop whenever asked. |
+| Storage | Notes and recordings go in the research store under the participant code. Names and emails go in a separate contact sheet. |
+| Retention (Proposal) | Delete recordings 90 days after synthesis. Keep pseudonymised notes until the pilot decision. Delete the contact details of anyone who declines further contact. |
+| Quotes | Attribute by code only, with employer and product names removed. |
+| Third-party transcription | If used, name it in the consent note. `09-security-privacy-ops.md` owns data-processing obligations. This document is not legal advice. |
 
 ### 6.7 Sample scenario and lab try-out (PRD §14 discovery exit)
 
-- Invite 4–6 interviewees to a separate 20-minute session, after their
-  interview, to try one sample scenario while thinking aloud. A good candidate
-  is the query-plan mission in Module 2 (`07-curriculum-plan.md`), delivered as
-  a form or clickable mock-up.
-- Observe the time to the first answer, where they hesitate, and whether they
-  understand the feedback.
-- Ask 2–3 of them to set up one lab kit on their own machine and report the
-  setup time band and any blockers.
-- Questions afterwards stay grounded in what they just did: "What was
-  unclear?" "What did you expect to happen after the feedback?"
+- **Scenario.** In a separate 20-minute session, 4–6 interviewees try one
+  sample scenario while thinking aloud, for example the Module 2 query-plan
+  mission (`07-curriculum-plan.md`) as a form or mock-up. Observe the time to
+  the first answer, where they hesitate, and whether the feedback lands.
+- **Lab.** 2–3 interviewees set up one lab kit on their own machine and report
+  the setup time band and any blockers.
+- **Questions afterwards** stay grounded in what they just did: "What was
+  unclear?" and "What did you expect after the feedback?"
 
 ### 6.8 Synthesis template
 
@@ -824,17 +708,15 @@ real week, so a skipped session is useful information, not a failure."
 | 3 | When a participant replies | Answer only from the reply library (§7.4) and log the contact. |
 | 4 | End of day | Record missed scheduled sessions. Take no other action. |
 
-**Templates (all written before day 1):** T1 Today; T2 Today with a review;
-T3 Welcome back (after two missed scheduled days or five days inactive), with
-a 3-minute option; T4 weekly check (the same two items as
-`weekly_check_answered`); T5 exit-interview invitation; T6 pause confirmation.
+**Templates, all written before day 1:** T1 Today; T2 Today with a review;
+T3 Welcome back with a 3-minute option (sent after 2 missed scheduled days or 5
+inactive days); T4 weekly check (the same items as `weekly_check_answered`);
+T5 exit-interview invitation; T6 pause confirmation.
 
-**Weekly:** send the weekly check on days 7 and 14. On day 7, review the sheet
-for 30 minutes. Fix content errors only, and log every fix. Do not otherwise
-change content mid-trial.
-
-**Days 15–21:** hold 20-minute exit interviews with everyone, including people
-who stopped. Send one invitation and one reminder. Use the questions in §8.7.
+**Weekly and at the end:** send the weekly check on days 7 and 14. During the
+trial, fix content errors only, and log each fix. On days 15–21, hold
+20-minute exit interviews with everyone, including people who stopped (§8.7
+questions; one invitation plus one reminder).
 
 ### 7.4 Keeping personal encouragement out of the result
 
@@ -847,16 +729,14 @@ PRD §13 asks whether people return "without extensive personal encouragement".
 | Technical help when asked, logged | Personal praise or encouragement beyond the template feedback |
 | One exit-interview invitation plus one reminder | Social pressure, such as "most others have finished…" |
 
-- **Contact log:** every message that is not a template is logged with the
-  date, participant, who started it, and a category (content question,
-  technical, scheduling, other).
-- **Unprompted return:** a submission after a missed scheduled day, where the
-  participant received only template emails since the miss.
-- **Split reporting:** report return separately for strangers and personal
-  contacts, and for participants with no non-template contact versus at least
-  one.
-- **Sender address:** send from a project address, not a personal one, to
-  reduce the sense of personal obligation.
+- **Contact log.** Log every non-template message with the date, the
+  participant, who started it and a category (content, technical, scheduling,
+  other).
+- **Unprompted return.** A submission after a missed scheduled day, where the
+  participant has received only template emails since the miss.
+- **Split reporting.** Report return separately for strangers and personal
+  contacts, and for participants with and without non-template contact. Send
+  from a project address, not a personal one, to reduce felt obligation.
 
 ### 7.5 What to measure
 
@@ -936,25 +816,14 @@ skipped or abandoned session), **Minor** (an annoyance).
 
 ### 8.3 Transfer tasks
 
-- **Forms.** Two parallel forms, A and B, authored under `06-content-system.md`
-  with content in `07-curriculum-plan.md`. Both cover the same skills (about
-  one scenario per module), use the same rubric, and use unseen scenarios that
-  never appear in missions or reviews.
-- **Counterbalancing.** Half of each arm gets A as the baseline and B as the
-  final; the other half gets the reverse. Report gain by form order to detect
-  a difference in form difficulty.
-- **Conditions.** Untimed (PRD §10), with no hints. Learners are asked not to
-  use AI or documentation, and tick a short declaration. Responses with
-  declared assistance are reported but left out of the headline.
-- **Scoring.** The reviewer scores blind to phase, arm and learner: responses
-  are exported under random IDs and shuffled. At least 20% are double-scored,
-  disagreements of more than one rubric level are resolved by discussion, and
-  the agreement rate is reported.
-- **Recording.** Scores enter analytics as `attempt_evaluated` with
-  `actor = operator` and `evidence_basis = human_reviewed`, as numbers only.
-  The responses themselves stay in `attempts`.
-- **Separation.** Transfer tasks never change in-product skill evidence and
-  never count towards the north star. This keeps the arms comparable.
+| Aspect | Proposal |
+| --- | --- |
+| Forms | Two parallel forms, A and B, authored under `06-content-system.md` with content in `07-curriculum-plan.md`. Both cover the same skills (about one scenario per module) with the same rubric, using unseen scenarios that appear in no mission or review. |
+| Counterbalancing | Half of each arm takes A as baseline and B as final; the other half the reverse. Report gain by form order to detect any difference in form difficulty. |
+| Conditions | Untimed (PRD §10), no hints. Learners are asked not to use AI or documentation, and tick a declaration. Responses with declared assistance are reported but excluded from the headline. |
+| Scoring | The reviewer is blind to phase, arm and learner: responses are exported under random IDs and shuffled. At least 20% are double-scored, gaps of more than one rubric level are resolved by discussion, and the agreement rate is reported. |
+| Recording | Scores go into analytics as `attempt_evaluated` (`actor = operator`, `evidence_basis = human_reviewed`), as numbers only. The responses stay in `attempts`. |
+| Separation | Transfer tasks never change in-product evidence levels and never count towards the north star, which keeps the arms comparable. |
 
 ### 8.4 Comparison with a structured static checklist (PRD §13 step 4)
 
@@ -978,24 +847,15 @@ and exit interviews.
 
 ### 8.5 Sample-size caveats and analysis plan
 
-- **Scale.** With about 20 people per arm, one person moves a rate by 5
-  percentage points. A week-4 retention of 35% against 25% is 7 people against
-  5, which chance alone could easily produce.
-- **Reporting.** Report counts, individual values, medians and ranges. Do not
-  use p-values, "significant", confidence claims or causal wording such as
-  "DevStep caused…". Use "directional" and "consistent with" (PRD §13).
-- **What counts.** Look for large differences that are consistent across both
-  cohorts and several metrics, and that exit interviews explain.
-- **Denominators.** Everyone randomised stays in their arm's denominator.
-  Dropouts are never removed.
-- **Attrition.** Report it by arm. If one arm loses noticeably more people
-  before the final transfer task, flag the transfer comparison.
-- **Subgroups.** Report subgroup counts (for example Laravel and other stacks)
-  descriptively only, never as findings.
-- **Analysis plan.** Before C1 starts, write and date a one-page plan in the
-  research store, linked from `13-decisions-and-open-questions.md`. It records
-  the metrics (§4), thresholds (§9), exclusions, comparison design and
-  cut-off dates. Any later change is noted with its date and reason.
+| Topic | Rule (PRD §13: small samples are directional) |
+| --- | --- |
+| Scale | With about 20 people per arm, one person moves a rate by 5 percentage points. Week-4 retention of 35% against 25% is 7 people against 5, a gap chance alone could easily produce. |
+| Reporting | Report counts, individual values, medians and ranges. Never use p-values, "significant", confidence claims or causal wording ("DevStep caused…"). Write "directional" or "consistent with". |
+| What counts | Large differences that hold in both cohorts and across several metrics, and that exit interviews explain. |
+| Denominators | Everyone randomised stays in their arm's denominator. Dropouts are never removed. |
+| Attrition | Report attrition by arm. If one arm loses noticeably more people before the final transfer task, flag the transfer comparison. |
+| Subgroups | Subgroups (for example Laravel and other stacks) are described in counts only, never reported as findings. |
+| Analysis plan | Before C1 starts, write and date a one-page plan in the research store and link it from `13-decisions-and-open-questions.md`. It fixes the metrics (§4), thresholds (§9), exclusions, comparison design and cut-off dates. Every later change records its date and reason. |
 
 ### 8.6 Consent and ethics
 
@@ -1013,14 +873,14 @@ and exit interviews.
 ### 8.7 Exit interviews with completers and dropouts (PRD §13 step 5)
 
 - **Who.** Every dropout who can be reached (one invitation plus one reminder,
-  no pressure), and at least 8 completers spread across both arms. A
+  no pressure) and at least 8 completers spread across both arms. A
   **dropout** is a participant with no MPT in the last 14 days of the six
-  weeks, or none after week 3.
-- **When.** Within two weeks of the final transfer task.
-- **Questions (20–25 minutes, non-leading):**
+  weeks, or none after week 3. Interviews take place within two weeks of the
+  final transfer task.
+- **Questions (20–25 minutes, non-leading).**
   - "Walk me through the last session you did."
-  - "What happened after that?" (dropouts) or "What brought you back after
-    gaps?" (completers)
+  - Dropouts: "What happened after that?" Completers: "What brought you back
+    after gaps?"
   - "Tell me about a week when it fit into your schedule, and one when it
     didn't."
   - "Which part took more effort than you expected?"
@@ -1029,12 +889,11 @@ and exit interviews.
   - "Is there anything you now do differently at work? Can you give an
     example?"
   - "What else did you use to learn during these weeks?"
-- **Coding.** Give each interview one primary problem and any secondary ones,
-  from: task size, relevance, content quality, setup, notification burden,
-  time or life, learned enough, other. Report counts by arm and by completer
-  or dropout.
-- **Rule (PRD §13).** Decide which problem dominates before adding any
-  feature.
+- **Coding.** Give each interview one primary problem and any secondary ones:
+  task size, relevance, content quality, setup, notification burden, time or
+  life, learned enough, other. Report counts by arm and by completer or
+  dropout. As PRD §13 requires, decide which problem dominates before adding
+  any feature.
 
 ## 9. Decision framework
 
@@ -1072,8 +931,9 @@ records the decision in `13-decisions-and-open-questions.md`.
 ## 10. Validation timeline
 
 The dates are **indicative only**. They use a nominal start of 2026-10-12, and
-the build phases are owned by `12-delivery-plan.md`. A two-week holiday buffer
-is assumed.
+`12-delivery-plan.md` owns the build phases. One week of holiday buffer
+follows an alpha that runs through late December. Concierge preparation starts
+before gate 1 to save time, and that work is dropped if the gate fails.
 
 ```mermaid
 gantt
@@ -1101,7 +961,7 @@ gantt
     section Pilot
     Cohort 1 six weeks                 :p1, 2027-01-25, 42d
     Cohort 2 six weeks                 :p2, 2027-02-08, 42d
-    Exit interviews                    :p3, 2027-03-08, 35d
+    Exit interviews                    :p3, 2027-03-08, 42d
     Cohort 1 delayed check             :p4, 2027-03-29, 7d
     Cohort 2 delayed check             :p5, 2027-04-12, 7d
     Analysis and decision review       :p6, 2027-04-19, 10d
@@ -1136,38 +996,18 @@ Rules (Proposal):
 
 ## Open questions for discussion
 
-1. **Does self-assessed evidence count towards the north star?** *Recommended
-   default:* no. Report it as a separate line, as PRD §9 labels it
-   self-assessed.
-2. **What anchors activation's 24-hour window: the first visit or the
-   invitation being sent?** *Recommended default:* the first visit, with the
-   invitation-anchored variant and the never-visited count reported alongside.
-3. **Which comparison design?** *Recommended default:* Option A, randomised
-   parallel arms within two staggered cohorts. Fall back to Option B if fewer
-   than 30 people have consented by the recruitment deadline.
-4. **Incentives?** *Recommended default:* no payment for practice. Give an
-   equal thank-you that does not depend on outcomes for interviews, and for
-   completing the pilot assessment tasks and exit interview. The founder sets
-   the amount; no figure is proposed here.
-5. **What happens to analytics events when an account is deleted?**
-   *Recommended default:* delete that learner's events within the standard
-   deletion window. At n = 30–50, merely unlinking them does not give
-   meaningful anonymity.
-6. **Does a hint-assisted success count as "unassisted"?** *Recommended
-   default:* no. The north star uses `assistance = none` only, and
-   hint-assisted successes are reported separately. Evidence-level rules stay
-   with `05-learning-engine.md`.
-7. **When is the pilot delayed check?** *Recommended default:* at least 21
-   days after the final transfer task (around day 63). In-product delayed
-   checks continue to run from 7 days onwards.
-8. **Should inactive learners get the weekly burden check by email?**
-   *Recommended default:* no, because that adds burden for the very people
-   under strain. Cover inactive learners through exit interviews, and say so
-   when reporting burden.
-9. **May concierge participants join the pilot?** *Recommended default:* yes,
-   flagged `prior_exposure` and excluded from the headline transfer gain.
-10. **Can the concierge trial include a lab?** *Recommended default:* yes, one
-    optional lab (Lab 2), so lab setup friction surfaces before the build.
+| # | Question | Recommended default |
+| --- | --- | --- |
+| 1 | Does self-assessed evidence count towards the north star? | No. Report it as a separate line, since PRD §9 labels it self-assessed. |
+| 2 | What anchors activation's 24-hour window: the first visit, or the invitation being sent? | The first visit. Report the invitation-anchored variant and the never-visited count beside it. |
+| 3 | Which checklist comparison design? | Option A: randomised arms within two staggered cohorts. Fall back to Option B if fewer than 30 people have consented by the recruitment deadline. |
+| 4 | Incentives? | No payment for practice. Give an equal thank-you, not tied to outcomes, for interviews and for completing the pilot assessments and exit interview. The founder sets the amount; this document proposes no figure. |
+| 5 | What happens to analytics events when an account is deleted? | Delete them within the standard deletion window. At n = 30–50, merely unlinking them gives no meaningful anonymity. |
+| 6 | Does a hint-assisted success count as "unassisted"? | No. The north star uses `assistance = none` only, and hint-assisted successes are reported separately. Evidence-level rules stay in `05-learning-engine.md`. |
+| 7 | When is the pilot's delayed check? | At least 21 days after the final transfer task (around day 63). In-product delayed checks run from day 7 regardless. |
+| 8 | Should inactive learners get the weekly burden check by email? | No, because it adds burden for the people most under strain. Cover them through exit interviews, and say so whenever burden is reported. |
+| 9 | May concierge participants join the pilot? | Yes, flagged `prior_exposure` and excluded from the headline transfer gain. |
+| 10 | Should the concierge trial include a lab? | Yes, one optional lab (Lab 2), so setup friction surfaces before anything is built. |
 
 ## PRD traceability
 

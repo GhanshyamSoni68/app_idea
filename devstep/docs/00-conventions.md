@@ -85,9 +85,15 @@ Renamed or added to avoid ambiguity:
 - `roadmap_modules` — module grouping inside a roadmap version.
 - `labs` — catalogue lab definitions; learner lab evidence goes in `artifacts`.
 - `session_drafts` — autosaved in-progress answers.
-- `idempotency_keys` — completion, attempt submission, email dispatch.
+- `idempotency_keys` — attempt submission, completion, guest claim, migration,
+  export, deletion, lab artifacts. **Not** reminder email: that is de-duplicated by
+  the unique `notification_deliveries` row (one per learner per local learning day).
 - `analytics_events` — pseudonymous events (no free text).
-- `deletion_requests`, `export_requests` — account lifecycle.
+- `deletion_requests`, `export_requests` — account lifecycle. A deletion ledger
+  record is also kept **outside** the main database so purges survive a restore.
+- Added during design: `invites`, `consent_records`, `email_suppressions`,
+  `auth_tokens`, `pilot_participants`, `content_releases`, `content_reports`,
+  `session_assistance`, `topic_activities` (defined in `04-data-model.md`).
 
 **Enumerations**
 
@@ -114,6 +120,14 @@ Renamed or added to avoid ambiguity:
 - No arbitrary server-side code execution; labs run locally.
 - AI is optional and never the sole authority for mastery.
 
+**Settled during cross-review** (full list in `13-decisions-and-open-questions.md` §3):
+- Guest work is **device-only** until sign-up; the server stores no guest rows. Claim re-evaluates and caps evidence at `practised`.
+- Pilot sign-up is **invite-only**. Login is email + password plus GitHub OAuth; no magic links.
+- **One open learning session** per learner; switching suspends the other.
+- Reminders are **at most once** per local learning day; quiet hours skip rather than delay.
+- Deleting an account: 7-day cancellable grace, then purge, including that learner's analytics events.
+- Content is published by a deploy-time command; there is no admin publish endpoint.
+
 **API operations** (starting vocabulary; `02-system-architecture.md` owns the
 final list). All under `/v1`, JSON, authenticated unless noted.
 
@@ -132,10 +146,13 @@ final list). All under `/v1`, JSON, authenticated unless noted.
 | Skill evidence | `GET /v1/evidence` |
 | Preferences, goal, diagnostic | `GET/PUT /v1/me/preferences`, `PUT /v1/me/goal`, `POST /v1/me/diagnostic` |
 | Reminder settings | `GET/PUT /v1/me/notifications`; `POST /v1/notifications/unsubscribe` (signed token, no login) |
-| Lab evidence | `POST /v1/labs/{id}/artifacts` |
+| Lab definition / lab evidence | `GET /v1/labs/{id}`, `POST /v1/labs/{id}/artifacts` |
+| Guest sample (no login, stores nothing) | `GET /v1/guest/sample`, `POST /v1/guest/attempts` |
 | Claim guest progress | `POST /v1/guest/claim` |
-| Export / delete account | `POST /v1/me/export`, `GET /v1/me/export/{id}`, `DELETE /v1/me` |
+| Sign-up (invite code), sign-in, recovery | `POST /v1/auth/sign-up`, `/v1/auth/sign-in`, `/v1/auth/sign-out`, `/v1/auth/recovery` |
+| Export / delete account / cancel deletion | `POST /v1/me/export`, `GET /v1/me/export/{id}`, `DELETE /v1/me`, `POST /v1/me/deletion/cancel` |
 | Client analytics events | `POST /v1/events` |
+| Health check (no auth) | `GET /up` (includes a database check) |
 
 ## Document map
 

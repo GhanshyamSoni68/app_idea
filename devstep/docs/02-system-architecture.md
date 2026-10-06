@@ -2,39 +2,22 @@
 
 Status: Proposal — for discussion
 
-Requirements: [`prd/devstep-prd-v0.1.md`](prd/devstep-prd-v0.1.md). Names and vocabulary:
-[`00-conventions.md`](00-conventions.md). This doc is **stack-neutral**: stack, hosting,
-vendors and costs are decided in `01-tech-stack-and-hosting.md`. Unless a statement is
-labelled **PRD**, **Hypothesis** or **Open question**, it is a **Proposal**.
+Requirements: [`prd/devstep-prd-v0.1.md`](prd/devstep-prd-v0.1.md). Names and vocabulary: [`00-conventions.md`](00-conventions.md). This doc is **stack-neutral**: stack, hosting, vendors and costs are decided in `01-tech-stack-and-hosting.md`. Unless a statement is labelled **PRD**, **Hypothesis** or **Open question**, it is a **Proposal**.
 
 ## Purpose
 
-Define DevStep's logical architecture (system context, containers, module boundaries
-inside one modular monolith, the final `/v1` API catalogue, cross-cutting rules and
-background jobs) so that `01`, `03`, `04` and `05` can build on one agreed shape.
+Define DevStep's logical architecture (system context, containers, module boundaries inside one modular monolith, the final `/v1` API catalogue, cross-cutting rules and background jobs) so that `01`, `03`, `04` and `05` can build on one agreed shape.
 
 ## Summary
 
-- **One codebase, two processes.** A modular monolith serves the API; the same build
-  runs the scheduler/worker on a database-backed job queue. No Redis, no microservices
-  (PRD §11, Fowler [8]).
-- **Nine modules, acyclic call graph.** `catalogue` is read-only at runtime; no module
-  reads another module's tables; `analytics` and `notifications` are strictly downstream.
-- **Progress is transactional; side effects are not.** Core event subscribers
-  (`AttemptEvaluated` → `scheduling`, `roadmap`) run inside the request transaction;
-  analytics and email run after commit via the job queue, so they cannot block learning.
-- **Server-side evaluation, CDN-delivered content.** Learner-facing content bundles are
-  immutable, versioned and cached at the CDN without answer keys; every attempt
-  references the exact published content version.
-- **Every learner record is owner-scoped**, guests included (a server-side guest bound to
-  one device cookie). Cross-owner access returns 404, enforced by a generated test matrix.
-- **Drafts are local-first with revisions.** Stale saves get `409 draft_conflict` with
-  both versions; nothing is silently overwritten.
-- **Layered idempotency:** `Idempotency-Key` replay for attempts, completion and export;
-  state guards and unique keys protect data even without a key; one reminder per learner
-  per local date by unique key.
-- **Seams, not features,** for AI tutor, briefings, companion, extra/custom roadmaps,
-  native apps and repo integration.
+- **One codebase, two processes.** A modular monolith serves the API; the same build runs the scheduler/worker on a database-backed job queue. No Redis, no microservices (PRD §11, Fowler [8]).
+- **Nine modules, acyclic call graph.** `catalogue` is read-only at runtime; no module reads another module's tables; `analytics` and `notifications` are strictly downstream.
+- **Progress is transactional; side effects are not.** Core event subscribers (`AttemptEvaluated` → `scheduling`, `roadmap`) run inside the request transaction; analytics and email run after commit via the job queue, so they cannot block learning.
+- **Server-side evaluation, CDN-delivered content.** Learner-facing content bundles are immutable, versioned and cached at the CDN without answer keys; every attempt references the exact published content version.
+- **Every learner record is owner-scoped**, guests included (a server-side guest bound to one device cookie). Cross-owner access returns 404, enforced by a generated test matrix.
+- **Drafts are local-first with revisions.** Stale saves get `409 draft_conflict` with both versions; nothing is silently overwritten.
+- **Layered idempotency:** `Idempotency-Key` replay for attempts, completion and export; state guards and unique keys protect data even without a key; one reminder per learner per local date by unique key.
+- **Seams, not features,** for AI tutor, briefings, companion, extra/custom roadmaps, native apps and repo integration.
 
 ## 1. Architectural drivers
 
@@ -48,8 +31,7 @@ background jobs) so that `01`, `03`, `04` and `05` can build on one agreed shape
 | Explainable, testable rules | PRD §9 | Business rules live in module code with a fixed-clock test harness, not in DB triggers. |
 | Validate before expanding | PRD §14, §16 | Leave seams for P1/later features; build none of them now. |
 
-Pilot scale: 30–50 participants (PRD §13). **Hypothesis:** one API instance and one
-worker are enough; confirm with the load test in §8.
+Pilot scale: 30–50 participants (PRD §13). **Hypothesis:** one API instance and one worker are enough; confirm with the load test in §8.
 
 ## 2. System context (C4 level 1)
 
@@ -60,9 +42,7 @@ flowchart LR
     author["Author and Reviewer"]
     operator["Operator"]
   end
-
   devstep["DevStep<br/>(browser app, app API, worker)"]
-
   subgraph external["External systems"]
     email["Email provider"]
     errmon["Error monitoring"]
@@ -70,7 +50,6 @@ flowchart LR
     machine["Learner's machine<br/>(lab kits, runs locally)"]
     ai["AI provider<br/>(P1, later)"]
   end
-
   learner -->|practises and reviews evidence| devstep
   learner -->|runs lab kit and checks| machine
   machine -.->|check output pasted by learner| devstep
@@ -82,21 +61,11 @@ flowchart LR
   errmon -->|alerts| operator
   operator -->|deploys and runs console tasks| devstep
   devstep -.->|bounded tutor prompts| ai
-
   classDef later stroke-dasharray: 5 5
   class ai later
 ```
 
-| Element | Relationship to DevStep |
-| --- | --- |
-| Learner | Uses the browser app as a guest or signed-in user; optionally receives reminders; runs labs locally (PRD §5, F07). |
-| Author / Reviewer | Never edits production data. Content goes repo → review → CI → publish (PRD F11; workflow in `06-content-system.md`). |
-| Operator | Deploys, receives alerts, runs console commands (flags, job retries, restores). Runbooks in `09-security-privacy-ops.md`. |
-| Email provider | Outbound transactional email only: reminders, credential recovery, export ready. |
-| Error monitoring | Scrubbed server and browser exceptions. |
-| Content Git repo and CI | Source of truth for content; publishes immutable releases. |
-| Learner's machine | Lab kits with starter code, synthetic data and local checks. DevStep never executes learner code (PRD §11). |
-| AI provider | P1 only (F13), reached through an AI gateway seam; absent from MVP. |
+Constraints shown by the context: authors and reviewers never edit production data (repo → review → CI → publish, PRD F11, `06-content-system.md`); the email provider sends transactional mail only (reminders, recovery, export ready); lab kits run on the learner's machine and DevStep never executes learner code (PRD §11); the AI provider is P1 (F13), absent from MVP, and reachable only through an AI gateway seam. The operator's console tasks and runbooks are in `09-security-privacy-ops.md`.
 
 ## 3. Containers (C4 level 2)
 
@@ -105,7 +74,6 @@ flowchart TB
   learner["Learner"]
   author["Author and Reviewer"]
   operator["Operator"]
-
   subgraph system["DevStep"]
     browser["Browser app<br/>responsive UI and local draft store"]
     cdn["Static host and CDN<br/>app shell, content bundles, lab kits"]
@@ -115,23 +83,20 @@ flowchart TB
     astore[("Analytics storage<br/>pseudonymous events")]
     aigw["AI gateway<br/>(P1, later)"]
   end
-
   subgraph pipeline["Content pipeline, outside runtime"]
     repo["Content Git repo"]
     ci["CI publisher<br/>validate, build, publish"]
   end
-
   machine["Learner's machine<br/>lab kit"]
   email["Email provider"]
   errmon["Error monitoring"]
   aiprov["AI provider<br/>(P1, later)"]
-
   learner --> browser
   browser -->|shell and content| cdn
   browser -->|HTTPS JSON| api
   api --> db
   worker -->|polls jobs| db
-  worker -->|after-commit events| astore
+  worker -->|events after commit| astore
   worker -->|send| email
   email --> learner
   author --> repo
@@ -146,7 +111,6 @@ flowchart TB
   operator -->|console commands| worker
   api -.-> aigw
   aigw -.-> aiprov
-
   classDef later stroke-dasharray: 5 5
   class aigw,aiprov later
 ```
@@ -167,8 +131,7 @@ flowchart TB
 
 ### 4.1 Allowed dependencies
 
-Solid arrow: may call the target's public operations synchronously. Dashed: events
-delivered after commit through the job queue, or a port implemented by a higher module.
+Solid arrow: may call the target's public operations synchronously. Dashed: events delivered after commit through the job queue, or a port implemented by a higher module.
 
 ```mermaid
 flowchart TB
@@ -184,7 +147,6 @@ flowchart TB
     bus["Event bus<br/>every module publishes"]
     analytics["analytics<br/>downstream"]
   end
-
   notifications --> scheduling
   notifications --> profile
   notifications --> identity
@@ -209,25 +171,13 @@ flowchart TB
 
 ### 4.2 Boundary rules
 
-1. **One owner per table** (§4.3). Only the owner reads or writes it; others use public
-   operations or events. Foreign keys to `users.id` and catalogue IDs are allowed
-   (integrity, not reads). Enforced by a build-time import/table-access check in CI.
-2. **Acyclic calls.** When a lower module needs a higher one, the lower module defines a
-   port and the higher one implements it, wired at start-up:
-   `SessionPlanner` (owned by `learning`, implemented by `scheduling`),
-   `UserDataProvider` (owned by `identity`, implemented by every owner-scoped module for
-   export, purge and guest merge), `HintProvider` (owned by `learning`; authored hints now).
-3. **`catalogue` is read-only at runtime.** Its only writer is the content publish import
-   job, which inserts new immutable versions and marks old ones `retired`; it never
-   updates published content in place.
-4. **Downstream never blocks.** `analytics` and `notifications` are never called inside a
-   learning transaction and only receive after-commit events. `notifications` reads
-   upstream state (scheduling, profile, identity) at send time.
-5. **In-transaction subscribers** are limited to core modules (`profile`, `roadmap`,
-   `learning`, `assessment`, `scheduling`) and must not call external services.
+1. **One owner per table** (§4.3). Only the owner reads or writes it; others use public operations or events. Foreign keys to `users.id` and catalogue IDs are allowed (integrity, not reads). Enforced by a build-time import/table-access check in CI.
+2. **Acyclic calls.** When a lower module needs a higher one, the lower module defines a port and the higher one implements it, wired at start-up: `SessionPlanner` (owned by `learning`, implemented by `scheduling`), `UserDataProvider` (owned by `identity`, implemented by every owner-scoped module for export, purge and guest merge), `HintProvider` (owned by `learning`; authored hints now).
+3. **`catalogue` is read-only at runtime.** Its only writer is the content publish import job, which inserts new immutable versions and marks old ones `retired`; it never updates published content in place.
+4. **Downstream never blocks.** `analytics` and `notifications` are never called inside a learning transaction and only receive after-commit events. `notifications` reads upstream state (scheduling, profile, identity) at send time.
+5. **In-transaction subscribers** are limited to core modules (`profile`, `roadmap`, `learning`, `assessment`, `scheduling`) and must not call external services.
 6. **Owner comes from the principal**, never from a request body or path (§6.1).
-7. **Event contracts** live in a shared contracts package; subscribing does not create a
-   call dependency on the publisher.
+7. **Event contracts** live in a shared contracts package; subscribing does not create a call dependency on the publisher.
 
 ### 4.3 Module catalogue
 
@@ -244,15 +194,11 @@ flowchart TB
 | `analytics` | Ingest allow-listed pseudonymous events; metric queries. | `analytics_events` | `record(event)` (job only), `ingestClientBatch`, operator metric queries | F12, §13 |
 | platform (not a module) | HTTP, principal, validation, idempotency, event bus, job queue, config, flags, logging. | `idempotency_keys`, `background_jobs` (added), `feature_flags` (added) | — | §11, §12 |
 
-Column-level definitions for every table, including the three added here, belong to
-`04-data-model.md`. Evaluation, scheduling and completion algorithms belong to
-`05-learning-engine.md`.
+Column-level definitions for every table, including the three added here, belong to `04-data-model.md`. Evaluation, scheduling and completion algorithms belong to `05-learning-engine.md`.
 
 ### 4.4 Domain events
 
-Envelope (all events): `event_id`, `name`, `schema_version`, `occurred_at` (UTC),
-`owner_id`, `request_id`, payload of IDs, enums and `content_version_id` only (no free
-text), so the same payload can feed analytics safely.
+Envelope (all events): `event_id`, `name`, `schema_version`, `occurred_at` (UTC), `owner_id`, `request_id`, payload of IDs, enums and `content_version_id` only (no free text), so the same payload can feed analytics safely.
 
 | Event | Emitted by | In-transaction subscribers | After-commit subscribers |
 | --- | --- | --- | --- |
@@ -271,23 +217,17 @@ text), so the same payload can feed analytics safely.
 | `AccountDeletionRequested` | `identity` | — | `analytics` (drop pseudonym link), deletion purge job |
 | `ContentReleasePublished` | `catalogue` | — | `analytics` |
 
-`learning` writes the attempt; `assessment.evaluate` is called synchronously inside the
-same transaction and emits `AttemptEvaluated`. Mapping to the PRD §13 event names
-(`attempt_evaluated`, `review_completed`, …) is owned by `10-measurement-and-validation.md`.
+`learning` writes the attempt; `assessment.evaluate` is called synchronously inside the same transaction and emits `AttemptEvaluated`. Mapping to the PRD §13 event names (`attempt_evaluated`, `review_completed`, …) is owned by `10-measurement-and-validation.md`.
 
 ## 5. API catalogue
 
 ### 5.1 Conventions
 
-- Base path `/v1`; JSON (UTF-8); `snake_case` fields; instants as RFC 3339 UTC (`Z`);
-  local dates as `YYYY-MM-DD`; IDs are opaque strings; enums use canonical values.
-- Additive changes stay in `/v1`; clients ignore unknown response fields. Breaking
-  changes go to `/v2`.
+- Base path `/v1`; JSON (UTF-8); `snake_case` fields; instants as RFC 3339 UTC (`Z`); local dates as `YYYY-MM-DD`; IDs are opaque strings; enums use canonical values.
+- Additive changes stay in `/v1`; clients ignore unknown response fields. Breaking changes go to `/v2`.
 - Lists that grow use cursor pagination (`cursor`, `limit`).
-- Every response carries `X-Request-Id`. Replayed idempotent responses add
-  `Idempotent-Replayed: true`.
-- Browser auth: HttpOnly, Secure, SameSite session cookie plus a CSRF token on unsafe
-  methods. Operator auth: scoped bearer token, never a learner cookie.
+- Every response carries `X-Request-Id`. Replayed idempotent responses add `Idempotent-Replayed: true`.
+- Browser auth: HttpOnly, Secure, SameSite session cookie plus a CSRF token on unsafe methods. Operator auth: scoped bearer token, never a learner cookie.
 
 | Auth | Meaning |
 | --- | --- |
@@ -378,11 +318,7 @@ same transaction and emits `AttemptEvaluated`. Mapping to the PRD §13 event nam
 | `mission_id` | ID, optional | Explicit choice from Roadmap; unready → `409 prerequisites_unmet` listing missing topics. |
 | `if_open` | enum, default `resume` | `resume` returns the open session; `park` sets it aside (draft kept) and starts a new one. |
 
-Response `201` (new) or `200` (existing): `session` (`id`, `mode`, `purpose`, `status`
-`open`/`parked`/`completed`, `started_at`, `context`, `estimated_minutes`,
-`current_step`), `steps[]` (`index`, `kind`, `content_version_id`, `content_url`
-immutable CDN path, `state`), `draft` (`revision`, `step_index`, `data`, `saved_at`) or
-null, `resumed` (bool). At most one open session per learner (state guard).
+Response `201` (new) or `200` (existing): `session` (`id`, `mode`, `purpose`, `status` `open`/`parked`/`completed`, `started_at`, `context`, `estimated_minutes`, `current_step`), `steps[]` (`index`, `kind`, `content_version_id`, `content_url` immutable CDN path, `state`), `draft` (`revision`, `step_index`, `data`, `saved_at`) or null, `resumed` (bool). At most one open session per learner (state guard).
 
 **`PUT /v1/sessions/{id}/draft`** (request)
 
@@ -405,12 +341,7 @@ Response `200`: `revision`, `saved_at`. Stale `base_revision`: `409 draft_confli
 | `answer` | object | By item kind: option IDs, ordering, value, short text (≤ 4,000 chars), or self-check ratings against an exemplar. |
 | `confidence` | enum, optional | Recorded; never evidence of competence (PRD §9). |
 
-Response `201`: `attempt_id`; `outcome` (examples `correct`, `partly_correct`,
-`incorrect`, `self_assessed`; final list in `05`); `assistance` (server-recorded `none`,
-`hint` with count, `worked_example`, `solution_revealed`; the client cannot assert it);
-`feedback` (authored text, misconception note, exemplar and self-check prompts);
-`evidence_changes[]` (`skill_id`, `from_level`, `to_level`, `basis`); `next_step_index`;
-`revisit_hint` (neutral text such as "We'll bring this back in a few days").
+Response `201`: `attempt_id`; `outcome` (examples `correct`, `partly_correct`, `incorrect`, `self_assessed`; final list in `05`); `assistance` (server-recorded `none`, `hint` with count, `worked_example`, `solution_revealed`; the client cannot assert it); `feedback` (authored text, misconception note, exemplar and self-check prompts); `evidence_changes[]` (`skill_id`, `from_level`, `to_level`, `basis`); `next_step_index`; `revisit_hint` (neutral text such as "We'll bring this back in a few days").
 
 **`POST /v1/sessions/{id}/complete`** (request, `Idempotency-Key` required)
 
@@ -418,13 +349,7 @@ Response `201`: `attempt_id`; `outcome` (examples `correct`, `partly_correct`,
 | --- | --- | --- |
 | `base_revision` | int | Client must sync its draft first; a newer server revision → `409 draft_conflict`. |
 
-Response `200`: `session_id`, `completed_at`; `summary` (`steps_done`, `attempts`,
-aggregated `evidence_changes`, `effort_highlights` such as `started`,
-`returned_after_gap`, `corrected_misconception`, kept separate from evidence, PRD §6);
-`topic_changes[]` (`topic_id`, `from_state`, `to_state`, applied once, R02);
-`roadmap_progress` (`completed_required`, `total_required`, `percent`); `milestone`
-(when the roadmap completes, R04) or null; `next_suggestion` (next planned day, not a
-demand). A repeat returns the identical stored body.
+Response `200`: `session_id`, `completed_at`; `summary` (`steps_done`, `attempts`, aggregated `evidence_changes`, `effort_highlights` such as `started`, `returned_after_gap`, `corrected_misconception`, kept separate from evidence, PRD §6); `topic_changes[]` (`topic_id`, `from_state`, `to_state`, applied once, R02); `roadmap_progress` (`completed_required`, `total_required`, `percent`); `milestone` (when the roadmap completes, R04) or null; `next_suggestion` (next planned day, not a demand). A repeat returns the identical stored body.
 
 ### 5.4 Standard error envelope
 
@@ -451,30 +376,19 @@ demand). A repeat returns the identical stored body.
 
 ### 5.5 Stale-draft conflict
 
-`409 draft_conflict` `details`: `server_revision`, `server_step_index`, `server_saved_at`,
-`server_device_label`, `server_data`, `your_base_revision`.
+`409 draft_conflict` `details`: `server_revision`, `server_step_index`, `server_saved_at`, `server_device_label`, `server_data`, `your_base_revision`.
 
-Client rule: keep the local draft; show both versions ("Saved on *Phone* at 19:42" vs
-"This device"); the learner chooses; the client re-sends the chosen data with
-`base_revision = server_revision`. The server never merges answer content and never
-overwrites a newer revision silently (PRD §12). Flow detail: `03-key-flows.md`.
+Client rule: keep the local draft; show both versions ("Saved on *Phone* at 19:42" vs "This device"); the learner chooses; the client re-sends the chosen data with `base_revision = server_revision`. The server never merges answer content and never overwrites a newer revision silently (PRD §12). Flow detail: `03-key-flows.md`.
 
 ## 6. Cross-cutting concerns
 
 ### 6.1 Ownership scoping and authorisation
 
-- Every learner-owned table carries a non-null owner (`user_id`). Data access for these
-  tables takes `owner_id` from the authenticated principal; lookups are by
-  `id AND owner`. Children (attempts, drafts, artifacts) inherit the parent's owner.
+- Every learner-owned table carries a non-null owner (`user_id`). Data access for these tables takes `owner_id` from the authenticated principal; lookups are by `id AND owner`. Children (attempts, drafts, artifacts) inherit the parent's owner.
 - Another learner's resource → `404 not_found` (no existence leak).
-- Operator tokens are scoped (`content:publish`, …) and cannot call learner routes.
-  Operator support access to learner data goes through audited console commands (`09`).
-- **Authorisation test matrix (PRD §12):** generated from the route table. For every
-  route with an ID: learner B on A's resource → 404; guest on `learner` routes → 403;
-  no principal → 401; operator token on learner routes → 401. CI fails if a route has no
-  auth classification. Attempts, drafts and exports are explicitly listed cases.
-- Not planned for MVP: database row-level security. Revisit if anything other than the
-  app (for example, analyst access) connects to the primary database.
+- Operator tokens are scoped (`content:publish`, …) and cannot call learner routes. Operator support access to learner data goes through audited console commands (`09`).
+- **Authorisation test matrix (PRD §12):** generated from the route table. For every route with an ID: learner B on A's resource → 404; guest on `learner` routes → 403; no principal → 401; operator token on learner routes → 401. CI fails if a route has no auth classification. Attempts, drafts and exports are explicitly listed cases.
+- Not planned for MVP: database row-level security. Revisit if anything other than the app (for example, analyst access) connects to the primary database.
 
 ### 6.2 Idempotency
 
@@ -504,15 +418,9 @@ overwrites a newer revision silently (PRD §12). Flow detail: `03-key-flows.md`.
 
 ### 6.4 Content-version pinning
 
-- Published content is immutable: every change publishes a new `content_versions` row
-  and a new immutable CDN path. Old versions become `retired`, never deleted, so history
-  and evidence still render (PRD §12).
-- Enrolment pins a `roadmap_versions` row (R01). A session pins each step's
-  `content_version_id` at creation; attempts store `assessment_item_id` and
-  `content_version_id` (PRD §11); evidence references attempts.
-- Retirement stops new recommendations only. Migration to a new roadmap version is an
-  explicit learner action with a preview of retained credit (R06; rules in `05`, content
-  side in `06`).
+- Published content is immutable: every change publishes a new `content_versions` row and a new immutable CDN path. Old versions become `retired`, never deleted, so history and evidence still render (PRD §12).
+- Enrolment pins a `roadmap_versions` row (R01). A session pins each step's `content_version_id` at creation; attempts store `assessment_item_id` and `content_version_id` (PRD §11); evidence references attempts.
+- Retirement stops new recommendations only. Migration to a new roadmap version is an explicit learner action with a preview of retained credit (R06; rules in `05`, content side in `06`).
 
 ### 6.5 Configuration, tunables and feature flags
 
@@ -523,8 +431,7 @@ overwrites a newer revision silently (PRD §12). Flow detail: `03-key-flows.md`.
 | Learning tunables | Review intervals, review caps (2/1), retained delay (≥ 7 days), absence threshold, guest scope and TTL, idempotency TTL, reminder window and minimum gap | Versioned config file in the app repo; config hash logged at start-up | Pull request + deploy; records note the policy version applied (`04`/`05`) |
 | Feature flags (kill switches) | `reminders_enabled`, `guest_mode_enabled`, `new_signups_enabled`, `client_events_enabled`, later `ai_tutor_enabled` | `feature_flags` table, read at most every 60 s | Operator console command, logged |
 
-Flags are global booleans, few, and removed when stable. Tunables that change learning
-outcomes are code-reviewed, not toggled at runtime.
+Flags are global booleans, few, and removed when stable. Tunables that change learning outcomes are code-reviewed, not toggled at runtime.
 
 ### 6.6 Rate limiting
 
@@ -537,20 +444,14 @@ outcomes are code-reviewed, not toggled at runtime.
 | Client events | 120 per minute, ≤ 50 events per batch | principal |
 | Operator endpoints | 10 per hour | token |
 
-Pilot: in-process counters on the single instance. Move to database-backed counters if a
-second instance is added. Exceeded → `429 rate_limited` with `Retry-After`. Draft autosave
-is debounced client-side so normal use never approaches the limit.
+Pilot: in-process counters on the single instance. Move to database-backed counters if a second instance is added. Exceeded → `429 rate_limited` with `Retry-After`. Draft autosave is debounced client-side so normal use never approaches the limit.
 
 ### 6.7 Input validation and safe rendering
 
-- Every request is validated at the boundary against a schema: types, enums, lengths,
-  unknown-field rejection on writes. Limits: body ≤ 256 KB, draft `data` ≤ 32 KB, short
-  text ≤ 4,000 chars, lab artifact ≤ 64 KB of text or JSON.
+- Every request is validated at the boundary against a schema: types, enums, lengths, unknown-field rejection on writes. Limits: body ≤ 256 KB, draft `data` ≤ 32 KB, short text ≤ 4,000 chars, lab artifact ≤ 64 KB of text or JSON.
 - Parameterised SQL only.
-- Learner text is stored and rendered as **plain text** (output-encoded); no learner
-  Markdown or HTML in MVP. Learner text never appears in emails, logs or analytics.
-- Authored Markdown is compiled to HTML in CI with an allow-list sanitiser (`06`). A
-  Content-Security-Policy forbids inline script. Code samples render as text.
+- Learner text is stored and rendered as **plain text** (output-encoded); no learner Markdown or HTML in MVP. Learner text never appears in emails, logs or analytics.
+- Authored Markdown is compiled to HTML in CI with an allow-list sanitiser (`06`). A Content-Security-Policy forbids inline script. Code samples render as text.
 - Export files are JSON; if CSV is ever added, neutralise formula-leading cells.
 
 ### 6.8 Guest mode
@@ -568,14 +469,9 @@ is debounced client-side so normal use never approaches the limit.
 
 ### 6.9 Offline and draft sync (high level)
 
-- The local draft store holds, per session: latest draft, `base_revision`, pending
-  `save_id`, pending idempotency keys and sync status. Signing out clears it.
-- Every edit writes locally first; the client sends `PUT …/draft` after a short idle
-  debounce and **before every step transition** (PRD §12). If the network is down, reading
-  steps can continue; attempt submission waits (evaluation is server-side) and the UI
-  shows "Saved on this device, not yet synced".
-- One open session per learner; a second device resumes the same session, and revisions
-  detect concurrent edits. Sequences: `03-key-flows.md`.
+- The local draft store holds, per session: latest draft, `base_revision`, pending `save_id`, pending idempotency keys and sync status. Signing out clears it.
+- Every edit writes locally first; the client sends `PUT …/draft` after a short idle debounce and **before every step transition** (PRD §12). If the network is down, reading steps can continue; attempt submission waits (evaluation is server-side) and the UI shows "Saved on this device, not yet synced".
+- One open session per learner; a second device resumes the same session, and revisions detect concurrent edits. Sequences: `03-key-flows.md`.
 
 ```mermaid
 stateDiagram-v2
@@ -627,12 +523,7 @@ An offline-capable app shell (service worker) is an option for `01`/`08`, not a 
 
 ## 7. Background jobs
 
-Mechanics: jobs live in `background_jobs` (added) in the relational database; workers
-claim with row locking that skips locked rows (Postgres-compatible); delivery is
-at-least-once with a visibility timeout, capped exponential retries, and a terminal
-`failed` state. The scheduler enqueues periodic jobs with a unique
-(`job_name`, `slot`) key so a restart cannot double-enqueue. Operators retry failed jobs
-by console command.
+Mechanics: jobs live in `background_jobs` (added) in the relational database; workers claim with row locking that skips locked rows (Postgres-compatible); delivery is at-least-once with a visibility timeout, capped exponential retries, and a terminal `failed` state. The scheduler enqueues periodic jobs with a unique (`job_name`, `slot`) key so a restart cannot double-enqueue. Operators retry failed jobs by console command.
 
 | Job | Module | Trigger / frequency | Idempotency | Failure behaviour |
 | --- | --- | --- | --- | --- |
@@ -708,26 +599,15 @@ by console command.
 
 ## Open questions for discussion
 
-1. **Login method.** *Recommended default:* email + password using the chosen
-   framework's standard auth, cookie sessions, recovery by email link. Passwordless links
-   would make every new-device sign-in depend on the email provider. OAuth later.
-2. **Guest scope.** *Recommended default:* server-side guest (AD-10) limited to
-   onboarding, diagnostic, the sample scenario and one further session; purge after
-   30 days unclaimed.
-3. **Analytics storage.** *Recommended default:* a separate schema in the same database
-   instance, written only by after-commit jobs; move out when rollups or volume affect
-   the primary.
-4. **Answer keys.** *Recommended default:* server only; CDN bundles carry learner-facing
-   material and feedback is returned by the attempts endpoint.
-5. **Deletion grace period.** *Recommended default:* none; explicit confirmation in the
-   UI, purge at the next daily run.
+1. **Login method.** *Recommended default:* email + password using the chosen framework's standard auth, cookie sessions, recovery by email link. Passwordless links would make every new-device sign-in depend on the email provider. OAuth later.
+2. **Guest scope.** *Recommended default:* server-side guest (AD-10) limited to onboarding, diagnostic, the sample scenario and one further session; purge after 30 days unclaimed.
+3. **Analytics storage.** *Recommended default:* a separate schema in the same database instance, written only by after-commit jobs; move out when rollups or volume affect the primary.
+4. **Answer keys.** *Recommended default:* server only; CDN bundles carry learner-facing material and feedback is returned by the attempts endpoint.
+5. **Deletion grace period.** *Recommended default:* none; explicit confirmation in the UI, purge at the next daily run.
 6. **Offline attempts.** *Recommended default:* not in MVP; answers wait in the draft.
-7. **Lab evidence format.** *Recommended default:* pasted text or JSON ≤ 64 KB in
-   `artifacts`; no binary uploads or object storage.
-8. **Operator interface.** *Recommended default:* console commands plus audited database
-   access; no admin UI in MVP.
-9. **Instance count.** *Recommended default:* one API instance and one worker for the
-   pilot; keep the API stateless so scaling out only needs database-backed rate limits.
+7. **Lab evidence format.** *Recommended default:* pasted text or JSON ≤ 64 KB in `artifacts`; no binary uploads or object storage.
+8. **Operator interface.** *Recommended default:* console commands plus audited database access; no admin UI in MVP.
+9. **Instance count.** *Recommended default:* one API instance and one worker for the pilot; keep the API stateless so scaling out only needs database-backed rate limits.
 
 ## PRD traceability
 

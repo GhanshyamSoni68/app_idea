@@ -150,7 +150,7 @@ flowchart LR
     AI["AI provider<br/>(P1, off by default)"]
   end
   Author["Author / Operator"] -->|git push| GH["GitHub repo<br/>code + content"]
-  GH -->|CI then deploy main| LC
+  GH -->|CI then deploy main| WEB
   UI -->|HTTPS| DNS
   DNS --> WEB
   WEB --> PG
@@ -161,7 +161,7 @@ flowchart LR
   MAIL --> Inbox["Learner inbox"]
   WEB -.->|errors| SEN
   UI -.->|errors| SEN
-  UP -.->|checks /up| WEB
+  UP -.->|"checks /up"| WEB
   SCH -.->|heartbeat| UP
   WRK -->|weekly dump| R2
   WEB -.->|feature-flagged| AI
@@ -195,8 +195,8 @@ flowchart LR
     R2db[("Serverless Postgres + PITR")]
     R3["Resend, Sentry, Better Stack live"]
   end
-  Local -->|push branch and open PR| Preview
-  Preview -->|CI green and review approved then merge| Prod
+  L1 -->|push branch and open PR| P1
+  P1 -->|CI green and review approved then merge| R1
 ```
 
 | Aspect | Local | Preview | Production |

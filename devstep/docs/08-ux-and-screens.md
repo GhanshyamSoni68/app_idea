@@ -2,43 +2,20 @@
 
 Status: Proposal — for discussion
 
-**Purpose.** Define how DevStep is organised and how it behaves on screen:
-navigation, the journeys that matter for the pilot, low-fidelity wireframes,
-screen states, interaction and copy rules, and accessibility acceptance checks.
-It turns PRD §5, §6, §8A and §10 into screens that a builder and a reviewer can
-check against, without choosing a stack.
+**Purpose.** Define how DevStep is organised and how it behaves on screen: navigation, the journeys that matter for the pilot, low-fidelity wireframes, screen states, interaction and copy rules, and accessibility acceptance checks. It turns PRD §5, §6, §8A and §10 into screens that a builder and a reviewer can check against, without choosing a stack.
 
 **Summary**
 
-- Three primary destinations, **Today, Roadmap, Evidence**, with **Settings**
-  secondary. Player and Lab are focus modes entered from Today or Roadmap. *(PRD §10)*
-- First value comes before sign-up. A guest completes one sample scenario, sees
-  feedback, and is told plainly that the work is saved only in this browser
-  until they create an account. *(PRD §5)*
-- Today always shows one action with time and reason, plus **Start small** and
-  **Rest today**. Nothing on Today requires browsing. *(PRD F02, §6)*
-- The player shows one step at a time, autosaves drafts with a visible status,
-  offers optional graduated hints, and ends on an explicit stopping point that
-  names the evidence earned. *(PRD F03, §5, §10)*
-- Roadmap is an expandable ordered list. Progress reads "5 of 18 required
-  topics · 28%" and is labelled as coverage, not mastery. Challenge-out and
-  defer are separate, clearly explained choices. *(PRD §8A, R01–R06)*
-- Evidence separates introduced, practised, demonstrated and retained, with
-  dates, limitations and basis labels such as **Self-assessed** and
-  **Submitted by you**. *(PRD F08, §9)*
-- No countdowns, red overdue counters, streak loss, comparisons with other
-  users or fear of obsolescence. Copy rewards specific evidence. *(PRD §1, §6, §9)*
-- Accessibility is an acceptance gate: 21 checks covering keyboard, screen
-  reader, mobile code blocks, reduced motion, non-colour cues, themes, focus
-  and target size. *(PRD §10)*
+- Three primary destinations, **Today, Roadmap, Evidence**, with **Settings** secondary. Player and Lab are focus modes entered from Today or Roadmap. *(PRD §10)*
+- First value comes before sign-up. A guest completes one sample scenario, sees feedback, and is told plainly that the work is saved only in this browser until they create an account. *(PRD §5)*
+- Today always shows one action with time and reason, plus **Start small** and **Rest today**. Nothing on Today requires browsing. *(PRD F02, §6)*
+- The player shows one step at a time, autosaves drafts with a visible status, offers optional graduated hints, and ends on an explicit stopping point that names the evidence earned. *(PRD F03, §5, §10)*
+- Roadmap is an expandable ordered list. Progress reads "5 of 18 required topics · 28%" and is labelled as coverage, not mastery. Challenge-out and defer are separate, clearly explained choices. *(PRD §8A, R01–R06)*
+- Evidence separates introduced, practised, demonstrated and retained, with dates, limitations and basis labels such as **Self-assessed** and **Submitted by you**. *(PRD F08, §9)*
+- No countdowns, red overdue counters, streak loss, comparisons with other users or fear of obsolescence. Copy rewards specific evidence. *(PRD §1, §6, §9)*
+- Accessibility is an acceptance gate: 21 checks covering keyboard, screen reader, mobile code blocks, reduced motion, non-colour cues, themes, focus and target size. *(PRD §10)*
 
-**Not in this doc:** API shapes (`02-system-architecture.md`), system-level
-sequences (`03-key-flows.md`), selection, review, evidence and completion rules
-(`05-learning-engine.md`), content format and authoring constraints
-(`06-content-system.md`), mission and lab content (`07-curriculum-plan.md`),
-retention and deletion timing (`09-security-privacy-ops.md`), analytics events
-(`10-measurement-and-validation.md`). This doc shows how those rules surface;
-it does not define them.
+**Not in this doc:** API shapes (`02-system-architecture.md`), system-level sequences (`03-key-flows.md`), selection, review, evidence and completion rules (`05-learning-engine.md`), content format and authoring constraints (`06-content-system.md`), mission and lab content (`07-curriculum-plan.md`), retention and deletion timing (`09-security-privacy-ops.md`), analytics events (`10-measurement-and-validation.md`). This doc shows how those rules surface; it does not define them.
 
 ## 1. Design principles
 
@@ -106,8 +83,7 @@ flowchart TD
 
 ### 2.3 Screen inventory
 
-Operation names follow the starting vocabulary in `00-conventions.md`;
-`02-system-architecture.md` owns the final list.
+Operation names follow the starting vocabulary in `00-conventions.md`; `02-system-architecture.md` owns the final list.
 
 | ID | Screen | Reached from | Wireframe | Main operations |
 | --- | --- | --- | --- | --- |
@@ -147,8 +123,7 @@ Operation names follow the starting vocabulary in `00-conventions.md`;
 
 ## 3. User journeys
 
-Journeys are screen-level. The matching system sequences live in
-`03-key-flows.md`; the rules behind each decision live in `05-learning-engine.md`.
+Journeys are screen-level. The matching system sequences live in `03-key-flows.md`; the rules behind each decision live in `05-learning-engine.md`.
 
 ### 3a. First visit: sample as guest, then keep progress
 
@@ -170,10 +145,8 @@ flowchart TD
   A7 -.->|No invite in pilot| A14["Join waitlist<br/>sample stays on device"]
 ```
 
-- The device-only message appears **before** the learner chooses, in plain words
-  (W07). "Saved" alone is never used for guest work. *(PRD §5)*
-- Pilot access is invite-only *(PRD §15)*; the waitlist branch is a Proposal
-  *(Open question 2)*.
+- The device-only message appears **before** the learner chooses, in plain words (W07). "Saved" alone is never used for guest work. *(PRD §5)*
+- Pilot access is invite-only *(PRD §15)*; the waitlist branch is a Proposal *(Open question 2)*.
 
 ### 3b. Onboarding
 
@@ -194,16 +167,11 @@ flowchart TD
   B11 --> B9
 ```
 
-- Six steps, one question per screen, **Back** on every step, **Skip** on
-  optional steps, progress shown as "Step 3 of 6" in text. *(Proposal)*
-- Defaults are pre-filled from the PRD pilot schedule: three 10-minute sessions
-  plus one optional lab a week, labelled "a starting point, not a rule". *(PRD §5)*
-- Stack is context only. Copy says examples use Laravel/PHP and SQL and that
-  the concepts are portable. *(PRD §8)*
-- No skill tree and no "rate yourself on 30 technologies". Skipped diagnostic
-  areas show as **Not checked yet** in Evidence, never as zero. *(PRD §5, F01)*
-- Hypothesis: onboarding without the diagnostic takes under two minutes. Test
-  in the concierge trial (`10-measurement-and-validation.md`).
+- Six steps, one question per screen, **Back** on every step, **Skip** on optional steps, progress shown as "Step 3 of 6" in text. *(Proposal)*
+- Defaults are pre-filled from the PRD pilot schedule: three 10-minute sessions plus one optional lab a week, labelled "a starting point, not a rule". *(PRD §5)*
+- Stack is context only. Copy says examples use Laravel/PHP and SQL and that the concepts are portable. *(PRD §8)*
+- No skill tree and no "rate yourself on 30 technologies". Skipped diagnostic areas show as **Not checked yet** in Evidence, never as zero. *(PRD §5, F01)*
+- Hypothesis: onboarding without the diagnostic takes under two minutes. Test in the concierge trial (`10-measurement-and-validation.md`).
 
 ### 3c. Daily loop
 
@@ -244,8 +212,7 @@ flowchart TD
 ```
 
 - **Start small** uses a curated equivalent, never a truncated lesson. *(PRD §9)*
-- **Rest today** asks for no reason and is undoable the same day. Whether it
-  suppresses that day's reminder is *Open question 7*.
+- **Rest today** asks for no reason and is undoable the same day. Whether it suppresses that day's reminder is *Open question 7*.
 
 ### 3e. Return after absence
 
@@ -264,10 +231,8 @@ flowchart TD
   E6 -.->|Content updated meanwhile| E10["Finish your version<br/>or start the updated one"]
 ```
 
-- The refresher is the primary button because the PRD asks to start with a
-  brief retrieval check after a long absence. *(PRD §6, F06)*
-- The screen never states how long the learner was away or how many sessions
-  were missed. *(PRD §6)*
+- The refresher is the primary button because the PRD asks to start with a brief retrieval check after a long absence. *(PRD §6, F06)*
+- The screen never states how long the learner was away or how many sessions were missed. *(PRD §6)*
 
 ### 3f. Lab on desktop
 
@@ -289,9 +254,7 @@ flowchart TD
   F10 -.->|Save and come back| F14["Today shows Continue lab"]
 ```
 
-- Labs run on the learner's machine; DevStep never runs their code. The setup
-  check is a command in the lab kit whose output the learner pastes. *(PRD §11,
-  F07; kit details in `07-curriculum-plan.md`)*
+- Labs run on the learner's machine; DevStep never runs their code. The setup check is a command in the lab kit whose output the learner pastes. *(PRD §11, F07; kit details in `07-curriculum-plan.md`)*
 - On a phone, **Open anyway** is available; nothing is blocked by width alone.
 - The no-setup fallback comes from PRD §16 and is labelled on the evidence record.
 
@@ -338,8 +301,7 @@ flowchart TD
   H2 -->|Cancel| H9["Back to the topic"]
 ```
 
-- The choice screen states both consequences side by side. Self-report alone is
-  never offered as a skip. *(PRD §6, R03)*
+- The choice screen states both consequences side by side. Self-report alone is never offered as a skip. *(PRD §6, R03)*
 - A failed challenge is framed as information: "This showed where to start."
 
 ### 3h. Evidence review
@@ -378,10 +340,8 @@ flowchart TD
   K2 --> K3["Confirmation: no more reminders,<br/>progress unchanged"]
 ```
 
-- Reminders only go out on learning days, at most one a day, and not when the
-  learner has already practised that day. *(PRD §6, F10)*
-- The time zone is detected from the device but always shown and confirmed;
-  schedules use the learner's IANA time zone. *(PRD §11)*
+- Reminders only go out on learning days, at most one a day, and not when the learner has already practised that day. *(PRD §6, F10)*
+- The time zone is detected from the device but always shown and confirmed; schedules use the learner's IANA time zone. *(PRD §11)*
 
 ### 3j. Export and delete account
 
@@ -399,17 +359,12 @@ flowchart TD
   L6 -->|Cancel| L1
 ```
 
-- Deletion copy states the PRD's proposed window ("active personal records are
-  removed within 30 days") and links to the backup expiry policy owned by
-  `09-security-privacy-ops.md`. *(PRD §12)*
+- Deletion copy states the PRD's proposed window ("active personal records are removed within 30 days") and links to the backup expiry policy owned by `09-security-privacy-ops.md`. *(PRD §12)*
 - Guests get **Clear data on this device** instead, with no server step.
 
 ## 4. Low-fidelity wireframes
 
-Phone frames are 40 characters wide; the lab is 80. Bracketed text is a
-control; `[x]`/`[ ]` are checkboxes, `(X)`/`( )` radio buttons. Evidence icons
-use the ASCII stand-ins defined in §9.3. These show content and hierarchy, not
-visual design.
+Phone frames are 40 characters wide; the lab is 80. Bracketed text is a control; `[x]`/`[ ]` are checkboxes, `(X)`/`( )` radio buttons. Evidence icons use the ASCII stand-ins defined in §9.3. These show content and hierarchy, not visual design.
 
 ### W01 · Today
 
@@ -443,11 +398,7 @@ visual design.
 +--------------------------------------+
 ```
 
-Variants: **Continue** (card reads "Continue: Indexes and pagination · step 3
-of 5 · your draft is saved"); **Done for today** ("Done for today. Next: Thu,
-about 10 min." plus a quiet "Practise anyway"); **Desktop** adds one line,
-"Optional lab ready: before/after experiment", below the card, never a second
-card. The roadmap, module, topic and purpose line is required. *(PRD §8A, F02)*
+Variants: **Continue** (card reads "Continue: Indexes and pagination · step 3 of 5 · your draft is saved"); **Done for today** ("Done for today. Next: Thu, about 10 min." plus a quiet "Practise anyway"); **Desktop** adds one line, "Optional lab ready: before/after experiment", below the card, never a second card. The roadmap, module, topic and purpose line is required. *(PRD §8A, F02)*
 
 ### W02 · Player step: scenario and question
 
@@ -555,10 +506,7 @@ hint or after an incorrect attempt (IR-04).
 +--------------------------------------+
 ```
 
-Incorrect variant: "[!] Not quite" heading, an explanation of why the chosen
-option may not help under the stated assumptions, the worked example expanded,
-and "A similar question will come back sooner." Status is carried by the
-marker and the word, never by colour alone. *(PRD §5 step 5, §9)*
+Incorrect variant: "[!] Not quite" heading, an explanation of why the chosen option may not help under the stated assumptions, the worked example expanded, and "A similar question will come back sooner." Status is carried by the marker and the word, never by colour alone. *(PRD §5 step 5, §9)*
 
 ### W05 · Open-ended response with self-check
 
@@ -618,8 +566,7 @@ marker and the word, never by colour alone. *(PRD §5 step 5, §9)*
 +--------------------------------------+
 ```
 
-The headline is the evidence-based reward from PRD §5. Effort recognition, if
-any, sits in "What you did", never in the evidence block. *(PRD §6)*
+The headline is the evidence-based reward from PRD §5. Effort recognition, if any, sits in "What you did", never in the evidence block. *(PRD §6)*
 
 ### W07 · Guest: keep your progress
 
@@ -738,13 +685,9 @@ any, sits in "What you did", never in the evidence block. *(PRD §6)*
 +--------------------------------------+
 ```
 
-- Default disclosure: current module open, others collapsed; later modules say
-  **Preview** and expand on request. *(PRD §10 "avoid exposing every future
-  topic by default"; Open question 5)*
-- Optional topics and labs carry the word **Optional** and are excluded from the
-  count. *(PRD §8A)*
-- **Options** menu: Pause roadmap, Change pace (opens Preferences), Show all
-  topics, Version details, Switch roadmap (shown once R07 adds roadmaps).
+- Default disclosure: current module open, others collapsed; later modules say **Preview** and expand on request. *(PRD §10 "avoid exposing every future topic by default"; Open question 5)*
+- Optional topics and labs carry the word **Optional** and are excluded from the count. *(PRD §8A)*
+- **Options** menu: Pause roadmap, Change pace (opens Preferences), Show all topics, Version details, Switch roadmap (shown once R07 adds roadmaps).
 
 ### W11 · Roadmap completion summary
 
@@ -782,8 +725,7 @@ any, sits in "What you did", never in the evidence block. *(PRD §6)*
 +--------------------------------------+
 ```
 
-No confetti or animation. **See other roadmaps** shows a "more coming" note
-until R07 ships; no automatic enrolment. *(PRD §8A, R04)*
+No confetti or animation. **See other roadmaps** shows a "more coming" note until R07 ships; no automatic enrolment. *(PRD §8A, R04)*
 
 ### W12 · Evidence
 
@@ -826,11 +768,8 @@ until R07 ships; no automatic enrolment. *(PRD §8A, R04)*
 +--------------------------------------+
 ```
 
-- Each skill appears once, under its highest current level. Skill detail (S16)
-  lists every record with date, level, basis, help used, task version and a
-  plain limitation. *(PRD F04, F08)*
-- Skills never attempted (including skipped diagnostic areas) appear under a
-  collapsed **Not checked yet** group, not as zero. *(PRD F01)*
+- Each skill appears once, under its highest current level. Skill detail (S16) lists every record with date, level, basis, help used, task version and a plain limitation. *(PRD F04, F08)*
+- Skills never attempted (including skipped diagnostic areas) appear under a collapsed **Not checked yet** group, not as zero. *(PRD F01)*
 
 ### W13 · Lab (desktop, 80 characters)
 
@@ -868,9 +807,7 @@ until R07 ships; no automatic enrolment. *(PRD §8A, R04)*
 +------------------------------------------------------------------------------+
 ```
 
-Phone variant: the left column becomes the whole screen, tasks are readable,
-and the primary button is **Save for my computer**. Task content and rubric
-criteria come from `07-curriculum-plan.md`; the ones above are placeholders.
+Phone variant: the left column becomes the whole screen, tasks are readable, and the primary button is **Save for my computer**. Task content and rubric criteria come from `07-curriculum-plan.md`; the ones above are placeholders.
 
 ### W14 · Reminder settings
 
@@ -905,13 +842,11 @@ criteria come from `07-curriculum-plan.md`; the ones above are placeholders.
 +--------------------------------------+
 ```
 
-Reminder days are a subset of learning days, so "at most one per scheduled
-learning day" holds by construction. *(PRD §6, F10)*
+Reminder days are a subset of learning days, so "at most one per scheduled learning day" holds by construction. *(PRD §6, F10)*
 
 ## 5. Screen state catalogue
 
-Every screen in §2.3 must define the states below where they apply. W15 and
-W16 follow the table.
+Every screen in §2.3 must define the states below where they apply. W15 and W16 follow the table.
 
 | State | Where | What the learner sees | Actions | Never |
 | --- | --- | --- | --- | --- |
@@ -986,9 +921,7 @@ W16 follow the table.
 +--------------------------------------+
 ```
 
-Which credit carries over is decided by `05-learning-engine.md` and
-`06-content-system.md`; this screen only has to show it before the learner
-decides. *(PRD R06)*
+Which credit carries over is decided by `05-learning-engine.md` and `06-content-system.md`; this screen only has to show it before the learner decides. *(PRD R06)*
 
 ## 6. Interaction rules
 
@@ -1067,8 +1000,7 @@ decides. *(PRD R06)*
 
 ## 8. Accessibility acceptance checklist
 
-These are product acceptance requirements, not a claim of certified compliance
-*(PRD §10)*. WCAG 2.2 success criteria are cited as a checking reference.
+These are product acceptance requirements, not a claim of certified compliance *(PRD §10)*. WCAG 2.2 success criteria are cited as a checking reference.
 
 | ID | Requirement | How to check | Reference |
 | --- | --- | --- | --- |
@@ -1094,15 +1026,13 @@ These are product acceptance requirements, not a claim of certified compliance
 | A-20 | Illustrations have text alternatives; decorative images are hidden from assistive technology. No audio or video in the MVP. | Screen reader pass. | 1.1.1 |
 | A-21 | Release check: keyboard only, one desktop and one mobile screen reader (for example NVDA on Windows and VoiceOver on iOS), 200% zoom, 320 px width, reduced motion, both themes. Automated checks supplement but never replace this. | Recorded per release in the pilot readiness checklist (12). | Proposal |
 
-Content-side duties (alt text, code line length, plain language) belong to the
-per-mission accessibility review in `06-content-system.md`. *(PRD §8)*
+Content-side duties (alt text, code line length, plain language) belong to the per-mission accessibility review in `06-content-system.md`. *(PRD §8)*
 
 ## 9. Minimal design system
 
 ### 9.1 Tokens
 
-Semantic tokens only, resolved per theme. Values are chosen in the design phase
-and contrast-checked (A-13); none are set here.
+Semantic tokens only, resolved per theme. Values are chosen in the design phase and contrast-checked (A-13); none are set here.
 
 ```yaml
 # Illustrative structure, not values
@@ -1148,13 +1078,11 @@ Kept to sixteen. A new component needs a reason that an existing one cannot meet
 | Form controls | Onboarding, Settings | Day chips, toggle, select, time input. |
 | Placeholder and empty block | All | Layout-shaped loading; empty state with one action. |
 
-Deliberately excluded: toasts (easy to miss), numeric badges, carousels,
-confetti, leaderboards, streak flames.
+Deliberately excluded: toasts (easy to miss), numeric badges, carousels, confetti, leaderboards, streak flames.
 
 ### 9.3 Evidence and topic iconography
 
-Shape carries the meaning; colour is decoration. The text label is always shown
-beside the icon, including in compact rows.
+Shape carries the meaning; colour is decoration. The text label is always shown beside the icon, including in compact rows.
 
 | Level | Icon shape | Wireframe stand-in | Label |
 | --- | --- | --- | --- |
@@ -1170,13 +1098,11 @@ beside the icon, including in compact rows.
 | `completed` | Square with tick | Completed |
 | `deferred` | Square with dash | Deferred, no credit |
 
-Basis is shown as a text tag, never an icon alone: **Checked automatically**,
-**Self-assessed**, **Submitted by you**, **Reviewed by a person**.
+Basis is shown as a text tag, never an icon alone: **Checked automatically**, **Self-assessed**, **Submitted by you**, **Reviewed by a person**.
 
 ## 10. Phone and desktop responsibilities
 
-Breakpoints *(Proposal)*: compact below 600 CSS px, medium 600–1023, wide
-1024 and above. Reading columns stay at about 70 characters on every size.
+Breakpoints *(Proposal)*: compact below 600 CSS px, medium 600–1023, wide 1024 and above. Reading columns stay at about 70 characters on every size.
 
 | Task | Phone | Desktop |
 | --- | --- | --- |
@@ -1192,25 +1118,17 @@ Breakpoints *(Proposal)*: compact below 600 CSS px, medium 600–1023, wide
 | Export and delete | Supported | Supported; downloading the export is usually easier here |
 | Cross-device continuity | Open sessions and drafts resume on either device; conflicts use W15 | Same |
 
-Hypothesis to test in discovery: learners practise on the phone between desktop
-labs. *(PRD §16 open question)* If they do not, phone stays supported but is no
-longer the primary design target.
+Hypothesis to test in discovery: learners practise on the phone between desktop labs. *(PRD §16 open question)* If they do not, phone stays supported but is no longer the primary design target.
 
 ## 11. Companion and progress illustration
 
-The companion is F15, P1. The MVP needs only a simple progress illustration,
-and expensive animation is not a launch dependency. *(PRD §6, §7)*
+The companion is F15, P1. The MVP needs only a simple progress illustration, and expensive animation is not a launch dependency. *(PRD §6, §7)*
 
 **What the MVP shows instead** *(Proposal)*
 
 - Roadmap progress as text ("5 of 18 required topics · 28%"), the main measure.
-- Weekly practice on Today ("1 of 3 sessions this week. Any session counts."),
-  reset each week with no carry-over.
-- Optionally, if cheap to produce: a static **workshop** illustration on the
-  Roadmap screen showing the fictional work-order app, which gains one labelled
-  part per completed module (request path, query plan, cache, queue, metrics,
-  decision record). It has a text alternative that repeats the count, and no
-  animation *(Open question 10)*.
+- Weekly practice on Today ("1 of 3 sessions this week. Any session counts."), reset each week with no carry-over.
+- Optionally, if cheap to produce: a static **workshop** illustration on the Roadmap screen showing the fictional work-order app, which gains one labelled part per completed module (request path, query plan, cache, queue, metrics, decision record). It has a text alternative that repeats the count, and no animation *(Open question 10)*.
 
 **Rules for any illustration or later companion**
 
@@ -1222,45 +1140,22 @@ and expensive animation is not a launch dependency. *(PRD §6, §7)*
 | Respect reduced motion and have a text alternative. | Use streaks, counters of missed days or comparisons. |
 | Treat returning after a gap as something to celebrate. | Be sold as a paid cosmetic before learning value is shown *(Proposal)*. |
 
-Hypothesis: a companion improves return visits. The PRD says the research does
-not establish this *(PRD §2)*; test it only after the core loop works.
+Hypothesis: a companion improves return visits. The PRD says the research does not establish this *(PRD §2)*; test it only after the core loop works.
 
 ## 12. Open questions for discussion
 
-1. **How is guest work stored, and for how long?** *Recommended default:* in
-   this browser only, labelled on screen, kept for 30 days, moved into the
-   account on sign-up; nothing stored server-side for guests beyond
-   pseudonymous analytics (`09`, `10`).
-2. **What does an uninvited guest see after the sample during the pilot?**
-   *Recommended default:* a **Join the waitlist** option with explicit consent
-   to be contacted; the sample stays on the device; full sign-up needs an invite.
-3. **Code blocks on phones: wrap or scroll by default?** *Recommended default:*
-   no wrap and horizontal scroll inside the block, with a remembered **Wrap**
-   toggle; authors keep key lines to about 60 characters (`06`).
-4. **When does Show solution appear?** *Recommended default:* after the last
-   hint or after one incorrect attempt, always behind the W03 confirmation.
-5. **How much of the future roadmap is visible by default?** *Recommended
-   default:* current module open, completed modules collapsed with counts,
-   later modules collapsed and labelled **Preview**, one tap to expand.
-6. **Can answers be checked offline?** *Recommended default:* no in the MVP.
-   Drafts are kept locally and sync later; checking needs a connection.
-7. **Does Rest today suppress that day's reminder?** *Recommended default:*
-   yes; no reason asked; undoable the same day. `05` confirms the scheduling
-   effect.
-8. **Does pausing a roadmap pause reminders?** *Recommended default:* the pause
-   dialog asks "Also pause reminders?" with **Yes** preselected.
-9. **Should Today show weekly progress at all?** *Recommended default:* yes, as
-   "N of M sessions this week" with no streak; learners can hide it in
-   Preferences.
-10. **Is a progress illustration in the MVP?** *Recommended default:* text-only
-    progress for the alpha; add the static workshop illustration before the
-    pilot only if it does not delay core work.
-11. **Can Practise now on Evidence override Today's recommendation?**
-    *Recommended default:* yes, it starts a session on that skill and Today
-    recalculates afterwards; `05` confirms selection rules.
-12. **How are sync conflicts resolved?** *Recommended default:* W15: show both
-    versions with device and time, the learner chooses, and the other version
-    stays visible for copying until the step is submitted.
+1. **How is guest work stored, and for how long?** *Recommended default:* in this browser only, labelled on screen, kept for 30 days, moved into the account on sign-up; nothing stored server-side for guests beyond pseudonymous analytics (`09`, `10`).
+2. **What does an uninvited guest see after the sample during the pilot?** *Recommended default:* a **Join the waitlist** option with explicit consent to be contacted; the sample stays on the device; full sign-up needs an invite.
+3. **Code blocks on phones: wrap or scroll by default?** *Recommended default:* no wrap and horizontal scroll inside the block, with a remembered **Wrap** toggle; authors keep key lines to about 60 characters (`06`).
+4. **When does Show solution appear?** *Recommended default:* after the last hint or after one incorrect attempt, always behind the W03 confirmation.
+5. **How much of the future roadmap is visible by default?** *Recommended default:* current module open, completed modules collapsed with counts, later modules collapsed and labelled **Preview**, one tap to expand.
+6. **Can answers be checked offline?** *Recommended default:* no in the MVP. Drafts are kept locally and sync later; checking needs a connection.
+7. **Does Rest today suppress that day's reminder?** *Recommended default:* yes; no reason asked; undoable the same day. `05` confirms the scheduling effect.
+8. **Does pausing a roadmap pause reminders?** *Recommended default:* the pause dialog asks "Also pause reminders?" with **Yes** preselected.
+9. **Should Today show weekly progress at all?** *Recommended default:* yes, as "N of M sessions this week" with no streak; learners can hide it in Preferences.
+10. **Is a progress illustration in the MVP?** *Recommended default:* text-only progress for the alpha; add the static workshop illustration before the pilot only if it does not delay core work.
+11. **Can Practise now on Evidence override Today's recommendation?** *Recommended default:* yes, it starts a session on that skill and Today recalculates afterwards; `05` confirms selection rules.
+12. **How are sync conflicts resolved?** *Recommended default:* W15: show both versions with device and time, the learner chooses, and the other version stays visible for copying until the step is submitted.
 
 ## PRD traceability
 
@@ -1301,6 +1196,4 @@ not establish this *(PRD §2)*; test it only after the core loop works.
 | R06 Version stability | §5, W16 |
 | R07 Additional roadmaps (switch entry point only) | §3g, W10 Options |
 
-Not covered here: F11 (content operations, `06`), F13 (AI tutor, P1; the hint
-panel is its likely home), F14 (relevance briefing, P1), R08 (custom roadmap,
-later).
+Not covered here: F11 (content operations, `06`), F13 (AI tutor, P1; the hint panel is its likely home), F14 (relevance briefing, P1), R08 (custom roadmap, later).

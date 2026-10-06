@@ -11,8 +11,8 @@ Status: Proposal — for discussion
 - **Strongest non-PHP option:** Cloudflare Workers + D1 at about $5/month. It is the cheapest and needs the least operating. However, it is slower to build for a Laravel-strong founder, and D1 has no interactive transactions.
 - **Monthly cost estimates (all `unverified`):**
   - concierge trial: about $1 (no app needed)
-  - pilot (≤ 50 learners): about $12–31, budget **about $30**
-  - early (500 MAU): about $55–80
+  - pilot (≤ 50 learners): about $10–31, budget **about $30**
+  - early (500 MAU): about $50–80
   - growth (5,000 MAU): about $115–190
 - **Six vendors**, four of them on free tiers: Laravel Cloud, Resend (email), Cloudflare (registrar, DNS, R2), GitHub, Sentry and Better Stack. Analytics events stay in our own Postgres table.
 - **Business rules live in application code with tests.** Postgres provides constraints (FK, unique, check) for integrity and as defence-in-depth. No business logic goes in triggers or RLS policies.
@@ -322,7 +322,7 @@ USD; all vendor prices `unverified`.
 | Email | — | Resend free $0 | Resend Pro $20 (or Postmark $15) | Resend Pro $20 (near the 50k cap; SES ≈ $5 alternative) |
 | Sentry, Better Stack, R2, GitHub | — | $0 | $0 | $0–26 (Sentry Team if quota bites) |
 | Domain (amortised) | ≈ $0.70 | ≈ $0.70 | ≈ $0.70 | ≈ $0.70 |
-| **Total per month** | **≈ $1** | **≈ $12–31; budget $30** | **≈ $55–80** | **≈ $115–190** |
+| **Total per month** | **≈ $1** | **≈ $10–31; budget $30** | **≈ $50–80** | **≈ $115–190** |
 
 ### 12.4 Pilot-stage comparison across options
 
@@ -330,7 +330,7 @@ All figures `unverified`.
 
 | Option | Pilot monthly estimate | Basis |
 | --- | --- | --- |
-| A1 Laravel Cloud | $12–31 | §12.3 |
+| A1 Laravel Cloud | $10–31 | §12.3 |
 | A2 Hetzner CX23 + Forge Hobby | ≈ $20 (≈ $8 without Forge) | €5.49 + €0.50 IPv4 + 20% backups ≈ €7.09, plus $12 Forge [S1–S3][S8]. Alternatively Forge's "Laravel VPS" from $6 [S8]. At growth: CX33 €8.49 [S1] → ≈ $45–70 including email. |
 | B Supabase Pro + static host | ≈ $25 | Free tier pauses and lacks backups [S11] |
 | C Cloudflare Workers Paid + D1 + Email Service | ≈ $5 | Includes 3,000 emails/month [S12][S16] |
@@ -385,7 +385,7 @@ The illustrative call has about 2,000 input tokens (reviewed lesson excerpt + qu
 
 **Negative**
 
-- The bill is usage-based. Pilot cost ranges from $12 to $31 depending on hibernation, which needs a monthly glance.
+- The bill is usage-based. Pilot cost ranges from $10 to $31 depending on hibernation, which needs a monthly glance.
 - Cold starts may affect p95 while traffic is sparse. The fix (always-on) costs about $20/month.
 - At about 5,000 MAU, Laravel Cloud costs roughly 2–3 times the VPS runner-up.
 - Laravel Cloud is a young platform, so feature and pricing churn is likely.

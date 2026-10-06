@@ -11,32 +11,24 @@ founder and one part-time reviewer, and no paid content service.
 
 ## Summary
 
-- **Proposal:** content is Markdown and YAML files in a private Git repository.
-  It is reviewed through pull requests (PRs) and published by CI into the
-  `catalogue` tables. The MVP has no CMS and no admin UI.
-- **Proposal:** a versioned unit is one of four things: a mission directory
-  (the mission, its items and its assets), a lab, a transfer assessment, or a
-  roadmap version's structure. Published versions never change, and every
-  attempt references one (PRD §11).
-- **PRD §8:** every mission has an objective, prerequisites, time estimates, a
-  worked example, misconception notes, graded items with hints and feedback,
-  sources, a stack scope, an accessibility review, an author, a reviewer and a
-  last-reviewed date. The minimum pool is the primary items, 2 held-back
-  alternates and a topic check.
-- **Proposal:** CI enforces 22 rules that block publication. They include
-  prerequisite cycles (§8A), item minimums, link and freshness checks,
-  accessibility lint and answer leakage.
+- **Proposal:** content is Markdown and YAML in a private Git repo, reviewed by
+  pull request (PR) and published by CI into `catalogue`. No CMS or admin UI.
+- **Proposal:** versioned units are mission directories (mission, items,
+  assets), labs, transfer assessments and roadmap-version structures. Published
+  versions never change, and every attempt references one (PRD §11).
+- **PRD §8:** each mission carries all required metadata (§5). Minimum pool:
+  the primary items, 2 held-back alternates and a topic check.
+- **Proposal:** 22 CI rules block publication, including prerequisite cycles
+  (§8A), item minimums, link checks, freshness, accessibility and leakage.
 - **PRD §8:** a reviewer other than the author tries every exercise. The publish
   job checks this itself, so no paid Git plan is needed to enforce it.
-- **Proposal:** units use semantic versions (patch, minor, breaking, plus a
-  `defect_fix` flag). Only breaking or structural changes create a new roadmap
-  version, which triggers an R06 migration offer.
+- **Proposal:** semantic versions (patch, minor, breaking, plus `defect_fix`).
+  Only breaking or structural changes create a new roadmap version (R06).
 - **Proposal:** retiring a unit stops new use but never deletes it. Attempts and
   evidence keep their references (§12).
-- **Hypothesis:** the path needs about 425 hours of content work (about 360
-  author and 65 reviewer hours; range about 270–655). At part-time pace that
-  takes longer than the PRD's 8–11 pre-pilot weeks, so content is the critical
-  path (PRD §14).
+- **Hypothesis:** about 425 hours of content work (360 author, 65 reviewer;
+  range 270–655). That exceeds the PRD's 8–11 pre-pilot weeks at part-time pace,
+  so content is the critical path (PRD §14).
 
 ## 1. Scope and boundaries
 
@@ -97,18 +89,15 @@ flowchart TD
 ```
 
 - **PRD §8A:** in the pilot, each of the 18 required topics has one core
-  mission. The format allows several missions per topic.
-- **Proposal:** each lab is its module's **optional topic**. This keeps labs out
-  of the progress denominator and records them separately (R04).
+  mission. The format allows several per topic.
+- **Proposal:** each lab is its module's **optional topic**: outside the
+  progress denominator and recorded separately (R04).
 - **Proposal:** item roles are `primary` (shown in the mission), `alternate`
-  (held back for later review), `topic_check` (held back for topic completion),
-  `baseline`, `final_transfer`, and `diagnostic` (the F01 onboarding check may
-  reuse the format). `05-learning-engine.md` decides which held-back item is
-  used when, including how challenge-out assessments are assembled. This doc
-  only guarantees the minimum pool.
-- **Proposal, handed to `02-system-architecture.md`:** the API never sends
-  held-back items, answer keys or feedback to the client before submission.
-  Without that, content-side leakage checks are pointless.
+  and `topic_check` (both held back), `baseline`, `final_transfer` and
+  `diagnostic` (F01). `05-learning-engine.md` decides which held-back item is
+  used when, including challenge-out; this doc only guarantees the pool.
+- **Proposal, for `02-system-architecture.md`:** the API never sends held-back
+  items, answer keys or feedback to the client before submission.
 
 ## 4. Repository layout and identifiers
 
@@ -125,12 +114,8 @@ content/                                 # private repo (Open question 1)
 ├── missions/
 │   └── m-query-plans/                   # directory name = mission ID
 │       ├── mission.md                   # front matter + step bodies
-│       ├── items/
-│       │   ├── primary-1.yaml
-│       │   ├── primary-2.yaml
-│       │   ├── alt-1.yaml               # held back
-│       │   ├── alt-2.yaml               # held back
-│       │   └── check-1.yaml             # held back, topic check
+│       ├── items/                       # primary-1, primary-2 (shown);
+│       │                                # alt-1, alt-2, check-1 (held back)
 │       └── assets/                      # images with alt text, text plans
 ├── labs/
 │   └── lab-perf-experiment/
@@ -147,10 +132,9 @@ content/                                 # private repo (Open question 1)
 └── workflows/                           # validate, preview, publish, scheduled
 ```
 
-The validator and preview tools are engineering code. They live with the app's
-tooling, in the language chosen in `01-tech-stack-and-hosting.md`. Lab starter
-kits live in a separate repository that learners can download; their contents
-belong to `07-curriculum-plan.md`.
+Validator and preview tools are engineering code in the app's chosen language
+(`01-tech-stack-and-hosting.md`). Lab starter kits live in a separate,
+downloadable repository; their contents belong to `07-curriculum-plan.md`.
 
 **Identifier rules (Proposal).** IDs are lowercase ASCII and stable across
 versions. They never encode order (order lives in manifests) and are never

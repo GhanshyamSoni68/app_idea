@@ -290,7 +290,7 @@ Envelope (all events): `event_id`, `name`, `schema_version`, `occurred_at` (UTC)
 | --- | --- | --- |
 | `local_date`, `time_zone` | date, IANA name | Learner's current date (§6.3). |
 | `situation` | enum | Examples: `first_run`, `ready`, `resume`, `returning`, `rest_day`, `nothing_ready`, `roadmap_complete`. Final list in `05`. |
-| `primary_action` | object | `kind` (`resume`, `practice`, `review`, `lab`, `challenge`), `mode`, `estimated_minutes`, `title`, `rationale` (why it matters), `context` (roadmap, module, topic, practical purpose), `session_id` (when resuming), `recommendation_id` (opaque, echoed to `POST /v1/sessions`). |
+| `primary_action` | object | `kind` (`resume`, `mission`, `review`, `lab`, `challenge`), `mode`, `estimated_minutes`, `title`, `rationale` (why it matters), `context` (roadmap, module, topic, practical purpose), `session_id` (when resuming), `recommendation_id` (opaque, echoed to `POST /v1/sessions`). |
 | `smaller_option` | object or null | Same shape with `mode = small`; a curated equivalent, never a truncated lesson (PRD §9). |
 | `welcome_back` | object or null | `days_away`, `last_work` (title, topic, date). Only after an absence threshold (`05`). |
 | `weekly_progress` | object | `planned_sessions`, `completed_sessions`, `week_start`. Effort only, no skill claims. |

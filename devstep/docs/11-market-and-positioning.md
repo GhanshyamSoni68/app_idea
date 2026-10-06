@@ -41,14 +41,18 @@ before any build starts.
   a software moat.** What a competitor or AI assistant would find hard to copy
   is reviewed scenarios, rubrics and *measured* retention or transfer results.
   None of these exist yet. *Hypothesis.*
-- **Pursue:** content-first validation that compares DevStep directly with a
-  "docs + calendar + AI study mode" arm in the concierge trial (PRD §13 step 4,
-  extended). **Do not pursue yet:** AI-tutor positioning, multiple stacks,
-  catalogue breadth, gamification, team plans. *Proposal.*
+- **Pursue:** content-first validation that probes the "docs + calendar + AI
+  study mode" substitute explicitly in every discovery interview. The two-week
+  concierge has no comparison arm; the pilot compares DevStep with a static
+  checklist (PRD §13 step 4), and whether to add an AI-study-mode condition is
+  an open question. If the comparison does as well, sell the path as content.
+  **Do not pursue yet:** AI-tutor positioning, multiple stacks, catalogue
+  breadth, gamification, team plans. *Proposal.*
 - **Laravel-first is a good *recruiting* niche, not yet a *market* decision.**
-  Use it to reach credible early participants, but describe the product as
-  "for backend developers, with examples in Laravel/PHP first". Include some
-  non-Laravel participants to test whether the concepts carry across.
+  Recruit first through Laravel communities to reach credible early
+  participants, but describe the product as "for backend developers, with
+  examples in Laravel/PHP first". Include 2–4 non-Laravel interviewees to test
+  whether the concepts carry across.
   *Proposal / Hypothesis.*
 - **Pricing benchmarks span US$8–59/month for subscriptions and roughly
   US$25–349 for one-time or lifetime purchases** (listed prices, USD, often
@@ -117,7 +121,7 @@ DevStep's wedge (§4.1) and is a *Hypothesis*.
 | 15 | Execute Program [M29] | Sequenced developer courses (TypeScript, SQL, regex, Python, JS) with integrated spaced repetition. | Working programmers. | S, C, R | US$39/mo; 16 lessons free. | Med | Closest "spaced repetition for working developers" precedent. Shows the concept is established. DevStep's difference is scenario decisions and reliability topics. |
 | **(e)** | **Substitutes** | | | | | | |
 | 16 | General AI assistants [M30–M35] | ChatGPT *study mode* (Socratic questions, knowledge checks) and *scheduled tasks*. Claude *Learning mode* (education plans) and Claude Code *Learning* output style. Gemini *Guided Learning* (quizzes, recap, next steps) and *scheduled actions*. | Everyone; study modes framed around students. | S, AI | Free tiers; ChatGPT Go US$8/mo (US), Plus US$20/mo; Claude Pro US$20/mo or US$17/mo billed annually. Gemini scheduled actions need Google AI Pro/Ultra (price not checked). | **High** | The default substitute. DevStep must show it saves planning and improves return *and* transfer compared with this stack (§7). |
-| 17 | Documentation + calendar ("do nothing") [M36] | Official docs and blocked calendar time. In the Stack Overflow 2025 survey, technical documentation was the most-used learning resource (≈68%). | Every developer. | — | Free. | **High** | Baseline arm for the concierge trial. If DevStep cannot beat this plus an AI chat, do not build the app. |
+| 17 | Documentation + calendar ("do nothing") [M36] | Official docs and blocked calendar time. In the Stack Overflow 2025 survey, technical documentation was the most-used learning resource (≈68%). | Every developer. | — | Free. | **High** | What every participant already has. Probe it in each discovery interview (§7.4). If this plus an AI chat already works for most interviewees, the app is not needed. |
 
 Also noted, not tabled: Codecademy describes AI-driven "Smart Practice"
 spaced repetition in its Pro plan (US$39.99/month, or US$19.99/month billed
@@ -216,12 +220,12 @@ change.
 
 | ID | Differentiation hypothesis | Falsified if… (stage) | Copyable by a competitor | Copyable by a general AI assistant |
 | --- | --- | --- | --- | --- |
-| D1 | **No-debt return** (small restart, no streak loss, capped reviews) increases return after absence. | Interviews: abandonment reasons are rarely "fell behind / guilt", and mostly relevance or time. Concierge: return-after-7-day-gap is no better than the substitute arm. Pilot: below 40% (PRD §13). | **High**: a UX pattern. Boot.dev already offers streak protection [M8]. | **Med**: scheduled tasks can nudge [M31, M35]. The user must still design the restart. |
+| D1 | **No-debt return** (small restart, no streak loss, capped reviews) increases return after absence. | Interviews: abandonment reasons are rarely "fell behind / guilt", and mostly relevance or time. Concierge: participants who miss a scheduled session rarely come back unprompted within the two weeks. Pilot: return after absence below 40% (PRD §13), or no better than the checklist arm. | **High**: a UX pattern. Boot.dev already offers streak protection [M8]. | **Med**: scheduled tasks can nudge [M31, M35]. The user must still design the restart. |
 | D2 | **One continuing scenario** (work-order app) makes concepts feel relevant and improves transfer. | Interviews: users say they want *their own* codebase or work problems, not a fictional app. Pilot: transfer gain is no better than the checklist arm; "felt irrelevant" is a top-3 dropout reason. | **Med**: needs authored scenario arcs; incumbents with content teams could. | **Med–Low**: AI can generate scenarios, but consistency and correctness across six weeks is unproven. |
 | D3 | **On-the-job reliability decisions** (not interview prep) are under-served *for this persona* and valued. | Interviews: most abandoned courses were interview prep and interview success is the real goal; or users say docs and AI already answer "what to investigate". | **Med**: Master.dev and ByteByteGo cover the concepts [M16, M19]; reframing is easy, authoring practice is not. | **High** for explanation, **Med** for structured practice. |
 | D4 | **Evidence ladder** (introduced → practised → demonstrated → retained) motivates return and is worth paying for. | Concierge: participants do not look at or mention evidence. Interviews: no observable skill they would pay to gain (PRD §16 question). Pilot: Evidence screen views do not relate to return. | **High** for the UI, **Low–Med** for substance (needs alternate items, rubrics, delayed checks). | **Med**: memory exists, but a durable, versioned evidence record is assembled by the user. |
 | D5 | **One recommended action** reduces start friction compared with browsing. | Concierge: participants routinely ignore the given task. Pilot: median start friction above 2 minutes (PRD §13); frequent requests to browse. | **High**. | **High**: "Tell me what to do today" is one prompt. |
-| D6 | **Authored, reviewed content and rubrics** are more trustworthy than AI-generated lessons for performance and reliability topics. | Side-by-side in concierge: participants rate an AI-study-mode session equal on usefulness and trust, and the reviewer finds similar error rates. | **Low–Med**: requires reviewers and time (PRD §8, §14). | **Med**: quality of AI explanations keeps improving. This is the most time-sensitive hypothesis. |
+| D6 | **Authored, reviewed content and rubrics** are more trustworthy than AI-generated lessons for performance and reliability topics. | Discovery and concierge exit interviews: people who already study these topics with an AI study mode rate it equal on usefulness and trust. Desk check: the reviewer finds similar error rates in AI answers to the sample prompts. | **Low–Med**: requires reviewers and time (PRD §8, §14). | **Med**: quality of AI explanations keeps improving. This is the most time-sensitive hypothesis. |
 | D7 | **Laravel-flavoured labs** lower setup and relevance barriers for Laravel developers. | Interviews: Laravel developers say Laracasts plus docs already cover this. Concierge: Laravel and non-Laravel participants show similar activation; non-Laravel participants are fine with PHP labs. | **High** for Laracasts or Laravel-ecosystem authors. | **Med**. |
 
 **Reading** (*Hypothesis*): D1, D4 and D5 are easy to copy. D2, D3 and D6 are
@@ -249,8 +253,11 @@ studies.
 **Bottom line** (*Hypothesis*): the wedge is worth **testing**, cheaply and
 content-first. It is not yet worth a software build. The app's job is to make
 a good curriculum easier to *start, resume and prove*. If a well-made workbook
-plus calendar plus AI chat does that equally well in the concierge, then the
-product is the **content**, not the app.
+plus calendar plus AI chat does that equally well, then the product is the
+**content**, not the app. The signals are discovery interviews, concierge exit
+interviews and, decisively, the pilot's static-checklist arm (same content, no
+app guidance). The delivery plan carries this content-only branch at its
+Phase 2 and Phase 5 checkpoints (`12-delivery-plan.md`).
 
 ## 7. The "do nothing / substitute" threat
 
@@ -281,37 +288,67 @@ Phrased as *work the learner must do themselves*, not as missing features:
 ### 7.3 What DevStep must do measurably better
 
 PRD §3 says DevStep must "save planning effort and improve follow-through
-enough to justify another tool". *Proposal:* make this concrete by running a
-**substitute arm** in the concierge trial and, where feasible, in the pilot.
-This extends PRD §13 step 4 from a static checklist to a checklist plus AI study
-mode plus calendar. The thresholds below are decision rules for this project,
-not industry benchmarks. Small samples are directional only (PRD §13).
+enough to justify another tool". *Proposal:* make this concrete at each stage,
+without asking a stage to measure what it cannot.
 
-| Dimension | Measure | PRD absolute target | Proposed *relative* bar vs substitute arm |
-| --- | --- | --- | --- |
-| Planning effort | Self-reported minutes per week spent deciding what to study; start friction | Start friction under 2 min | Noticeably less planning time reported by most DevStep participants. |
-| Follow-through | Week-4 retention (days 22–28) | ≥ 35% | At least 10 percentage points higher (*Hypothesis* threshold). |
-| Return after absence | Task completed within 7 days of returning after 7 inactive days | ≥ 40% | Higher than the substitute arm; report denominators. |
-| Transfer | Baseline → unseen final scenario, same rubric | Median gain 15 pp | **Not lower** than the substitute arm. |
-| Retention | Delayed alternate checks ≥ 7 days | ≥ 65% | Not lower than the substitute arm. |
-| Burden | "Plan felt manageable" | ≥ 70% agree | Equal or better. |
-| Trust | Content errors found by reviewer or participants | — | Zero known uncorrected errors; no worse than AI arm. |
+- **Concierge (two weeks, 10–15 people):** no comparison arm. Split two ways,
+  it would leave about six people per arm, too few to tell the arms apart, and
+  two weeks cannot show week-4 retention or delayed checks. It uses two-week
+  measures only, with unprompted return as the kill test
+  (`10-measurement-and-validation.md` owns the definitions).
+- **Pilot (six weeks plus delayed checks):** participants are randomised to
+  DevStep or a static checklist with the same content and reminders (PRD §13
+  step 4; `10-measurement-and-validation.md` owns the design). Whether to add an
+  AI-study-mode condition is open question 1.
 
-**Decision rule** (*Proposal*): if DevStep's arm does not beat the substitute
-arm on **follow-through or return**, and match it on **transfer**, do not build
-the PRD §7 app as specified. Consider selling the path as content, such as a
-guided workbook with lab kits, possibly run as a cohort.
+The relative bars below are decision rules for this project, not industry
+benchmarks. Small samples are directional only (PRD §13).
 
-### 7.4 Substitute arm design (sketch, *Proposal*)
+| Dimension | Concierge measure (2 weeks, absolute only) | Pilot measure | PRD absolute target (pilot) | Proposed *relative* bar vs the pilot comparison arm |
+| --- | --- | --- | --- | --- |
+| Planning effort | Exit interview: time spent deciding what to study, against their usual approach | Self-reported minutes per week spent deciding what to study; start friction | Start friction under 2 min | Noticeably less planning time reported by most DevStep participants. |
+| Follow-through | Repeat use: submissions on at least 3 distinct days, at least 1 in week 2 | Week-4 retention (days 22–28) | ≥ 35% | At least 10 percentage points higher (*Hypothesis* threshold). |
+| Return after absence | Unprompted return after a missed scheduled session, with template emails only | Task completed within 7 days of returning after 7 inactive days | ≥ 40% | Higher than the comparison arm; report denominators. |
+| Transfer | Not measured (too short) | Baseline → unseen final scenario, same rubric | Median gain 15 pp | **Not lower** than the comparison arm. |
+| Retention | Unassisted answers on alternate review prompts (directional) | Delayed alternate checks ≥ 7 days | ≥ 65% | Not lower than the comparison arm. |
+| Burden | The two weekly burden items | "Plan felt manageable" | ≥ 70% agree | Equal or better. |
+| Trust | Content errors found by reviewer or participants | Same | — | Zero known uncorrected errors. |
+
+**Decision rule** (*Proposal*): if, in the pilot, DevStep's arm does not beat
+the comparison arm on **follow-through or return**, and match it on
+**transfer**, do not build more of the PRD §7 app. Sell the path as content
+instead: a guided workbook with the lab kits. The concierge cannot apply this
+rule, but it can point the same way when participants return and exit
+interviews credit only the content, not the next step, the return emails or the
+evidence feedback. `12-delivery-plan.md` carries this branch at its Phase 2
+(concierge) and Phase 5 (pilot) checkpoints. Agree it before Phase 2 starts,
+when the go/no-go thresholds are frozen.
+
+### 7.4 Probing the substitute (*Proposal*)
+
+Before any comparison is run, ask about the substitute directly. Every discovery
+interview covers it, and the concierge exit interviews repeat the last two
+probes. These feed the "current alternative" question in
+`10-measurement-and-validation.md` and gate 1.
+
+| Probe | What to listen for | Hypothesis it tests |
+| --- | --- | --- |
+| "What do you use today to learn a work skill like this?" Prompt for docs, calendar blocks, AI chat or study mode, courses. | Which parts of the substitute stack they actually use, not what they own. | §7.1 is the real baseline. |
+| "Walk me through the last time you used an AI assistant to study, not to get an answer." | Whether it planned, quizzed or reminded them, and for how long they kept using it. | D5, D6 |
+| "Where did that set-up stop working?" | Planning effort, restarting after a gap, no record of progress, trust in answers (§7.2). | D1, D4, D6 |
+| "If you had this sample as a workbook, with your calendar and an AI chat, what would you still be missing?" | Whether the gap is the app or only the content. | Content-only branch (§7.3) |
+
+If the pilot design adds an AI-study-mode condition (open question 1), a
+sketch of it, built on the pilot's static checklist:
 
 ```yaml
-substitute_arm:
-  materials: same six-module topic list, same lab kits, same final assessment
+ai_study_mode_condition:
+  materials: the pilot's static checklist (same missions, lab kits, transfer tasks)
   planning: participant schedules their own sessions in their calendar
-  ai_use: allowed; suggested starter prompt for study/learning mode provided
-  reminders: participant may set their own (calendar or AI scheduled task)
-  devstep_specific_withheld: [today_recommendation, recovery_flow, evidence_view, authored_review_prompts]
-  measured: same PRD §13 metrics + weekly planning-minutes question
+  ai_use: allowed; suggested starter prompt for a study or learning mode provided
+  reminders: same reminder text and schedule as the other arms
+  devstep_specific_withheld: [today_recommendation, recovery_flow, evidence_view]
+  measured: same pilot metrics + weekly planning-minutes question + declared AI use
 ```
 
 ## 8. Public pricing benchmarks (for PRD §15 tests, not a recommendation)
@@ -394,7 +431,8 @@ Market-size signals for the Laravel niche (context, not a forecast):
 | Pursue now (planning and discovery) | Reason |
 | --- | --- |
 | Interviews (PRD §13 step 1) that ask what the *current alternative* fails to do. Include at least 2–4 non-Laravel backend developers and probe whether goals are interview or on-the-job. | Tests D3 and D7, and the PRD §16 open questions. |
-| Concierge with a **substitute arm** (§7.4). | The single most important test of whether an app is needed. |
+| An explicit **substitute probe** in every interview: docs, calendar and AI study mode, what people use today and why it stops working (§7.4). | The cheapest early test of whether an app is needed at all. |
+| A concierge with **one DevStep sequence and no comparison arm**; the comparison waits for the pilot's static-checklist arm (§7.3). | About six people per arm over two weeks could not separate the arms. The concierge tests unprompted return instead. |
 | Content-first: author module 1–2 missions and one lab to reviewer standard before app work. | Content is the only plausible moat (D2, D6). |
 | Position on outcome ("evidence you can still use it"), not on AI or gamification. | §3.2: AI and adaptivity are common. |
 | Publish a no-signup sample scenario once it is reviewed. | Fits PRD §5 and HN/DEV rules (§9). |
@@ -428,31 +466,40 @@ ask for their own stack.
 
 ```mermaid
 flowchart TD
-    A["Interviews: 8–12 developers<br/>incl. 2–4 non-Laravel"] --> B{"Current alternative fails on<br/>planning, return or evidence?"}
-    B -->|No| X["Stop or reframe:<br/>sell the path as content"]
-    B -->|Yes| C["Concierge: 10–15 people<br/>DevStep sequence vs substitute arm"]
-    C --> D{"Better follow-through or return,<br/>transfer not lower?"}
-    D -->|No| X
+    A["Interviews: 8–12 developers<br/>incl. 2–4 non-Laravel<br/>substitute probe in each"] --> B{"Current alternative fails on<br/>planning, return or evidence?"}
+    B -->|"No, after 1–2 more weeks<br/>of interviews"| X["Reframe or stop:<br/>sell the path as content<br/>(workbook + lab kits)"]
+    B -->|Yes| C["Concierge: 10–15 people, 2 weeks<br/>one DevStep sequence, no comparison arm"]
+    C --> D{"Repeat use and unprompted<br/>return within 2 weeks?"}
+    D -->|No| R["Diagnose, rerun once,<br/>then pivot the wedge or stop"]
+    D -->|"Yes, but exit interviews<br/>credit only the content"| X
     D -->|Yes| E["Build pilot app<br/>(PRD §7 P0 scope)"]
-    E --> F{"Pilot meets PRD §13 targets?"}
-    F -->|No| G["Revise curriculum,<br/>or pivot to content-only"]
+    E --> F{"Pilot: PRD §13 targets met<br/>and DevStep ahead of checklist arm?"}
+    F -->|"Checklist arm as good"| X
+    F -->|"Below targets"| G["Revise curriculum<br/>or fix start and return"]
     F -->|Yes| H["Price tests: P1 path purchase<br/>vs P2 subscription (§8.2)"]
     H --> I["Consider a second stack or path<br/>only with evidence"]
 ```
 
 ## Open questions for discussion
 
-1. **Which comparison arm do we run in the concierge: the PRD's static
-   checklist, or checklist + AI study mode + calendar?** *Recommended default:*
-   the latter (§7.4), because it is what developers actually have. Add the
-   static checklist only if there are enough participants.
+1. **Should the pilot comparison include an AI-study-mode condition (sketch in
+   §7.4)?** *Recommended default:* not as a third randomised arm. With 30–50
+   participants, three arms leave about 10–17 people each, too few to read a
+   difference. Record declared AI use in both arms and ask about it in exit
+   interviews (`10-measurement-and-validation.md` owns the pilot design). The
+   reason to keep the question open: what developers actually have is docs, a
+   calendar and an AI study mode, not a static checklist, so a pilot win over
+   the checklist does not show a win over that stack. Revisit if discovery shows
+   most interviewees already study with AI, or test it in a later, larger cohort
+   if the pilot is positive.
 2. **How do we frame Laravel-first publicly?** *Recommended default:* "for
    backend developers; first examples in Laravel/PHP and SQL". Recruit mainly
    from Laravel channels, and include 2–4 non-Laravel interviewees.
-3. **If the substitute arm performs as well as DevStep, do we accept a
-   content-only product (workbook + lab kits, possibly as a cohort) instead of
-   the app?** *Recommended default:* yes. Agree this kill/pivot rule before the
-   concierge starts.
+3. **If the content-only branch is taken (§7.3), what form comes first?**
+   *Recommended default:* a self-paced workbook with the lab kits, because it
+   needs no facilitator time from a solo founder. Run it as a cohort only if
+   exit interviews show that a shared schedule, not the content, is what kept
+   people going.
 4. **Do we keep interview-prep users excluded?** *Recommended default:* keep
    them excluded from the pilot (PRD §4), but record in interviews whether
    abandoned courses were interview-driven. Revisit if that is the majority.

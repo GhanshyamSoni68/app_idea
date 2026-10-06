@@ -152,8 +152,10 @@ function recommend_today(learner, now, requested_mode = null):
     reviews = select_due_retrieval(learner, day, max(slots, 0))           # §4.4
     if mode == small and reviews: return plan(reviews[0:1])               # T5
 
-    for topic in ready_topics_in_roadmap_order(enr, learner):             # §7.3
-        act = activity_for(topic, mode)        # challenge if suggested (§11), else segment / small variant / lab
+    candidates = ready_labs(enr, learner) if mode == build                # §7.6
+                 else ready_topics_in_roadmap_order(enr, learner)         # §7.3
+    for c in candidates:
+        act = activity_for(c, mode)            # lab segment, or challenge if suggested (§11), else segment / small variant
         if act is none: continue
         for n from len(reviews) down to min(1, len(reviews)):             # trim reviews, keep at least 1 if any
             if est(reviews[0:n]) + est(act) <= BUDGET[mode] * (1 + DURATION_TOLERANCE):

@@ -379,14 +379,12 @@ stateDiagram-v2
     retired --> [*]
 ```
 
-- `draft` and `in_review` exist only in the repository. The `catalogue` only
-  receives `published` and `retired` versions. Drafts may be merged to main
-  with `status: draft`, and publishing ignores them.
-- Editing published content creates a new version in `draft`. Once the new
-  version publishes, the old one is *superseded*: it keeps status `published`
-  and is still referenced, but is no longer served to new sessions.
-  `04-data-model.md` decides whether a "current version" pointer is needed.
-  Only drafts that were never published may be deleted.
+- `draft` and `in_review` exist only in the repository; `catalogue` receives
+  only `published` and `retired`. Drafts may sit on main; publish ignores them.
+- Editing published content starts a new `draft` version. Once that publishes,
+  the old one is *superseded*: still `published` and referenced, but not served
+  to new sessions (`04-data-model.md` decides on a "current" pointer). Only
+  never-published drafts may be deleted.
 
 ### 7.2 Roles
 
@@ -470,30 +468,25 @@ chain: attempt → content version → commit → PR → review.
 
 ### 8.2 Publish rules (Proposal)
 
-| Rule | Behaviour |
-| --- | --- |
-| Idempotent | Re-importing a bundle with the same ID, version and hash changes nothing. |
-| Immutable | If an existing ID and version arrive with a different hash, the whole import aborts (V17). |
-| Atomic | One transaction per bundle. A failure leaves the catalogue unchanged. |
-| Rehearsed | Every PR imports into a throwaway CI database, at no hosting cost. |
-| Runner | An import command run by the deploy pipeline, so no admin endpoint is added (Open question 2). |
-| Smoke check | Read `GET /v1/roadmaps/{slug}` and one changed mission through the API. |
-| Drafts | Never imported into production. |
+- **Idempotent:** same ID, version and hash means no change. **Immutable:** an
+  existing ID and version with a different hash aborts the import (V17).
+- **Atomic:** one transaction per bundle. **Rehearsed:** every PR imports into
+  a throwaway CI database, at no hosting cost.
+- **Runner:** an import command in the deploy pipeline, with no admin endpoint
+  (Open question 2). **Smoke check:** read `GET /v1/roadmaps/{slug}` and one
+  changed mission. Drafts never reach production.
 
 ### 8.3 Retirement without erasing evidence (PRD §12)
 
-- Retiring is a PR that sets `status: retired`, `retired_reason` and an
-  optional `replaced_by`. The import changes only status fields and never
-  deletes rows.
+- A retiring PR sets `status: retired`, `retired_reason` and an optional
+  `replaced_by`. The import changes only status fields and never deletes rows.
 - Attempts, `session_drafts`, `skill_evidence` and `artifacts` keep their
-  references. The Evidence view labels retired content and gives the reason
-  (`08-ux-and-screens.md`).
-- Retired units are not offered to new sessions or new reviews. How queued
-  reviews are replaced is decided in `05-learning-engine.md`.
-- A unit that a non-retired roadmap version still uses can only be retired with
-  a compatible `replaced_by` (same objective) or a new roadmap version (V22).
-- A retired roadmap version takes no new enrolments. Existing enrolments
-  continue until they migrate (R06).
+  references; the Evidence view labels retired content (`08-ux-and-screens.md`).
+- Retired units get no new sessions or reviews; queued reviews are replaced by
+  `05-learning-engine.md` rules.
+- A unit used by a non-retired roadmap version needs a compatible
+  `replaced_by` (same objective) or a new roadmap version (V22). A retired
+  roadmap version takes no new enrolments; existing ones migrate (R06).
 
 ## 9. Automated validation
 

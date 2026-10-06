@@ -178,15 +178,13 @@ uniqueness checks always see them.
   after a self-check. Also graduated `hints`, a `reveal`, misconception links
   and a time estimate. Held-back items add `changed_conditions_of`, which feeds
   the leakage check. Items never have a time-limit field (PRD §5).
-- **Lab.** Mission identity and review fields, plus:
-  - `starter_kit`: repository, immutable tag, path, checksum, supported
-    environments and setup check;
-  - `synthetic_data`: generator, seed, scale, and
-    `contains_personal_data: false`;
-  - ordered tasks and checkpoints, `local_checks` and a rubric;
-  - `evidence.basis: learner_submitted` (PRD §9);
-  - a `no_setup_fallback`, labelled as different evidence (PRD §16);
-  - `review.ran_end_to_end` and `review.clean_machine`.
+- **Lab.** Mission identity and review fields, plus `starter_kit` (repository,
+  immutable tag, checksum, supported environments, setup check),
+  `synthetic_data` (generator, seed, scale, `contains_personal_data: false`),
+  tasks and checkpoints, `local_checks`, a rubric,
+  `evidence.basis: learner_submitted` (PRD §9), a `no_setup_fallback` labelled
+  as different evidence (PRD §16), and `review.ran_end_to_end` and
+  `review.clean_machine`.
 - **Transfer assessment.** `form` (`baseline` or `final`), the shared rubric
   (PRD §13), items, scoring guidance, time estimate and a comparability note.
   Its items never appear in missions or reviews.
@@ -286,8 +284,7 @@ reveal: The sequential scan dominates. A revealed answer never counts as demonst
 # items/alt-1.yaml (held back)
 id: m-query-plans/alt-1
 role: alternate
-type: self_check                 # open-ended, so evidence is self-assessed
-evidence_basis: self_assessed
+type: self_check                 # open-ended, so evidence_basis: self_assessed
 changed_conditions_of: m-query-plans/primary-2   # input to the leakage check
 scenario: A report query already uses an index, yet one plan node ran 12,000 times.
 prompt: In two or three sentences, say what you would check next and why.

@@ -9,13 +9,13 @@ Status: Proposal — for discussion
 - **Recommendation (Proposal):** one **Laravel modular monolith** (PHP) on **Laravel Cloud**. The same app serves the React + TypeScript UI and the `/v1` JSON API from one origin. It uses PostgreSQL (Laravel Cloud Serverless Postgres with point-in-time recovery), the Laravel scheduler and a database-backed queue.
 - **Runner-up:** the same codebase on a small **Hetzner VPS managed by Laravel Forge**. It costs less from about 500 MAU upwards but means more operating work. It is also the exit route if Laravel Cloud stops suiting us.
 - **Strongest non-PHP option:** Cloudflare Workers + D1 at about $5/month. It is the cheapest and needs the least operating. However, it is slower to build for a Laravel-strong founder, and D1 has no interactive transactions.
-- **Monthly cost estimates (all `unverified`):**
+- **Monthly infrastructure cost estimates (all `unverified`; people costs such as the content reviewer are in `12-delivery-plan.md`):**
   - concierge trial: about $1 (no app needed)
   - pilot (≤ 50 learners): about $10–31, budget **about $30**
   - early (500 MAU): about $50–80
   - growth (5,000 MAU): about $115–190
 - **Six vendors**, four of them on free tiers: Laravel Cloud, Resend (email), Cloudflare (registrar, DNS, R2), GitHub, Sentry and Better Stack. Analytics events stay in our own Postgres table.
-- **Business rules live in application code with tests.** Postgres provides constraints (FK, unique, check) for integrity and as defence-in-depth. No business logic goes in triggers or RLS policies.
+- **Business rules live in application code with tests.** Postgres provides constraints (FK, unique, check), and integrity-only triggers where a constraint cannot express the rule, as defence-in-depth. No business rules go in triggers or RLS policies. Row locking is allowed; SQLite compatibility is not a goal.
 - **Pricing evidence:** direct fetches of vendor pages were blocked from the research environment on 2026-10-06. Every vendor figure here comes from search summaries of the cited official pages and is marked `unverified`.
 - **The app stack is independent of the lab-kit stack.** Labs run on the learner's machine (§17, `07-curriculum-plan.md`).
 
@@ -28,7 +28,7 @@ Status: Proposal — for discussion
 | Founder priorities, in order: (1) easiest for one part-time person to build **and** operate; (2) cheapest to host, especially at pilot scale. | Founder brief |
 | Recommendation, evidence and scheduling logic must live in one testable application codebase. The database may enforce ownership as defence-in-depth. | Founder brief |
 | Load is tiny for at least a year. The pilot has 30–50 participants (PRD §13). Five thousand MAU is the "growth" planning case, not a forecast. | PRD / Hypothesis |
-| Functional alpha is planned at 3–4 weeks of part-time work (PRD §14), so a framework that already includes auth, queues, scheduling, mail and testing saves weeks. | PRD / Proposal |
+| The PRD sizes the functional alpha at 3–4 weeks (PRD §14). `12-delivery-plan.md` reads that as near-full-time effort and plans about 13 weeks at 20 h/week (alpha exit ≈ 1 Mar 2027, indicative). Either way, a framework that already includes auth, queues, scheduling, mail and testing saves weeks. | PRD / Proposal |
 | A database-backed queue is adequate for the pilot. Redis is added only when measured need justifies it (PRD §11). | PRD |
 
 ## 2. Requirements the stack must satisfy
@@ -44,7 +44,7 @@ Status: Proposal — for discussion
 | S7 | Recoverable local draft during network loss; no silent overwrite across devices | §12 | Client-side storage (IndexedDB/localStorage) plus `base_revision` checks on the server. No special hosting needed. |
 | S8 | Email, analytics or AI outages never block learning | §12 | Sends are asynchronous, calls have timeouts, AI sits behind a feature flag with an authored fallback |
 | S9 | Optional AI tutor later, with server-side keys, quotas, cost caps and cost logging | §11, §14, F13 | Secret management, per-user counters, a global budget switch |
-| S10 | Content goes through draft → review → publish → retire, with version history | F11, §8 | Git history, a review gate, validation in CI, an idempotent publish step |
+| S10 | Content goes through draft → review → publish → retire, with version history | F11, §8 | Git history, validation in CI, an idempotent deploy-time publish step that enforces the review gate itself |
 | S11 | Authorisation tests, TLS, secure sessions, rate limiting, input validation | §12 | First-class support in the framework |
 | S12 | Pseudonymous analytics with no free text | F12, §12 | Storage we control, or a vendor configured to match |
 | S13 | No arbitrary server-side code execution | §7, §11 | No sandbox hosting at all |
@@ -107,23 +107,23 @@ Scores run from 1 (poor) to 5 (best). Weighted total = Σ(weight × score) ÷ 10
 | Language and framework | PHP + Laravel. Pin the current supported major version when implementation starts (PRD §11). | One deployable modular monolith with the modules in `00-conventions.md`. Boundary rules are in `02-system-architecture.md`. |
 | UI | React + TypeScript built by Vite. Hashed assets are served by the same Laravel app. | Same origin: no CORS and no tokens in browser storage. Whether routing uses Inertia or a client router is decided in `02-system-architecture.md`. |
 | API | `/v1` JSON endpoints in the same app, with session-cookie auth (Sanctum SPA mode or the starter kit's session) | CSRF protection, rate limiter and policies come from the framework (S11) |
-| Database | PostgreSQL via Laravel Cloud Serverless Postgres; PITR retention 14 days | Integrity comes from FK, unique, partial-unique and check constraints. Ownership checks happen in app policies; Postgres RLS is optional defence-in-depth only (founder brief). See `04-data-model.md`. |
+| Database | PostgreSQL via Laravel Cloud Serverless Postgres; PITR retention 14 days | Integrity comes from FK, unique, partial-unique and check constraints. Integrity-only triggers are allowed where a constraint cannot express the rule; business rules never go in triggers. Row locking (`SELECT … FOR UPDATE`, `SKIP LOCKED`) is allowed. Ownership checks happen in app policies; Postgres RLS is optional defence-in-depth only (founder brief). See `04-data-model.md`. |
 | Background work | Laravel scheduler with a 15-minute UTC tick for reminders; `database` queue driver with one worker | No Redis (PRD §11). The scheduler pings a heartbeat monitor every tick. |
-| Authentication | Laravel starter kit (Fortify): email + password with verification, GitHub OAuth via Socialite, passkeys through Fortify's WebAuthn support [S9] | No auth vendor, no per-MAU fees, users stay in our DB (simpler export and deletion). We use framework hashing, WebAuthn and OAuth implementations and roll no crypto of our own. |
+| Authentication | Laravel starter kit (Fortify). At pilot: email + password with verification, plus GitHub OAuth via Socialite. Passkeys later, through Fortify's WebAuthn support once confirmed in the pinned version [S9]. No email-only magic links. | No auth vendor, no per-MAU fees, users stay in our DB (simpler export and deletion). We use framework hashing, WebAuthn and OAuth implementations and roll no crypto of our own. |
 | Email | Resend through Laravel's mail driver [S25] | Postmark is the fallback (§10) |
-| Hosting | Laravel Cloud Starter, moving to Growth when a second operator, more previews or > 1 CU is needed [S4] | Region nearest the pilot cohort (Open question 3) |
+| Hosting | Laravel Cloud Starter, moving to Growth when a second operator, more previews or > 1 CU is needed [S4] | Provisional region chosen by the founder at the planning gate, 30 Nov 2026 (Open question 3) |
 | DNS, registrar, off-site backup | Cloudflare Registrar and DNS, with R2 for weekly encrypted logical dumps | One vendor for three jobs |
 | Errors and uptime | Sentry Developer (free) for PHP and JS; Better Stack free (HTTP checks + heartbeats) | §10 |
 | Analytics | Own `analytics_events` table (PRD F12 payload rules) | No third-party processor at pilot |
 | CI/CD | GitHub Actions on pull requests. Laravel Cloud deploys the protected `main` branch from Git. | §9 |
-| Content | Markdown/YAML in a `content/` directory of the same repo; pull-request review; `content:publish` command | Format and workflow are in `06-content-system.md` |
+| Content | Markdown/YAML in a `content/` directory of the same repo; pull-request review, enforced by the publish job; deploy-time `content:publish` command. No admin publish endpoint. | Format and workflow are in `06-content-system.md` |
 
 **Reminder dispatch as the stack must support it (S1).** The full flow belongs in `03-key-flows.md` and the rules in `05-learning-engine.md`. At stack level:
 
-- **Tick:** every 15 minutes the scheduler selects learners whose local reminder time falls in `(previous tick, now]`. "Local" uses PHP's bundled IANA tz data, so keeping the PHP runtime patched also keeps DST rules current.
-- **Idempotency:** a `notification_deliveries` row with UNIQUE(`user_id`, `local_learning_date`) is inserted *before* sending. A conflict means "already handled", so a reminder is sent at most once.
-- **Suppression:** a learner who has already completed a session that local day gets no reminder. Reminders are also skipped when paused, unsubscribed or in quiet hours.
-- **Outages:** if the provider fails, the delivery row is marked failed and retried once within the same local window. Learning is never blocked (S8).
+- **Tick:** reminder times are set in 15-minute steps, which covers every IANA offset. Every 15 minutes the scheduler selects learners whose derived `next_reminder_at` (UTC, indexed, recomputed when the time zone or settings change) falls in `(previous tick, now]`. "Local" uses PHP's bundled IANA tz data, so keeping the PHP runtime patched also keeps DST rules current.
+- **Idempotency:** a `notification_deliveries` row with UNIQUE(`user_id`, `local_learning_date`) is inserted as `claimed` *before* sending. A conflict means "already handled", so a reminder is sent at most once.
+- **Suppression:** a learner who has already practised that learning day (05's definition; the day starts at 04:00 local) gets no reminder. Reminders are also skipped when paused, unsubscribed or in quiet hours.
+- **Outages:** if the provider call fails, the delivery row is marked `failed`. There is no automatic retry after an ambiguous timeout, because a retry could send a second reminder. Learning is never blocked (S8).
 - **Monitoring:** Better Stack alerts if the heartbeat stops (dead scheduler).
 
 ## 7. Physical architecture (recommended option)
@@ -203,7 +203,7 @@ flowchart LR
 | --- | --- | --- | --- |
 | Purpose | Build and test | Review a pull request, try content, demo to the reviewer | Learners |
 | Database | Postgres in Docker, same major version as production | Its own Serverless Postgres; scale-to-zero **on** | Serverless Postgres; scale-to-zero **off** during the measured pilot (Open question 4) |
-| Data | Synthetic seeds | Synthetic seeds; **never** a copy of production (privacy, `09-security-privacy-ops.md`) | Real, owned per learner |
+| Data | Synthetic seeds only; **never** production data, not even for a restore drill | Synthetic seeds; **never** a copy of production (privacy, `09-security-privacy-ops.md`) | Real, owned per learner |
 | Email | Captured locally | Log driver only | Resend, verified sending subdomain |
 | Secrets | `.env` (not committed) | Cloud environment variables | Cloud environment variables; AI key empty until F13 |
 | Cost | $0 | Counts against Starter usage; one preview automation on Starter [S7] | §12 |
@@ -225,30 +225,30 @@ flowchart TB
   REV -->|yes| M["Merge to protected main"]
   M --> D["Laravel Cloud build and deploy"]
   D --> MIG["Run database migrations"]
-  MIG --> PUB["content:publish<br/>import bundle keyed by content hash"]
+  MIG --> PUB["content:publish<br/>re-check review gate, then import release<br/>keyed by release_key + manifest_hash"]
   PUB --> CAT[("catalogue tables<br/>immutable content_versions")]
-  D --> SMK["Smoke check: /up and Today for a seed learner"]
+  D --> SMK["Smoke check: /up with database check,<br/>Today for a synthetic test account"]
 ```
 
-- **The gate is branch protection.** Required status checks plus required review, with `CODEOWNERS` assigning `content/` to the reviewer. Laravel Cloud only deploys `main`, so nothing undeployable reaches production. This needs no deploy-hook scripting.
+- **The content review gate is enforced by the publish job itself** (`06-content-system.md` §7.3). Before import, `content:publish` checks that a listed reviewer who is not the author approved the merged pull request and completed the checklist. Otherwise nothing publishes. Branch protection (required checks, required review, `CODEOWNERS` assigning `content/` to the reviewer) is a convenience on top, because required reviews on a private repo may need a paid GitHub plan (`unverified`). Laravel Cloud only deploys `main`, after CI.
 - **Tests run against real Postgres in CI**, never SQLite, because S2 depends on Postgres constraint behaviour.
-- **Content history is Git history (F11).** Who wrote, who reviewed (pull-request approval), when, and the source URLs live in the bundle. `content:publish` is idempotent: an unchanged hash means no new `content_versions` row. Retiring content is a content change like any other.
-- **Content runs as a separate deploy-time command** (Laravel Cloud deploy commands are `unverified`). That lets a content-only pull request publish without touching code.
+- **Content history is Git history (F11).** Who wrote, who reviewed (pull-request approval), when, and the source URLs live in the bundle. `content:publish` is idempotent: releases are keyed by `release_key` + `manifest_hash` (`04-data-model.md`), so an unchanged manifest means no new release. Retiring content is a content change like any other.
+- **Content publishes only through a deploy-time command** that the pipeline runs after migrations (Laravel Cloud deploy commands are `unverified`). There is no admin publish endpoint. A content-only pull request publishes without touching code.
 - **CI budget:** GitHub Free gives 2,000 Actions minutes/month on private repos and unlimited minutes on public repos [S35]. Estimate: about 6 min per run × about 60 runs/month ≈ 360 min.
 
 ## 10. Supporting services
 
 | Concern | Recommendation (Proposal) | Alternatives | Why, and gotchas (figures `unverified`) |
 | --- | --- | --- | --- |
-| Transactional email | **Resend** (free: 3,000/month, **100/day**; Pro $20 for 50,000/month [S25]) | Postmark (free 100/month; $15 for 10,000 [S26]). Amazon SES ($0.10 per 1,000; its free tier ended for new customers on 21 Jul 2026 [S27]). Brevo (free 300/day [S28]). Cloudflare Email Service (beta, needs Workers Paid [S16]). | Laravel ships drivers for Resend, Postmark and SES, so switching is a config change. The pilot peak is about 40/day, under the 100/day cap. Verify SPF, DKIM and DMARC on a sending subdomain weeks before the pilot, because DNS verification and warm-up take time. Move to Postmark if deliverability suffers; consider SES above roughly 50,000/month. |
-| Authentication | **Library in the app:** starter kit + Fortify (email/password, verification, passkeys) + Socialite for GitHub [S9] | WorkOS AuthKit starter-kit variant (social, passkeys, "Magic Auth" [S9]; pricing not checked); Supabase Auth; Better Auth (TypeScript) | No extra vendor, users live in our DB, and the crypto comes from the framework. **No email-only magic-link login at pilot.** That keeps email off the login critical path, so an email outage only blocks sign-up verification and password reset (S8). |
+| Transactional email | **Resend** (free: 3,000/month, **100/day**; Pro $20 for 50,000/month [S25]) | Postmark (free 100/month; $15 for 10,000 [S26]). Amazon SES ($0.10 per 1,000; its free tier ended for new customers on 21 Jul 2026 [S27]). Brevo (free 300/day [S28]). Cloudflare Email Service (beta, needs Workers Paid [S16]). | Laravel ships drivers for Resend, Postmark and SES, so switching is a config change. The pilot peak is about 40/day, under the 100/day cap. DNS verification and warm-up take time, so a plain domain may be bought in Phase 1 and SPF, DKIM and DMARC set up on a sending subdomain during discovery (§12.5). Move to Postmark if deliverability suffers; consider SES above roughly 50,000/month. |
+| Authentication | **Library in the app:** starter kit + Fortify (email/password with verification) + Socialite for GitHub OAuth, both at pilot; passkeys later via Fortify [S9] | WorkOS AuthKit starter-kit variant (social, passkeys, "Magic Auth" [S9]; pricing not checked); Supabase Auth; Better Auth (TypeScript) | No extra vendor, users live in our DB, and the crypto comes from the framework. **No email-only magic-link login at pilot.** That keeps email off the login critical path, so an email outage only blocks sign-up verification and password reset (S8). |
 | Error monitoring | **Sentry Developer** (free, 1 user [S29]) | Laravel Cloud logs alone | Error quota is reported as 5,000/month, but sources conflict. On the free plan, events beyond quota are dropped [S29]. Scrub answer text from breadcrumbs (`09-security-privacy-ops.md`). |
-| Uptime and job checks | **Better Stack free:** 10 monitors, 10 heartbeats, 3-minute checks, 1 status page [S30] | UptimeRobot free: 50 monitors, 5-minute checks, commercial use allowed [S31] | Heartbeats catch a dead scheduler or backup job, which is the most likely silent failure for F10. |
+| Uptime and job checks | **Better Stack free:** 10 monitors, 10 heartbeats, 3-minute checks, 1 status page [S30] | UptimeRobot free: 50 monitors, 5-minute checks, commercial use allowed [S31] | The HTTP check calls `/up`, the framework's health route, extended with a database check. Heartbeats catch a dead scheduler or backup job, which is the most likely silent failure for F10. |
 | Analytics storage | **Own `analytics_events` table** | PostHog (1M events/month free [S32]) | The pilot produces about 6,500 events/month. Keeping them local means no third-party processing to disclose, and metrics are plain SQL (`10-measurement-and-validation.md`). Revisit only if funnels need a UI. |
-| Backups and restore | **Laravel Cloud PITR 14 days [S5] + weekly `pg_dump` to Cloudflare R2**, encrypted, kept 28 days (R2 free tier: 10 GB-month [S33]) | Backblaze B2 (first 10 GB free [S34]); Hetzner Object Storage (€4.99 base [S39], too big for us) | Two independent copies with total retention under 30 days, so deletions propagate (PRD §12). **Restore drill before the pilot:** PITR into a new database, plus the dump restored into local Docker, then the smoke test. Runbook in `09-security-privacy-ops.md`. |
+| Backups and restore | **Laravel Cloud PITR 14 days [S5] + weekly `pg_dump` to Cloudflare R2**, encrypted, kept 28 days (R2 free tier: 10 GB-month [S33]) | Backblaze B2 (first 10 GB free [S34]); Hetzner Object Storage (€4.99 base [S39], too big for us) | Two independent copies, in place from the pilot, each with retention under 30 days, so purged accounts age out of backups (PRD §12). After any restore, the deletion ledger is re-applied. **Restore drill before the pilot:** PITR into a new database, plus the dump restored into a throwaway cloud database (never a laptop: no production data on local machines), then the smoke test and deletion of the throwaway copy. Runbook in `09-security-privacy-ops.md`. |
 | CI/CD | **GitHub Actions** + Laravel Cloud Git deploys | — | §9 |
 | Domain, DNS, TLS | **Cloudflare Registrar** (registry cost, no markup [S36]) + Cloudflare DNS. TLS is managed by Laravel Cloud for custom domains (`unverified`). | Any registrar | Set records to DNS-only so they don't double-proxy Laravel Cloud's edge (`unverified`). Brand and domain availability are still unchecked (PRD header). |
-| Where content lives | **Same Git repo, `content/` directory** | Separate content repo | One pull request can change a player feature and its content together. Split the repo if non-developer authors join (Open question 7). |
+| Where content lives | **Same Git repo, `content/` directory** | Separate content repo | One pull request can change a player feature and its content together. Split the repo if non-developer authors join (Open question 6). |
 | Secrets | Laravel Cloud environment variables; local `.env` | — | The AI provider key stays server-side only (PRD §11) |
 
 ## 11. Free-tier and pricing gotchas
@@ -270,9 +270,11 @@ All rows `unverified`, checked 2026-10-06 via search summaries of the cited page
 | Postmark [S26] | Free is only 100 emails/month. | Paid from the pilot onwards if chosen. |
 | Amazon SES [S27] | The SES-specific free tier is closed to new customers since 21 Jul 2026. New-account sandbox and production-access request (`unverified`). | Extra setup steps; cheapest only at volume. |
 | Sentry [S29] | One user. Events beyond quota are dropped, with no pay-as-you-go on free. | Acceptable while the founder is the only operator. |
-| GitHub [S35] | 2,000 min/month and 500 MB artifact storage for private repos. | Comfortable for us (§9). |
+| GitHub [S35] | 2,000 min/month and 500 MB artifact storage for private repos. Required reviews and branch protection on a private repo may need a paid plan. | Comfortable for us (§9). The content review gate lives in the publish job, so it does not depend on the plan. |
 
-## 12. Cost model
+## 12. Cost model (infrastructure only)
+
+**Scope.** This model covers infrastructure only: hosting, database, email, monitoring, domain and optional AI usage. People and professional-service costs, such as the content reviewer (quote of about 90 h) and a backup transfer scorer, are in the budget in `12-delivery-plan.md`.
 
 ### 12.1 Assumptions
 
@@ -306,9 +308,9 @@ cloud_bill         = plan_fee + max(0, usage − included_credit)
 | Early | 500 | ≈ 195,000 | ≈ 4,900 | ≈ 1.2 GB |
 | Growth | 5,000 | ≈ 1.95M (≈ 2–3 req/s at evening peak) | ≈ 49,000 | ≈ 12 GB |
 
-### 12.3 Monthly estimate for the recommended option
+### 12.3 Monthly infrastructure estimate for the recommended option
 
-USD; all vendor prices `unverified`.
+USD; all vendor prices `unverified`. Infrastructure only (see the scope note above).
 
 | Line item | Concierge (2 weeks) | Pilot ≤ 50 learners | Early 500 MAU | Growth 5,000 MAU |
 | --- | --- | --- | --- | --- |
@@ -323,6 +325,14 @@ USD; all vendor prices `unverified`.
 | Sentry, Better Stack, R2, GitHub | — | $0 | $0 | $0–26 (Sentry Team if quota bites) |
 | Domain (amortised) | ≈ $0.70 | ≈ $0.70 | ≈ $0.70 | ≈ $0.70 |
 | **Total per month** | **≈ $1** | **≈ $10–31; budget $30** | **≈ $50–80** | **≈ $115–190** |
+
+**Spending alerts (Proposal).** Use a provider budget alert where one exists; otherwise check the bill monthly. Which applies to each service is `unverified` until the billing pages are opened:
+
+| Service | Alert mechanism |
+| --- | --- |
+| Laravel Cloud (usage-based) | Its spend or usage alert, set at the $30 pilot budget, if the plan offers one. Until that is confirmed, a monthly bill check. |
+| Resend, Sentry, Better Stack, GitHub, Cloudflare R2 (free tiers) | Monthly check of usage against the §11 limits. Act at about 70% of a limit. |
+| AI provider (when F13 is enabled) | The app's own budget alerts and switch-off (§12.6), plus the provider's spend limit if it has one. |
 
 ### 12.4 Pilot-stage comparison across options
 
@@ -342,11 +352,11 @@ All figures `unverified`.
 
 | Item | Estimate | Note |
 | --- | --- | --- |
-| Domain, first year (.com) | ≈ $8 | Registry fee $7.85 + ICANN $0.18 at cost [S36] `unverified`; other TLDs differ |
+| Domain, first year (.com) | ≈ $8 | Registry fee $7.85 + ICANN $0.18 at cost [S36] `unverified`; other TLDs differ. A plain domain may be bought in Phase 1 so email warm-up can start during discovery. |
 | Laravel Cloud first month | $0 | First month free for new Starter subscriptions [S4] `unverified` |
 | Email domain set-up (SPF, DKIM, DMARC) and warm-up | Time only | Start during discovery (PRD §14) |
-| Restore drill and exit rehearsal | About 0.5–1 day of founder time | Required before the pilot (PRD §12) |
-| Independent security review before public launch | Quote needed | Optional; `09-security-privacy-ops.md` |
+| Restore drill and exit rehearsal | About 0.5–1 day of founder time, plus a few hours of a throwaway cloud database (small usage charge, `unverified`) | Required before the pilot (PRD §12). Never restored to a laptop; the throwaway database is deleted afterwards. |
+| Independent security review before public launch | Quote needed | Optional; `09-security-privacy-ops.md`. A professional-service cost, so it belongs in the `12-delivery-plan.md` budget rather than this model. |
 
 ### 12.6 AI tutor cost model (F13, P1, off by default)
 
@@ -385,7 +395,7 @@ The illustrative call has about 2,000 input tokens (reviewed lesson excerpt + qu
 
 **Negative**
 
-- The bill is usage-based. Pilot cost ranges from $10 to $31 depending on hibernation, which needs a monthly glance.
+- The bill is usage-based. Pilot cost ranges from $10 to $31 depending on hibernation, which needs the spending alert or monthly check in §12.3.
 - Cold starts may affect p95 while traffic is sparse. The fix (always-on) costs about $20/month.
 - At about 5,000 MAU, Laravel Cloud costs roughly 2–3 times the VPS runner-up.
 - Laravel Cloud is a young platform, so feature and pricing churn is likely.
@@ -421,7 +431,7 @@ The illustrative call has about 2,000 input tokens (reviewed lesson excerpt + qu
 - Use only Laravel's abstractions (`Cache`, `Storage`, `Queue`, `Mail`).
 - Keep environment variables documented in the repo.
 - Keep the weekly off-provider dump.
-- Run one exit rehearsal before the pilot. It doubles as the restore drill: restore the dump into local Docker and run the smoke test.
+- Run one exit rehearsal before the pilot. It doubles as the restore drill: restore the dump into a throwaway cloud database off Laravel Cloud (for example on the A2 route), run the smoke test, then delete it. Never restore production data onto a laptop.
 - Estimated exit effort: about 1 day (Hypothesis).
 
 ## 16. What would change this decision
@@ -449,15 +459,12 @@ The illustrative call has about 2,000 input tokens (reviewed lesson excerpt + qu
 
 1. **Confirm Laravel (PHP) as the app framework?** *Recommended default:* yes. It is the founder's strength and scores highest. Re-score Option C only if the founder prefers TypeScript (T4).
 2. **Laravel Cloud (managed) or Forge + VPS (self-operated)?** *Recommended default:* Laravel Cloud Starter for alpha and pilot. Reassess at 500 MAU or under T1.
-3. **Hosting region?** *Recommended default:* the Laravel Cloud region nearest most pilot participants. Frankfurt or London for Europe, Singapore for South and Southeast Asia, Virginia for the Americas. Decide after recruitment (PRD §13 step 3).
+3. **Which provisional hosting region?** *Recommended default:* the Laravel Cloud region nearest the expected cohort, judged from discovery and concierge participants: Frankfurt or London for Europe, Singapore for South and Southeast Asia, Virginia for the Americas. The founder chooses it provisionally at the planning gate (30 Nov 2026), not after pilot recruitment, so the alpha is built and measured in place. `09-security-privacy-ops.md` states what each choice means for data transfers.
 4. **Scale-to-zero in production during the measured pilot?** *Recommended default:* off (always-on, about +$20/month) to protect p95. On for previews.
 5. **Email provider?** *Recommended default:* Resend free for the pilot. Move to Pro (or Postmark Basic) above 3,000/month or 100/day.
-6. **Login methods at pilot?** *Recommended default:* email + password with verification, plus GitHub OAuth. Add passkeys once Fortify support is confirmed in the pinned version. No email-only magic links.
-7. **Content in the same repo or a separate one?** *Recommended default:* the same repo under `content/`, with `CODEOWNERS` for the reviewer. Split if non-developer authors join.
-8. **Backup retention?** *Recommended default:* 14-day PITR plus weekly dumps kept 28 days, so deletions clear backups within 30 days. Final policy in `09-security-privacy-ops.md`.
-9. **Reminder time granularity?** *Recommended default:* 15-minute steps with a 15-minute scheduler tick. This covers all IANA offsets.
-10. **AI caps when F13 is enabled?** *Recommended default:* off until the PRD §16 evidence gate. Then 10 calls/day and 60/month per learner, $25/month global at pilot scale, with automatic switch-off at 100%.
-11. **Third-party analytics?** *Recommended default:* none at pilot; use our own `analytics_events` table. Reconsider PostHog only if funnel analysis in SQL becomes a bottleneck.
+6. **Content in the same repo or a separate one?** *Recommended default:* the same repo under `content/`. The publish job enforces review; `CODEOWNERS` is a convenience. Split if non-developer authors join.
+7. **AI caps when F13 is enabled?** *Recommended default:* off until the PRD §16 evidence gate. Then 10 calls/day and 60/month per learner, $25/month global at pilot scale, with automatic switch-off at 100%.
+8. **Third-party analytics?** *Recommended default:* none at pilot; use our own `analytics_events` table. Reconsider PostHog only if funnel analysis in SQL becomes a bottleneck.
 
 ## PRD traceability
 

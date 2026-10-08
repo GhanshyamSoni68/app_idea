@@ -87,8 +87,8 @@ Seeing the correct answer in feedback **after** submitting is feedback, not a re
 | Part | Content |
 | --- | --- |
 | Primary action (exactly one) | Reason code, mode, ordered activities, estimated minutes (sum rounded up and labelled "about"), one-line rationale, context line |
-| Secondary actions (0–3) | `resume` (when an unfinished session exists but is not the primary), `lab_available` (§7.6), and `challenge` (on CHALLENGE_SUGGESTED, DEFERRED_BLOCKER or a `partial` diagnostic area, while the challenge is still available, §7.4) |
-| Controls | `smaller` ("Start small"), shown only when a small plan exists (SM-2) and the primary is not small; "Rest today", which skips today's reminder only (PA-6) |
+| Secondary actions (at most 3 in total) | `smaller` ("Start small"; only when a small plan exists (SM-2) and the primary is not small), `resume` (when an unfinished session exists but is not the primary), `lab_available` (§7.6), and `challenge` (on CHALLENGE_SUGGESTED, DEFERRED_BLOCKER or a `partial` diagnostic area, while the challenge is still available, §7.4). If more qualify, they are kept in this order. |
+| Rest today | A control that skips today's reminder only (PA-6); not a secondary action |
 | Weekly progress | Practice days this week against the target, and the optional lab (§12) |
 | Never included | Backlog size, overdue counts, red states, or a list the learner must browse |
 
@@ -98,6 +98,7 @@ Rules:
 - **TD-3:** Retrieval items in a plan never exceed the caps in §4.4.
 - **TD-4:** A plan never starts a step it cannot finish before a stopping point.
 - **TD-5:** The plan is recomputed on every request, and starting a planned activity re-validates it against current state (concurrent devices, §14).
+- **TD-6:** Once the learner has practised today (a meaningful activity this learner day) and no session is open, Today shows the done-for-today state unless the learner asks for a plan ("Practise anyway" or "Start small").
 
 ### 3.2 Selection order
 
@@ -107,7 +108,9 @@ flowchart TD
     B -->|no| B1["Sample scenario or enrol"]
     B -->|yes| C{"Enrolment paused?"}
     C -->|yes| C1["Paused card with resume action"]
-    C -->|no| D{"Gap of 7+ learner days and<br/>refresher not yet offered?"}
+    C -->|no| CD{"Practised today, no session open<br/>and no plan requested?"}
+    CD -->|yes| CD1["Done for today<br/>primary: practise anyway"]
+    CD -->|no| D{"Gap of 7+ learner days and<br/>refresher not yet offered?"}
     D -->|yes| D1["Return refresher, about 3 min<br/>secondary: continue last task"]
     D -->|no| E{"Unfinished session that<br/>fits the requested mode?"}
     E -->|yes| E1["Resume"]
@@ -125,6 +128,7 @@ flowchart TD
 | --- | --- | --- | --- | --- | --- | --- |
 | T1 | none | – | – | – | – | Sample scenario for a guest, otherwise the enrol prompt (SAMPLE_SCENARIO / ENROL) |
 | T2 | paused | – | – | – | – | Paused card (PAUSED) |
+| T11 | active, practised today, no session open, no plan requested | – | – | – | – | Done for today; the optional primary "Practise anyway" re-runs selection in the preferred mode (DONE_FOR_TODAY) |
 | T3 | active | yes | – | – | – | One refresher item; resume is secondary (RETURN_REFRESHER) |
 | T4 | active | no | yes | – | – | Resume, on its own (RESUME) |
 | T5 | active, `small` | no | no | ≥ 1 | – | One retrieval item (REVIEW_DUE / TOPIC_CHECK / RELEARN) |
@@ -143,6 +147,8 @@ function recommend_today(learner, now, requested_mode = null):
     enr  = current_enrolment(learner)                       # active or paused, else none
     if enr is none:            return sample_or_enrol(learner)            # T1
     if enr.status == paused:   return paused_card(enr)                    # T2
+    if practised_on(learner, day) and no_open_session(learner) and requested_mode is null:
+        return done_for_today(learner, day)                               # T11, TD-6
     if gap_days(learner, day) >= LONG_ABSENCE_DAYS
        and has_practised_skill(learner)
        and not return_refresher_offered_since(learner.last_meaningful_day):
@@ -162,22 +168,22 @@ function recommend_today(learner, now, requested_mode = null):
         act = activity_for(c, mode)            # lab segment, or challenge if suggested (§11), else segment / small variant
         if act is none: continue
         for n from len(reviews) down to min(1, len(reviews)):             # trim reviews, keep at least 1 if any
-            if est(reviews[0:n]) + est(act) <= BUDGET[mode] * (1 + DURATION_TOLERANCE):
+            if est(reviews[0:n]) + est(act) <= FIT[mode]:                 # FIT = ceil(BUDGET * (1 + DURATION_TOLERANCE))
                 return plan(reviews[0:n] + [act])                         # T6, T7, T10
     if reviews: return plan(reviews)                                      # T8
     return fallback(learner, enr, day, mode)                              # T9, §3.6
 
 function resume_candidate(learner, mode):
-    s = most_recently_touched_unfinished_session(learner)   # open or parked; content still servable
+    s = most_recently_touched_unfinished_session(learner)   # open or suspended; content still servable
     if s is none or s.dismissals >= RESUME_DISMISS_LIMIT: return none   # it stays as secondary action
-    if mode == small and est_to_next_stopping_point(s) > BUDGET[small] * (1 + DURATION_TOLERANCE):
+    if mode == small and est_to_next_stopping_point(s) > FIT[small]:
         return none
     return resume(s, recap = days_since(s.last_activity_day) >= RESUME_RECAP_AFTER_DAYS)
 ```
 
 `ready_topics_in_roadmap_order` yields required topics in the pinned version, in module order and then topic order. A topic is included when it is not `completed` or `deferred`, its mission activity is not yet done, and it is prerequisite-ready (§7.3). Topics whose only remaining component is a topic check are left out, because the check reaches Today through retrieval (§4.1). `activity_for` returns `none` for small mode when the topic has no unused curated small variant.
 
-**Starvation guard (Proposal).** Content must keep each practise segment at 8 minutes or less and each retrieval item at 2 minutes or less (passed to `06-content-system.md`). If no segment fits even with one review, the plan becomes retrieval-only for that session, and an oversized-segment signal goes to authors.
+**Size limits and starvation guard (Proposal).** The fit limit is `FIT = ceil(budget × (1 + duration_tolerance))`: 4 minutes in `small` and 13 in `practise`. Content keeps a small variant at 4 minutes or less, a practise segment at 8 minutes or less, and a retrieval item (including a topic check and a prerequisite refresher) at 2 minutes or less, matching `06-content-system.md` (V14). Within these limits a small variant always fits small mode, and 2 retrieval items plus a segment always fit a practise plan (2 + 2 + 8 = 12 ≤ 13), so the trim loop is only a safety net. If a segment still does not fit even with one review, the plan becomes retrieval-only for that session, and an oversized-segment signal goes to authors.
 
 ### 3.4 "Smaller task"
 
@@ -190,7 +196,7 @@ function resume_candidate(learner, mode):
   5. if none of these exists, the `smaller` secondary action is hidden.
 - **SM-3:** If a topic has no curated small variant, the engine moves to the next option. It never builds one by cutting a mission.
 - **SM-4:** A small session counts as practice: it counts toward the weekly target and can earn `practised`. A small variant does not satisfy a topic's mission-attempt component (§7.2), because "counts as practice, not proof of mastery" (PRD §5).
-- **SM-5:** Choosing smaller parks any unfinished session with its draft. That session remains the resume candidate.
+- **SM-5:** Choosing smaller suspends any open session with its draft. That session remains the resume candidate.
 
 ### 3.5 Rationale ("why this matters") and context
 
@@ -219,6 +225,7 @@ function resume_candidate(learner, mode):
 | LAB | "On desktop: {lab.purpose}." |
 | MAINTENANCE | "Keep {skill name} fresh. Last checked {date}." |
 | NOTHING_DUE | "You're up to date. This is optional; a rest day is fine too." |
+| DONE_FOR_TODAY | "Done for today. Next: {next planned day}, about {n} min." |
 | AWAITING_CONTENT | "Module {n} opens on {date}. Until then, keep earlier skills fresh." |
 | PAUSED | "Your roadmap is paused. Resume whenever you're ready." |
 | SAMPLE_SCENARIO | "Try one real scenario: {purpose}." |
@@ -235,7 +242,8 @@ Rules:
 | --- | --- | --- |
 | No enrolment | Guest: the sample scenario (first value before account, PRD §5). Signed in: enrol in the launch roadmap. Enrolment always shows the outcome, required topics and effort (R01). | SAMPLE_SCENARIO / ENROL |
 | Enrolment paused | Paused card with resume. No plan, no reviews, no reminders (§10.4). | PAUSED |
-| Roadmap complete (maintenance) and retrieval due | Due retrieval within caps. Optional topics and labs are secondary. | MAINTENANCE |
+| Practised today, no session open, no plan requested | Done-for-today state with the next planned day; the primary "Practise anyway" runs §3.3 in the preferred mode under the daily cap | DONE_FOR_TODAY |
+| Roadmap complete (maintenance) and retrieval due | Due retrieval within caps; this is where the review backlog drains (RV-11). Optional topics and labs are secondary. | MAINTENANCE |
 | Roadmap complete and nothing due | First available of: resume a started optional topic → next ready optional topic → early recall of the nearest-due skill → preview other roadmaps. Never auto-enrol. | NOTHING_DUE |
 | Remaining required topics have content that is not yet published | Early recall, or an optional topic | AWAITING_CONTENT |
 | All remaining required work is blocked by a deferred topic | The earliest blocking deferred topic's mission, with challenge as secondary. Shown at most once per `deferred_resurface_days`; otherwise the NOTHING_DUE options. | DEFERRED_BLOCKER |
@@ -246,22 +254,23 @@ Rules:
 
 ### 3.7 Worked examples
 
-Topic names follow PRD §8 and are illustrative (`07-curriculum-plan.md` owns the final names). Estimates are: review item 1.5 min, topic check 2 min, mission segment 8 min, challenge 5 min. The practise fit limit is 10 × 1.3 = 13 min.
+Topic names follow PRD §8 and are illustrative (`07-curriculum-plan.md` owns the final names). Estimates are: review item 1.5 min, topic check or prerequisite refresher 2 min, mission segment 8 min, challenge 4 min (two check-eligible items). The fit limits are 4 min in `small` and 13 min in `practise` (§3.3).
 
 | # | Learner state | Recommendation | Why (rules) |
 | --- | --- | --- | --- |
 | W1 | New learner, diagnostic skipped, enrolled, prefers `practise`, no history | T1 Request path, segment 1, about 8 min. Rationale: mission purpose. Context: "From CRUD to Reliable Systems · Module 1: Understand a system · Request path" | No resume and no review items; T1 has no prerequisites; 8 ≤ 13; an `unknown` area gives no challenge suggestion (§11) |
-| W2 | T1 mission attempted and feedback acknowledged on Tuesday; it is Thursday | T1 topic check (2 min) + T2 segment (8 min), about 10 min. Rationale: T2 purpose; title "Short check + Requirements and constraints" | The check is due (RV-4) and is first in priority; T2's soft dependency is satisfied because T1's mission activity is done (§7.3) |
-| W3 | T5 Query plans session parked at step 3 two days ago, 5 min left to the stopping point; three reviews due | Resume T5, about 5 min | Resume comes before retrieval; reviews wait and nothing doubles (P4) |
-| W4 | Same as W3, learner taps "Smaller" | One review: the item with the highest overdue ratio, about 2 min | 5 > 3 × 1.3, so resume does not fit small mode (SM-2a); one retrieval (SM-2b); T5 stays parked (SM-5) |
-| W5 | Last meaningful activity 12 learner days ago; T8 Invalidation session parked before its first attempt; six reviews due | Welcome-back summary, then a refresher item on T7 Suitable cached data (about 2 min); secondary: "Continue Invalidation" | Long absence (§10.2). The parked topic's skill is not yet practised, so the most recently practised skill is used. The next Today is resume with a recap. At most 2 reviews per session, 4 per day |
-| W6 | Diagnostic area "performance" is `strong`; T1–T3 completed; nothing due | Challenge-out for T4 Latency evidence, about 5 min; secondary: "Do the mission instead" | §11 suggestion, offered once per topic. Pass: T4 completed by challenge and `demonstrated`. Fail: state unchanged, `practised`, T4 mission next |
-| W7 | T10 Queue use cases deferred 20 days ago; T11–T18 all depend on it; nothing due | T10 segment 1, with secondary "Take the challenge" | DEFERRED_BLOCKER: every remaining required topic is blocked by T10; not resurfaced in the last 7 days |
-| W8 | The T6 topic check has been not met twice in a row; T6 check due; T7 ready | Prerequisite refresher on T5 (3 min) + T6 check alternate (2 min) + T7 segment (8 min), about 13 min | `refresher_after_not_met` = 2; the refresher uses one retrieval slot; 3 + 2 + 8 = 13 ≤ 13 |
-| W9 | Two reviews due; next ready T13 segment estimated at 10.5 min | One review (1.5) + T13 segment, about 12 min; the second review waits | Trim loop: 3 + 10.5 > 13 but 1.5 + 10.5 ≤ 13 (§3.3) |
+| W2 | T1 mission attempted and feedback acknowledged on Tuesday; it is Thursday | T1 topic check (2 min) + T2 segment (8 min), about 10 min. Rationale: T2 purpose; title "Short check + Requirements and constraints" | The check is due (RV-4) and is first in priority; T2 is next in roadmap order and has no prerequisite in `07-curriculum-plan.md` §4.3 |
+| W3 | T5 Query plans session suspended at step 3 two days ago, 5 min left to the stopping point; three reviews due | Resume T5, about 5 min | Resume comes before retrieval; reviews wait and nothing doubles (P4) |
+| W4 | Same as W3, learner taps "Smaller" | One review: the item with the highest overdue ratio, about 2 min | 5 > 4 (the small fit limit), so resume does not fit small mode (SM-2a); one retrieval (SM-2b); T5 stays suspended (SM-5) |
+| W5 | Last meaningful activity 12 learner days ago; T8 Invalidation session suspended before its first attempt; six reviews due | Welcome-back summary, then a refresher item on T7 Suitable cached data (about 2 min); secondary: "Continue Invalidation" | Long absence (§10.2). The parked topic's skill is not yet practised, so the most recently practised skill is used. The next Today is resume with a recap. At most 2 reviews per session, 4 per day |
+| W6 | Diagnostic area "performance" is `strong`; T1–T3 completed; nothing due | Challenge-out for T4 Latency evidence (topic check item + Alternate A), about 4 min; secondary: "Do the mission instead" | §11 suggestion, offered once per topic, one attempt (CH-5). Pass: T4 completed by challenge and `demonstrated`. Fail: state unchanged, `practised`, T4 mission next, no second challenge |
+| W7 | T10 Queue use cases deferred 20 days ago before any mission activity; every other required topic is complete except T11, T12, T14 and T18, which depend on T10 directly or through T11 and T12 (`07-curriculum-plan.md` §4.3); nothing due | T10 segment 1, with secondary "Take the challenge" | DEFERRED_BLOCKER: a deferred prerequisite with no mission activity satisfies no dependency, soft or strict (PR-2), so all remaining required work is blocked; not resurfaced in the last 7 days |
+| W8 | The T6 topic check has been not met twice in a row (once on each check-eligible item); T6 check due; T7 ready | Prerequisite refresher on T5 (one recall, 2 min) + T6 check reusing the item not served last (2 min) + T7 segment (8 min), about 12 min | `refresher_after_not_met` = 2; the refresher takes one of the 2 retrieval slots and stays within the 2-minute item limit; 2 + 2 + 8 = 12 ≤ 13 |
+| W9 | T12 topic check pending and due; T9's skill demonstrated 8 days ago and its review due; two other reviews due; T13 ready | T12 check (2 min) + T9 retention check on its reserved Alternate B (1.5 min) + T13 segment (8 min), about 12 min; the other two reviews wait | RV-10 order: pending topic check, then retention-eligible item, then other due items; 2 per practise session; 2 + 1.5 + 8 = 11.5 ≤ 13 |
 | W10 | Roadmap complete (18 of 18); one review due | That review, about 2 min; secondary: Lab 4 available | MAINTENANCE; no new required missions; no auto-enrolment |
 | W11 | Roadmap complete; nothing due | Early recall of the nearest-due skill, labelled optional; secondaries: optional lab, preview roadmaps | NOTHING_DUE; an early success does not extend the interval (§4.2) |
-| W12 | Enrolment paused until 20 October | Paused card with resume | PAUSED; reviews suspended (§10.4) |
+| W12 | Enrolment paused until 20 October | Paused card with resume | PAUSED; reviews and reminders paused automatically (§10.4) |
+| W13 | A practise session ended at its stopping point this evening; nothing is open | "Done for today. Next: Wed, about 10 min."; primary "Practise anyway" | DONE_FOR_TODAY (TD-6); "Practise anyway" runs §3.3 under the daily cap |
 
 ---
 
@@ -269,7 +278,7 @@ Topic names follow PRD §8 and are illustrative (`07-curriculum-plan.md` owns th
 
 ### 4.1 Review items
 
-- **RV-1:** There is one review item per learner × skill. It is created when the skill first becomes both `practised` and taught: after a qualifying attempt with acknowledged feedback in a mission or small variant, after a challenge-out pass, or after a carried-over completion. A failed challenge alone earns `practised` but creates no review item, so a skill is never reviewed before it has been taught.
+- **RV-1:** There is one review item per learner × primary skill, which is one per mission because each mission has exactly one primary skill. Secondary skills never get one (§2). It is created when the skill first becomes both `practised` and taught: after a qualifying attempt with acknowledged feedback in a mission or small variant, after a challenge-out pass, or after a carried-over completion. A failed challenge alone earns `practised` but creates no review item, so a skill is never reviewed before it has been taught.
 - **RV-2:** Conceptual fields (columns belong to `04-data-model.md`): skill, rung `k`, due date (a learner-local calendar date), state, check-pending topic, last served item, last outcome, consecutive not-met count, consecutive check failures, consecutive skips, and the used-item history (item, first served, last served, times served, outcomes).
 - **RV-3:** A new item starts at `k = 0` with `due = learner day + initial_interval_days` (1).
 - **RV-4:** When a topic's mission activity becomes done, the check-pending topic is set, and `due = min(due, learner day + topic_check_delay_days)`. The topic check is the skill's next retrieval.
@@ -281,7 +290,8 @@ Topic names follow PRD §8 and are illustrative (`07-curriculum-plan.md` owns th
 
 | Occasion | Outcome | Band | Feedback | New `k` | Next due |
 | --- | --- | --- | --- | --- | --- |
-| Retrieval or topic check (due) | met | unassisted | standard | `k + 1` | `+ interval(k + 1)` |
+| Topic check (due) | met | unassisted | standard | `max(k + 1, topic_check_pass_rung)` = 2 | `+ interval(new k)` = 7; the next review is the retention check |
+| Retrieval (due) | met | unassisted | standard | `k + 1` | `+ interval(k + 1)` |
 | Retrieval or topic check (due) | met | light | standard | `k` (hold) | `+ interval(k)` |
 | Retrieval or topic check (due) | met | heavy | worked example shown | `max(k − 1, 0)` | `+ interval(new k)` |
 | Retrieval or topic check (due) | not met | unassisted, light or heavy | worked example shown | `0` | `+ 1` |
@@ -293,21 +303,25 @@ Topic names follow PRD §8 and are illustrative (`07-curriculum-plan.md` owns th
 | Challenge-out | passed | unassisted (enforced) | standard | `max(k, challenge_pass_rung)` = 2 | `+ interval(new k)` = 7 |
 | Challenge-out | failed | – | per item | no change, or no item (RV-1) | – |
 
-The rules above give these behaviours. "Correct unassisted extends" and "incorrect or heavily assisted → worked example and an earlier alternate review" (PRD §9). Mission attempts are learning, not spaced retrieval, so they never extend the ladder. Lateness carries no penalty: the ladder simply restarts from the day of the actual attempt.
+The rules above give these behaviours. "Correct unassisted extends" and "incorrect or heavily assisted → worked example and an earlier alternate review" (PRD §9). An unassisted topic-check pass is a demonstration, so it jumps to the 7-day rung and the next review can earn `retained` on the retention-reserved alternate. Mission attempts are learning, not spaced retrieval, so they never extend the ladder. Lateness carries no penalty: the ladder simply restarts from the day of the actual attempt.
 
 ### 4.3 Prompt rotation
 
 ```text
 function choose_prompt(learner, item):
-    pool = published items tagged item.skill with a compatible assessment version (§9.1)
+    pool = published topic check and alternate items of the mission whose primary skill is item.skill,
+           with a compatible assessment version (§9.1)              # never diagnostic, transfer or path-level check items
     if item.check_topic and state(item.check_topic) != deferred:
-        pool = pool.where(purpose == topic_check and topic == item.check_topic)
+        pool = pool.where(check_eligible)                            # topic check item and Alternate A, at least 2
     else:
-        pool = pool.where(purpose in {retrieval, topic_check})       # never challenge, diagnostic, transfer
+        reserved = pool.where(retention_reserved and never served to this learner)
+        if reserved and retention_eligible(item): return first(reserved)    # the delayed retention check
+        pool = pool.exclude(reserved)                                # never an ordinary review before that check
     pool = pool.exclude(item.last_served_item)                       # never the same prompt twice in a row
-    if pool is empty: return none                                    # RV-8
+    if pool is empty: return reuse_last_or_postpone(item)            # RV-8
     fresh = pool.where(never served to this learner)
-    if fresh:  return first(fresh ordered by (different_scenario desc, authored order))
+    if fresh:  return first(fresh ordered by (preferred role, different_scenario desc, authored order))
+               # a check prefers the topic check item; an ordinary review prefers Alternate A
     spaced = pool.where(learner days since last served >= PROMPT_REUSE_MIN_DAYS)
     if spaced: return least_recently_served(spaced) marked reused
     return least_recently_served(pool) marked reused                 # spacing relaxed, still not the last one
@@ -315,22 +329,23 @@ function choose_prompt(learner, item):
 
 - **RV-6:** Every serve updates the used-item history. Items that are retired or withdrawn leave the pool, but their history stays.
 - **RV-7:** A reused item can still extend the ladder. It cannot be the "alternate" for `retained` if it was the reference demonstration item (§6.1). Its evidence carries the limitation "repeated prompt".
-- **RV-8 (alternates run out):** If the pool is empty after excluding the last item, the item is postponed: `due = learner day + interval(k)`, with no outcome and no change to `k`. A content-gap signal goes to the author queue (`06-content-system.md`), and the learner sees nothing. The pilot content budget of at least two alternate prompts per mission (PRD §8) makes this rare.
+- **RV-8 (alternates run out):** Every topic has at least 2 check-eligible items, so a failed check is always retried with the other item (TC-5). The pool can be empty after excluding the last item only when items are retired or withdrawn. Then the last item is served again, marked reused, once `prompt_reuse_min_days` have passed since it was last served; until then the item is postponed to that day with no outcome and no change to `k`. Nothing is postponed indefinitely. A content-gap signal goes to the author queue (`06-content-system.md`), and the learner sees nothing.
 
 ### 4.4 Caps, priority and spreading the backlog
 
 - **RV-9 caps:** At most 2 retrieval items per `practise` session and 1 per `small` session (PRD §9, fixed). `build` allows 1, and only when the item's skill is a prerequisite of the lab (Proposal). At most `daily_review_cap` (4) per learner day (Hypothesis). Topic checks, refreshers, return refreshers and early recalls all count against the caps.
 - **RV-10 priority:** Due items are sorted by these keys, in order:
-  1. items with fewer than `skip_deprioritise_after` consecutive skips first;
+  1. items with fewer than `skip_deprioritise_after` consecutive skips first (RV-15 respects "not now");
   2. items with a pending topic check first (they complete topics);
-  3. relearning items (`k = 0` after not met or revealed) first;
-  4. higher overdue ratio `(learner day − due) / interval(k)` first;
-  5. skills that are prerequisites of the next ready topic first;
-  6. earlier due date;
-  7. skill id, as a stable tie-breaker.
-- **RV-11 spreading:** Nothing is re-dated. Due items that do not fit simply wait, and the caps release them over later sessions and days. Because the next due date is computed from the actual attempt day, the whole schedule shifts forward instead of compressing (Hypothesis: modest extra delay is acceptable; the backlog guardrail below watches for trouble).
+  3. retention-eligible items next (§2);
+  4. then other due items: relearning items (`k = 0` after not met or revealed) first;
+  5. higher overdue ratio `(learner day − due) / interval(k)` first;
+  6. skills that are prerequisites of the next ready topic first;
+  7. earlier due date;
+  8. skill id, as a stable tie-breaker.
+- **RV-11 spreading:** Nothing is re-dated. Due items that do not fit simply wait, and the caps release them over later sessions and days. Because the next due date is computed from the actual attempt day, the whole schedule shifts forward instead of compressing. At the default pace, spaced-review demand exceeds the free review slots (`07-curriculum-plan.md` §9), so reviews spill past the path and drain in maintenance after completion (§8.5). This is accepted because delayed review is separate from completion (PRD §8A); topic checks always come first, so completion is not delayed (Hypothesis; the backlog guardrail below watches for trouble).
 - **RV-12 no counter:** No surface shows a total of due or overdue items, and nothing is shown in red as overdue (PRD §9). The Evidence view may show a neutral "next practice" date per skill (`08-ux-and-screens.md`).
-- **RV-13 guardrail:** If more than `backlog_signal_threshold` (10) items stay due for 7 learner days, the "review backlog" guardrail is raised (PRD §13, owned by `10-measurement-and-validation.md`). Today's rules do not change.
+- **RV-13 guardrail:** If more than `backlog_signal_threshold` items stay due for 7 learner days, the "review backlog" guardrail is raised (PRD §13, owned by `10-measurement-and-validation.md`). The threshold is set by simulating the default pace before the pilot, so the expected spill-over does not trigger it. Today's rules do not change.
 
 ### 4.5 Skipped and deferred review items (preserved)
 
@@ -372,10 +387,9 @@ Retiring a review item never removes evidence (PRD §12).
 | Day | Event | Evidence | Review item |
 | --- | --- | --- | --- |
 | 0 | T5 mission attempt met, feedback acknowledged | `practised` (auto_scored) | Created, `k = 0`, check pending, due day 1 |
-| 2 | Topic check met, unassisted, different scenario | `demonstrated`; T5 `completed` | `k = 1`, due day 5 |
-| 5 | Retrieval met with 1 hint | – (light help cannot demonstrate) | Hold `k = 1`, due day 8 |
-| 8 | Retrieval met, unassisted | None new: 6 days after demonstration, below the 7-day minimum | `k = 2`, due day 15 |
-| 15 | Retrieval met, unassisted, alternate item | `retained` (13 days after demonstration) | `k = 3`, due day 36 |
+| 2 | Topic check met, unassisted, different scenario (topic check item) | `demonstrated`; T5 `completed` | Jumps to `k = 2`, due day 9 |
+| 9 | Retention check on Alternate B, met with 1 hint | – (light help cannot retain) | Hold `k = 2`, due day 16 |
+| 16 | Retrieval met, unassisted, on Alternate A | `retained` (14 days after demonstration) | `k = 3`, due day 37 |
 | 40 | Retrieval not met (late) | `retained` stays; "refresh suggested" note added | `k = 0`, due day 41; worked example shown |
 | 43 | Retrieval met, unassisted | `retained` reconfirmed; note cleared | `k = 1`, due day 46 |
 
@@ -389,27 +403,41 @@ Retiring a review item never removes evidence (PRD §12).
 | --- | --- | --- | --- | --- |
 | `in_mission` | Mission segments (teaching scenario) | yes | yes | `practised` |
 | `small_variant` | Small mode | yes | yes | `practised` |
-| `retrieval` | Reviews, refreshers, early recall | yes | yes | `retained` (`demonstrated` only on a different scenario) |
-| `topic_check` | Topic completion, then retrieval | yes (at most 1 for completion) | yes (the check is then not met) | `retained` (always a different scenario) |
-| `challenge` | Challenge-out | disabled | disabled | `demonstrated` |
-| `lab` | Lab local checks and decision record | lab hints | lab solution | `demonstrated`, basis `learner_submitted` |
+| `retrieval` | Reviews, refreshers, early recall, retention check: the topic check item and Alternate A; Alternate B first as the retention check, then in rotation | yes | yes | `retained` (`demonstrated` only on a different scenario) |
+| `topic_check` | Topic completion, then retrieval: the check-eligible items (topic check item, then Alternate A) | yes (at most 1 for completion) | yes (the check is then not met) | `retained` (always a different scenario) |
+| `challenge` | Challenge-out: the topic check item and Alternate A in one sitting | disabled | disabled | `demonstrated` |
+| `lab` | Lab local checks and write-ups | lab hints | lab solution | `demonstrated`; basis `learner_submitted` for local-check output, `self_assessed` for an open-ended write-up such as the L6 decision record |
 | `diagnostic` | Onboarding baseline | disabled | disabled | none (baseline estimate only, §11) |
-| `transfer` | Baseline and final transfer assessments (PRD §8, §13) | disabled | disabled | none (measurement only; never reused) |
+| `transfer` | Baseline and final transfer assessments (PRD §8, §13), and the pilot path-level delayed check, which uses its own 6-item pool (`07-curriculum-plan.md` §8.4) | disabled | disabled | none (measurement only; never served in missions or reviews) |
 
 ### 5.2 Item types and "met" rules
 
 | Type | Learner action | Met when (Proposal; per-item thresholds are authored) | Basis |
 | --- | --- | --- | --- |
 | `single_choice` | Pick one option | The chosen option is the key | `auto_scored` |
-| `multi_choice` | Pick all options that apply | The selected set equals the key set; a partial score is kept for analytics only | `auto_scored` |
+| `multi_select` | Pick all options that apply | The selected set equals the key set | `auto_scored` |
 | `ordering` | Arrange steps | Exact order, or within the authored swap tolerance (default 0) | `auto_scored` |
 | `numeric` | Enter a value and unit | Within the authored absolute or relative tolerance, with a matching unit | `auto_scored` |
-| `query_plan_interpretation` | Select the plan node(s), then pick an explanation | Every part marked essential is correct | `auto_scored` |
-| `choose_an_experiment` | Pick an experiment, then predict its result | The experiment is in the authored acceptable set and the prediction is consistent with it | `auto_scored` |
-| `open_response` | Write an explanation or decision, then see the exemplar and self-check the rubric | All essential criteria are ticked, at least `selfcheck_supporting_ratio` (half) of the supporting criteria are ticked, and the response is at least `open_response_min_chars` long | `self_assessed`, or `human_reviewed` if a reviewer scores it |
-| `lab_check` | Submit the local-check output plus a decision record | All required checks pass and the decision-record self-check is met | `learner_submitted` (not verified) |
+| `classification` | Sort statements into categories | Every statement is in its keyed category | `auto_scored` |
+| `choice_with_reason` | Pick an option (for example an experiment), then the reason or predicted result | Both the option and the reason are keyed or in the authored acceptable set; a right option with a wrong reason is not met | `auto_scored` |
+| `spot_the_bug` | Select the faulty line or step in a code, log or config excerpt, then pick what is wrong | The location and the explanation both match the key | `auto_scored` |
+| `plan_interpretation` | Select the plan or log node(s), then pick an explanation | Every part marked essential is correct | `auto_scored` |
+| `self_check` | Write an explanation or decision, then see the exemplar and rate each rubric criterion | Every essential criterion is rated 2, at least `selfcheck_supporting_ratio` (half) of the supporting criteria are rated 1 or more, and the response is at least `open_response_min_chars` long | `self_assessed`, or `human_reviewed` if a reviewer scores it |
+| Lab local checks | Submit the local-check output | All required checks pass | `learner_submitted` (not verified) |
 
-Distractors on structured items carry authored misconception tags. Choosing one shows targeted feedback and records the tag (§12). A multi-item check (topic check or challenge) is met when all of its items are met, unless the author sets `min_items_met`. Its hint limit applies to the whole set. No item has a time limit, and elapsed time never affects scoring (PRD §5, §10).
+**One rubric scale.** Every rubric criterion uses the scale in `07-curriculum-plan.md` §8.6: 0 missing, 1 partial, 2 clear. A lab's open-ended write-up (such as the L6 decision record) is scored like `self_check`.
+
+**Outcomes.** Each evaluated attempt records one outcome. "Met" in this document means `correct` or `self_met`; "not met" means any other outcome.
+
+| Outcome | When |
+| --- | --- |
+| `correct` | A structured item meets its rule above |
+| `partially_correct` | A structured item with several parts has some, but not all, essential parts right; the partial score is kept for analytics only |
+| `incorrect` | A structured item with no essential part right |
+| `self_met` | A `self_check` item or write-up meets its rule above |
+| `self_not_met` | A `self_check` item or write-up does not |
+
+Distractors on structured items carry authored misconception tags. Choosing one shows targeted feedback and records the tag (§12). A check made of several items or parts (a challenge, or a topic check with a self-assessed part such as M6.3's) is met when all of them are met, unless the author sets `min_items_met`. Its hint limit applies to the whole set. No item has a time limit, and elapsed time never affects scoring (PRD §5, §10).
 
 ### 5.3 Graduated hints
 
@@ -420,7 +448,7 @@ Distractors on structured items carry authored misconception tags. Choosing one 
 | 3 Worked parallel example | A solved, similar problem (sets `worked_example`) | A short plan for a different table, walked through |
 | Reveal | The answer to this item, after a confirmation step | "You'll see this skill again soon with a fresh question." |
 
-- **HN-1:** Tiers unlock in order. Reveal is available at any time after a confirmation step. The band is computed as described in §2.
+- **HN-1:** Tiers unlock in order. "Show solution" (reveal) is available at any time, without using any hint first, after a confirmation step, on every item whose purpose allows reveal (§5.1). The band is computed as described in §2.
 - **HN-2:** Hint copy never mentions penalties.
 - **HN-3:** If the AI tutor (F13, P1) is added, each tutor exchange on an item counts as one hint. The tutor's feedback is advisory and cannot set "met".
 
@@ -444,7 +472,7 @@ Distractors on structured items carry authored misconception tags. Choosing one 
 | `demonstrated` | "Met a rubric on a different scenario without revealing the answer." | A qualifying attempt that (a) met the rubric, (b) was on a different-scenario item, (c) was unassisted (0 hints, no worked example, no reveal), and (d) had purpose `retrieval`, `topic_check`, `challenge` or `lab`. |
 | `retained` | "Met a delayed alternate assessment at least seven days later." | A qualifying attempt that (a) met the rubric, (b) was unassisted, (c) was on an item other than the one that produced the reference demonstration, and (d) occurred at least `retained_min_delay_days` (7) learner days after any earlier demonstration of this skill. |
 
-A higher level implies the lower ones. A challenge pass, for example, records `practised` and `demonstrated` from the same attempt.
+A higher level implies the lower ones. A challenge pass, for example, records `practised` and `demonstrated` from the same attempt. Mission, check and review items write evidence only for the mission's primary skill; secondary skills get evidence only from labs (§2).
 
 ### 6.2 State machine (highest level reached per skill)
 
@@ -491,8 +519,8 @@ stateDiagram-v2
 | --- | --- | --- |
 | `human_reviewed` | A reviewer scored the attempt against the rubric | 1 |
 | `auto_scored` | A structured item scored against the authored key | 2 |
-| `learner_submitted` | Lab local-check output and decision record; "not a verified credential" (PRD §9) | 3 |
-| `self_assessed` | An open response with exemplar and self-check, "explicitly labelled" (PRD §8A) | 4 |
+| `learner_submitted` | Lab local-check output; "not a verified credential" (PRD §9) | 3 |
+| `self_assessed` | A `self_check` response or open-ended lab write-up (such as the L6 decision record) with exemplar and self-check, "explicitly labelled" (PRD §8A) | 4 |
 
 For each level the view shows the strongest basis, then "also: …". Each record exposes its limitations (F08), using these labels:
 - light or heavy assistance;
@@ -543,6 +571,7 @@ all_of:
   C2_feedback_reviewed: { of: C1, acknowledged: true }
   C3_topic_check_met:
     purpose: topic_check
+    items: check_eligible       # topic check item or Alternate A
     scenario: different_from_teaching
     min_items_met: all
     max_hints_total: 1          # topic_check_max_hints
@@ -553,35 +582,36 @@ alternative: challenge_out_passed
 
 - **TC-1:** "Mission activity done" means C1 and C2. Components are sticky: once satisfied for this enrolment version, they stay satisfied.
 - **TC-2:** A check met with one hint completes the topic but does not demonstrate the skill. The two outcomes are deliberately independent (Proposal).
-- **TC-3:** After `refresher_after_not_met` (2) consecutive not-met attempts on the skill, its next retrieval is preceded by a prerequisite refresher. That is the prerequisite skill's worked example plus one recall, or the mission's worked example if the skill has no prerequisite (PRD §6).
+- **TC-3:** After `refresher_after_not_met` (2) consecutive not-met attempts on the skill, its next retrieval is preceded by a prerequisite refresher (PRD §6): one recall on the prerequisite skill whose feedback walks through that skill's worked example, or, if the skill has no prerequisite, a re-read of the mission's worked example. It takes one retrieval slot and at most 2 minutes (§3.3).
 - **TC-4:** After `check_lock_after_failures` (3) consecutive failed checks, the check is locked and the sub-status becomes "needs support". The learner gets the refresher, supportive copy, and a "report a problem with this question" link. Completing the refresher unlocks the check. Dependent topics with soft dependencies continue as normal.
+- **TC-5:** The check is served on a later learner day than the mission attempt (`topic_check_delay_days`). A failed check is retried on a later learner day with the other check-eligible item (§4.3), and it is never postponed for lack of an item.
 
 ### 7.3 Prerequisite readiness
 
-- **PR-1:** A dependency is satisfied when the prerequisite topic is `completed`, or when the dependency is not marked `strict` and the prerequisite's mission activity is done. `strict` is an authored flag (`06-content-system.md`) and defaults to off (Proposal).
+- **PR-1:** A dependency is satisfied when the prerequisite topic is `completed`, or when the dependency is not marked `strict` and the prerequisite's mission activity is done. `strict` is a flag on `topic_dependencies` (`06-content-system.md` schema, `04-data-model.md` column) and defaults to off, so prerequisites are soft unless `07-curriculum-plan.md` marks an edge strict (Proposal).
 - **PR-2:** A deferred prerequisite whose mission activity was never done is not satisfied.
 - **PR-3:** Optional topics never block required ones. Prerequisite cycles are rejected before publication (PRD §8A).
 - **PR-4:** A learner can still start a topic that is not ready from the Roadmap view, after the prerequisites are explained (PRD §8A). Today never recommends such a topic.
 
 ### 7.4 Challenge-out (R03)
 
-- **CH-1:** Challenge-out is available for any topic that is not completed: from the Roadmap view, as a Today suggestion (§11), or from "I already know this" at any point.
-- **CH-2:** It uses an authored challenge set of at least 2 items on a different scenario. Hints and reveal are disabled, and there is no time limit.
-- **CH-3:** **Pass** (all items met): the topic is `completed` with route `challenge`, the skill is `demonstrated` (`auto_scored`), and the review item gets `k = max(k, 2)`, so the next check falls 7 days later and can earn `retained`.
-- **CH-4:** **Fail**: the topic state is unchanged and the skill is `practised`. Feedback shows the gaps, Today recommends the mission, and the copy stays neutral ("Good to know where to start").
-- **CH-5:** A retry is allowed once the mission activity is done, or after `challenge_retry_cooldown_days` (2). There are at most `challenge_max_attempts` (2) per topic per enrolment, and items are never reused.
+- **CH-1:** Challenge-out is available for a topic that is not completed, while its one attempt is unused and before either check-eligible item has been served to the learner: from the Roadmap view, as a Today suggestion (§11), or from "I already know this".
+- **CH-2:** It uses the challenge set from `07-curriculum-plan.md` §8.3: the topic check item and Alternate A in one sitting, both on different scenarios, so no extra authoring is needed. Hints and reveal are disabled, and there is no time limit. Alternate B stays reserved for retention.
+- **CH-3:** **Pass** (both items met): the topic is `completed` with route `challenge`, the skill is `demonstrated` (`auto_scored`), and the review item gets `k = max(k, 2)`, so the next check falls 7 days later on Alternate B and can earn `retained`.
+- **CH-4:** **Fail**: the topic state is unchanged and the skill is `practised`. Feedback shows the gaps, Today recommends the mission, and the copy stays neutral ("Good to know where to start"). The later topic check reuses a challenge item, marked "repeated prompt" (RV-7).
+- **CH-5:** There is one attempt per topic per enrolment (`challenge_max_attempts` = 1). Once it is used, or once a check item has been served, "I already know this" explains that the topic check after the mission completes the topic.
 
 ### 7.5 Manual defer
 
 - **DF-1:** A topic can be deferred from `not_started` or `in_progress`, never from `completed`.
-- **DF-2:** Deferring earns no completion credit and leaves progress unchanged. Drafts and parked sessions are preserved.
+- **DF-2:** Deferring earns no completion credit and leaves progress unchanged. Drafts and suspended sessions are preserved.
 - **DF-3:** Today recommends a deferred topic only as DEFERRED_BLOCKER (§3.6), and at most once per `deferred_resurface_days` (7).
 - **DF-4:** While a topic is deferred its check is paused, but the skill's ordinary reviews continue. The learner can stop those with RV-16.
 
 ### 7.6 Optional topics and labs (recorded separately)
 
 - **OP-1:** Optional topics use the same workflow states. They are listed separately, never counted in the denominator, and never block required topics. They become a Today primary only when the learner is resuming one, in maintenance, or as a fallback.
-- **OP-2:** Labs have their own progress record (`not_started`, `in_progress`, `evidence_submitted`; Proposal, owned by `04-data-model.md`). Lab output yields evidence with basis `learner_submitted`. Labs never change topic states or roadmap progress (PRD §8A).
+- **OP-2:** Each lab is its module's optional topic (`06-content-system.md`), so it uses the topic workflow states and OP-1 applies. A lab topic is `completed` when the learner submits its evidence. Local-check output yields evidence with basis `learner_submitted`; an open-ended write-up such as the L6 decision record is `self_assessed`. Labs never change required topics or roadmap progress (PRD §8A).
 - **OP-3:** A lab is available once its prerequisite topics have their mission activities done. Today shows `lab_available` as a secondary action when the weekly lab slot has not been used this week. A lab becomes the primary action only in `build` mode.
 - **OP-4:** The no-setup scenario fallback for a lab (PRD §16) yields `auto_scored` or `self_assessed` evidence carrying the limitation "no-setup fallback".
 
@@ -635,7 +665,7 @@ Optional topics, labs, deferred topics and evidence levels never enter this form
 
 ### 8.5 Maintenance mode
 
-Today keeps serving due retrieval under the normal caps (§3.6). Skills at `k ≥ 4` move to the 60-day maintenance interval. Optional topics and labs appear as secondary actions. The weekly target continues, and the learner can lower it or pause.
+Today keeps serving due retrieval under the normal caps (§3.6). Spaced reviews that waited during the path drain here under the same caps (RV-11). Skills at `k ≥ 4` move to the 60-day maintenance interval. Optional topics and labs appear as secondary actions. The weekly target continues, and the learner can lower it or pause.
 
 ### 8.6 Switching roadmaps (PRD §8A)
 
@@ -671,7 +701,7 @@ Today keeps serving due retrieval under the normal caps (§3.6). Skills at `k �
 ### 9.3 Migration flow
 
 - **VM-1:** Enrolments stay pinned. Publishing a new version never changes a learner's version (R01).
-- **VM-2:** "Update available" appears in the Roadmap view and never interrupts Today.
+- **VM-2:** The migration offer ("Update available") lives in the Roadmap view. Today shows only a one-line, non-blocking notice that links to it; the primary action is unchanged.
 - **VM-3:** The preview lists every change: before and after count and percentage, credit retained, new required topics with their effort, and any refresh suggestions.
 - **VM-4:** If the learner accepts, the migration applies at a session boundary. An open session finishes on its original content version.
 - **VM-5:** If the learner declines, they stay on the pinned version. The offer repeats only when another version arrives or the pinned content becomes unservable.
@@ -734,10 +764,11 @@ Due dates are never re-dated by an absence. Items that became due stay eligible,
 ### 10.4 Pause and resume (R05)
 
 - **PA-1:** The learner pauses the enrolment, optionally with an end date.
-- **PA-2:** While paused, Today shows the PAUSED card, review items are `suspended`, and reminders stop (handled by the notifications module). Topic states, drafts and parked sessions are kept.
+- **PA-2:** While paused, Today shows the PAUSED card, and review items are `suspended` and reminders paused automatically, with no extra question (the notifications module applies it). Topic states, drafts and suspended sessions are kept.
 - **PA-3:** On resume, whether manual or at the end date, each item that was **not yet due** when the pause started has its due date moved forward by the pause length in learner days. Items that were already due stay due.
 - **PA-4:** If the pause lasted at least `long_absence_days`, the first Today after it runs the return flow, with "welcome back from your break" copy.
 - **PA-5:** Paused weeks show "Paused" in place of the weekly target and are never shown as 0 of N. Pausing never changes progress, evidence or milestones.
+- **PA-6:** "Rest today" is not a pause. It skips today's reminder only (a notification setting, `08-ux-and-screens.md`). No rest record is written, and due dates, caps, the weekly target and the return flow are unchanged.
 
 ---
 

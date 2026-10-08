@@ -6,11 +6,11 @@ Status: Proposal — for discussion
 
 **Summary**
 
-- Today is a deterministic function of learner state, the learner's local day and one parameter set. The order is: a return refresher after a long absence, then resume, then up to 2 due retrieval items (1 in `small`), then the first prerequisite-ready mission segment that fits the time. It always gives exactly one primary action, with a reason code, a templated one-line rationale and roadmap · module · topic context.
-- Reviews are kept per learner × skill. They climb a 1 → 3 → 7 → 21-day ladder and then a 60-day maintenance interval. They step back after errors or heavy assistance, rotate alternate prompts (never the same prompt twice in a row), and are capped per session and per day. "Due" means "eligible from", so a backlog spreads itself across sessions. No overdue counter exists anywhere.
+- Today is a deterministic function of learner state, the learner's local day and one parameter set. The order is: a return refresher after a long absence, then resume, then up to 2 due retrieval items (1 in `small`), then the first prerequisite-ready mission segment that fits the time. It always gives exactly one primary action, with a reason code, a templated one-line rationale and roadmap · module · topic context, plus up to three secondary actions (resume, lab, challenge). After the day's practice it shows a "done for today" state.
+- There is one review item per mission's primary skill. It climbs a 1 → 3 → 7 → 21-day ladder and then a 60-day maintenance interval; an unassisted topic-check pass jumps to the 7-day rung, so the next review is the retention check on a reserved alternate. Reviews step back after errors or heavy assistance, rotate alternate prompts (never the same prompt twice in a row), and are capped per session and per day. "Due" means "eligible from", so a backlog spreads itself across sessions and drains in maintenance. No overdue counter exists anywhere.
 - Skill evidence is an append-only log. A displayed level never goes down: a later failed check adds a "refresh suggested" note and the level stays. Reading, self-report, diagnostics, confidence ratings and pre-submission reveals never raise a level.
 - `demonstrated` and `retained` both need an unassisted attempt (zero hints, no reveal) on a different-scenario or alternate item. `retained` also needs the attempt to fall at least 7 days after a demonstration.
-- Topic workflow is separate from evidence. The pilot rule is: mission attempt, plus feedback reviewed, plus an alternate topic check met (no reveal, at most 1 hint) on a later learner day. Challenge-out completes a topic; manual defer never does.
+- Topic workflow is separate from evidence. The pilot rule is: mission attempt, plus feedback reviewed, plus a topic check met (no reveal, at most 1 hint) on a later learner day, using one of the topic's two check-eligible items; a failed check is retried later with the other item. Challenge-out (one attempt) completes a topic; manual defer never does.
 - Progress is completed required topics ÷ required topics in the pinned version, rounded down, with the count shown beside it. Completion is evaluated idempotently. The milestone is written once and never revoked, and maintenance mode follows it.
 - A new roadmap version is an opt-in migration with a preview, and completion credit for mapped topics always carries over. Absence never creates debt: the learner gets a 3-minute refresher on return, sessions stay the same size, and a pause shifts due dates.
 - Every number lives in one parameters registry (§13). Most of them are Hypotheses to test in the concierge trial and the pilot.
@@ -45,14 +45,17 @@ Status: Proposal — for discussion
 | --- | --- | --- |
 | Learner day | The local calendar date in the learner's IANA time zone, after subtracting `day_rollover_hour` (04:00). A session at 00:30 on Wednesday therefore belongs to Tuesday. Every rule about "today", "due", "gap" and "week" uses learner days. | Proposal |
 | Planned learning day | A weekday the learner marked as available (F01). | PRD §5 |
-| Qualifying attempt | The first scored submission on an item within a session step. It must be submitted before any reveal of that item's solution, and it must be non-empty: for a structured item, an answer is chosen; for an open response, at least `open_response_min_chars` characters. | Proposal |
+| Qualifying attempt | The first scored submission on an item within a session step. It must be submitted before any reveal of that item's solution, and it must be non-empty: for a structured item, an answer is chosen; for a `self_check` free-text answer, at least `open_response_min_chars` characters. | Proposal |
 | Feedback acknowledged | The learner takes an explicit action on the feedback step: continue, retry, or open the worked example. No dwell-time rule applies. | Proposal |
 | Meaningful activity | A qualifying attempt whose feedback was acknowledged. Opening Today, reading, or starting a session without answering does not count. | Proposal, aligned to PRD §13 |
 | Session plan | The ordered activities behind Today's single primary action. | Proposal |
 | Activity | One of: resume, retrieval item (review or topic check), mission segment, small variant, challenge-out, refresher, lab. | Proposal |
 | Mission segment | The steps from the learner's current position up to the next authored stopping point. A plan never ends in the middle of a step. | Proposal |
-| Small variant | A curated equivalent of a mission that takes about 3 minutes: one recall or decision task, feedback, and an explicit stopping point. It is authored, never produced by cutting a mission short. | PRD §5, §9 |
-| Skill | The measurable objective a mission teaches. Each mission has exactly one primary skill; any secondary skill tags are used for analytics only. | Proposal |
+| Small variant | A separate, curated variant of a mission: one recall or decision task, feedback, and an explicit stopping point, at most 4 minutes (about 3). It is authored as a step subset in the `06-content-system.md` format, never produced by cutting a mission short. The mission's own ~3-minute steps (`07-curriculum-plan.md` §5.0) are resume stopping points inside a `practise` mission, not small variants. | PRD §5, §9 |
+| Skill | The measurable objective a mission teaches. Each mission has exactly one primary skill; review items, topic checks and demonstration attach to it. Secondary skill tags get evidence only from labs and are otherwise used for analytics; they never get a review item. | Proposal |
+| Check-eligible item | An item that can serve as a topic's check: the authored topic check item and Alternate A. Every topic has at least 2, so no extra authoring is needed. | Proposal |
+| Retention-reserved item | Alternate B, flagged in content. It is held back for the skill's delayed retention check and never served as an ordinary review before that check. | Proposal |
+| Retention-eligible | A review item whose skill was demonstrated at least `retained_min_delay_days` learner days ago, with no `retained` record since that demonstration. | Proposal |
 | Teaching scenario | The scenario used in a mission's explanation, worked example and in-mission items. | Proposal |
 | Different scenario | An item whose authored scenario key differs from the teaching scenario of the mission that taught the skill. | Proposal (reads PRD §9) |
 | Alternate item | Any item other than a named reference item, such as the item last served for this skill or the item that produced a demonstration. | Proposal |
@@ -84,12 +87,13 @@ Seeing the correct answer in feedback **after** submitting is feedback, not a re
 | Part | Content |
 | --- | --- |
 | Primary action (exactly one) | Reason code, mode, ordered activities, estimated minutes (sum rounded up and labelled "about"), one-line rationale, context line |
-| Secondary actions (0–3) | `smaller` (when a small plan exists and the primary is not small), `resume` (when an unfinished session exists but is not the primary), `lab_available` (§7.6), and `challenge` (on CHALLENGE_SUGGESTED and DEFERRED_BLOCKER) |
+| Secondary actions (0–3) | `resume` (when an unfinished session exists but is not the primary), `lab_available` (§7.6), and `challenge` (on CHALLENGE_SUGGESTED, DEFERRED_BLOCKER or a `partial` diagnostic area, while the challenge is still available, §7.4) |
+| Controls | `smaller` ("Start small"), shown only when a small plan exists (SM-2) and the primary is not small; "Rest today", which skips today's reminder only (PA-6) |
 | Weekly progress | Practice days this week against the target, and the optional lab (§12) |
 | Never included | Backlog size, overdue counts, red states, or a list the learner must browse |
 
 Rules:
-- **TD-1:** Exactly one primary action, or a paused card that carries an explicit resume action.
+- **TD-1:** Exactly one primary action. On the paused card it is "Resume"; in the done-for-today state it is an optional "Practise anyway" (§3.6).
 - **TD-2:** Deterministic, with stable tie-breakers.
 - **TD-3:** Retrieval items in a plan never exceed the caps in §4.4.
 - **TD-4:** A plan never starts a step it cannot finish before a stopping point.

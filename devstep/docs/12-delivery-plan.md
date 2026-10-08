@@ -129,26 +129,26 @@ Before Phase 1 (now to 11 Oct 2026), this document set is discussed and the open
 | Aspect | Plan |
 | --- | --- |
 | Goal | Test, without software, whether people return to a curated sequence, and find out what stops them. |
-| Duration | **PRD:** 2 weeks. **Baseline:** 2-week trial (2–15 Nov 2026), then 1 week of synthesis and the gate review (16–22 Nov). |
-| Entry criteria | Phase 1 exit. M1 missions and the M2 sample are drafted, and the remaining M2 missions stay at least one week ahead of participants. Delivery uses tools already at hand, such as email, shared documents and one form (**Proposal**). |
+| Duration | **PRD:** 2 weeks. **Baseline:** onboarding 2–8 Nov 2026, a 2-week trial 9–22 Nov, then exit interviews and the friction list 23–27 Nov. Gate review on 30 Nov. |
+| Entry criteria | Gate 1 passed. The go/no-go thresholds in `10-measurement-and-validation.md` §7.6, and the content-only trigger below, are frozen and recorded before the first participant starts. M1 missions and the M2 sample are drafted, and the remaining M2 missions stay at least one week ahead of participants. Delivery follows the protocol in `10-measurement-and-validation.md` §7: template emails on each participant's chosen days, one form per mission and a tracking sheet. |
 | Exit criteria | **PRD:** evidence of repeat use and a ranked list of friction points. **Proposal:** every item on the §1 gate checklist is checked or waived. |
-| Key deliverables | Run log recording who did what, when, and after how much prompting. Ranked friction list. Revised M1–M2 drafts. Gate decision note in `13-decisions-and-open-questions.md`. |
-| Not done in this phase | Product code. Automated reminders: the founder sends manual nudges and logs each one, so the amount of encouragement is measurable. AI help. Pricing tests. |
-| Kill/pivot checkpoint | **This is the plan's main kill point.** If most participants return only after personal chasing, do not start building. Diagnose per PRD §13 step 5 (task size, relevance, content quality, setup or notification burden), change one variable and rerun once with a small fresh cohort. If the rerun also fails, pivot the wedge or stop. |
+| Key deliverables | Tracking sheet and contact log (every non-template message logged). Ranked friction list. Revised M1–M2 drafts. Gate decision note in `13-decisions-and-open-questions.md`. |
+| Not done in this phase | Product code. Personal nudges or chasing: the only reminders are the template emails, and any non-template contact is logged. A comparison arm (the comparison runs in the pilot). AI help. Pricing tests. |
+| Kill/pivot checkpoint | **This is the plan's main kill point.** If unprompted return misses the threshold in `10-measurement-and-validation.md` §7.6 (at least half of the participants who missed a scheduled session later submit one, with only template emails since the miss), do not start building. Diagnose per PRD §13 step 5 (task size, relevance, content quality, setup or notification burden), change one variable and rerun once with a small fresh cohort. If the rerun also fails, pivot the wedge or stop. **Content-only branch:** if participants return but exit interviews credit only the content, not the next step, the return emails or the evidence feedback, consider selling the path as content (a workbook plus the lab kits) instead of building the app (`11-market-and-positioning.md`). |
 
 ### Planning gate
 
-See §1. The baseline date is 23 Nov 2026.
+See §1. The baseline date is 30 Nov 2026.
 
 ### Phase 3 — Functional alpha
 
 | Aspect | Plan |
 | --- | --- |
 | Goal | Prove the core loop works end to end in software, with Modules 1–2. |
-| Duration | **PRD:** 3–4 weeks. **Baseline:** about 13 calendar weeks including a 2-week year-end buffer (23 Nov 2026 – 21 Feb 2027). That is about 150 engineering hours and 55 content hours. |
+| Duration | **PRD:** 3–4 weeks. **Baseline:** about 13 calendar weeks including a 2-week year-end buffer (30 Nov 2026 – alpha exit on 1 Mar 2027). That is about 150 engineering hours and 55 content hours. |
 | Entry criteria | The planning gate is passed. |
 | Exit criteria | **PRD:** auth, Today/player, saved progress, review rules and the first two modules work end to end. **Proposal:** 3–5 friendly users (concierge alumni) each complete a mission on their own device and come back for a review the next day. No data-ownership defects are open. |
-| Key deliverables | The thin vertical slice on real hosting (milestone about 25 Jan 2027). The alpha scope of EP01–EP08, EP10, EP11 and EP13 (§4). M1–M2 published, with both labs. Authorisation tests. |
+| Key deliverables | The thin vertical slice on real hosting (milestone about 1 Feb 2027). The alpha scope of EP01–EP08, EP10, EP11 and EP13 (§4). M1–M2 published, with both labs. Authorisation tests. |
 | Not done in this phase | Reminders. The recovery flow. Roadmap version migration. Self-serve export and deletion: during alpha the operator handles any request manually (**Proposal**). Metric queries. Visual polish beyond accessible defaults. A content admin UI. AI. |
 | Kill/pivot checkpoint | If the slice takes more than **twice** its planned time, stop and re-plan before adding breadth, because the cause is scope, stack or capacity. If alpha users find the app harder to start than the concierge emails, fix the start path before any pilot-readiness work. |
 
@@ -157,34 +157,33 @@ See §1. The baseline date is 23 Nov 2026.
 | Aspect | Plan |
 | --- | --- |
 | Goal | Build everything a six-week measured pilot with 30–50 people needs, and nothing more. |
-| Duration | **PRD:** 2–3 weeks. **Baseline:** about 15 weeks (22 Feb – 6 Jun 2027). Most of this is M3–M6 authoring and review. |
+| Duration | **PRD:** 2–3 weeks. **Baseline:** about 27 weeks (1 Mar – 5 Sep 2027). Most of this is M3–M6 authoring and review, up to the content freeze on 13 Aug 2027; then the restore test and dry run. The freeze date keeps the pilot start out of the August holiday period. |
 | Entry criteria | Alpha exit. M3–M6 outlines exist (objectives, prerequisites, misconceptions, scenario sketch). Transfer-assessment drafts exist. |
-| Exit criteria | **PRD:** all six modules reviewed, and reminders, recovery, evidence, analytics and essential operational checks pass. **Proposal:** restore test done. Performance budgets measured under recorded conditions (PRD §12). Pilot dry run with 2–3 people done. At least 30 consenting participants. |
-| Key deliverables | EP09, EP12, EP14 and EP15. R03–R04. Self-serve export and deletion. The full evidence view. Metric queries for PRD §13. Content freeze: 18 missions, 6 labs, baseline and final transfer assessments. Pilot runbook. Consent and privacy notice. A static-checklist version of the path, if `10-measurement-and-validation.md` runs the comparison. |
-| Not done in this phase | P1 features (F13–F15, R07). Payments. A second roadmap. Native apps. Anything that no pilot metric or guardrail needs. |
-| Kill/pivot checkpoint | **Delay the pilot rather than ship unreviewed content** (PRD §8). If recruitment is below 30 consenting participants at the planned start, either delay by up to four weeks or run with fewer and label all results directional (PRD §13 step 4). If projected content freeze slips more than four weeks past the planned start, use the co-author lever (§8, open question 4). |
+| Exit criteria | **PRD:** all six modules reviewed, and reminders, recovery, evidence, analytics and essential operational checks pass. **Proposal:** restore test done. Performance budgets measured under recorded conditions (PRD §12). Pilot dry run with 2–3 people done. At least 30 consenting participants, each with an invite that carries their cohort and arm. |
+| Key deliverables | EP09, EP12, EP14, EP15 and EP16 (pilot arms and checklist page, which `10-measurement-and-validation.md` requires). R03–R04. Self-serve export and deletion. The full evidence view. Metric queries for PRD §13, split by arm. Content freeze: 18 missions, 6 labs, baseline and final transfer assessments. Pilot runbook. Consent and privacy notice. |
+| Not done in this phase | P1 features (F13–F15, R07). Payments. A second roadmap. A second lab-kit edition. Native apps. Anything that no pilot metric or guardrail needs. |
+| Kill/pivot checkpoint | **Delay the pilot rather than ship unreviewed content** (PRD §8). All six modules are reviewed before cohort 1 starts; there is no rolling release. If recruitment is below 30 consenting participants at the planned start, either delay by up to four weeks or run with fewer and label all results directional (PRD §13 step 4). If, after Module 1's calibration, projected content freeze is more than four weeks later than 13 Aug 2027, use the co-author lever (§8, open question 2). |
 
 ### Phase 5 — Measured pilot and delayed checks
 
 | Aspect | Plan |
 | --- | --- |
 | Goal | Produce the retention and learning evidence needed for a continue/pivot decision. |
-| Duration | **PRD:** 6 weeks plus delayed checks. **Baseline:** 6 weeks (7 Jun – 18 Jul 2027), then 3 weeks of delayed checks and interviews (to 8 Aug). Decision about 9 Aug 2027. |
-| Entry criteria | Pilot-readiness exit. Baseline assessment live. Content frozen. Runbook rehearsed. |
+| Duration | **PRD:** 6 weeks plus delayed checks. **Baseline:** two staggered cohorts of 6 weeks each: cohort 1 from 6 Sep 2027, cohort 2 from 20 Sep 2027. Delayed checks at least 21 days after each cohort's final transfer task, and exit interviews to day 70 (cohort 2: 29 Nov). About 10 days of analysis, then the decision about 10 Dec 2027. |
+| Entry criteria | Pilot-readiness exit. Arms allocated and invites issued (EP16). Baseline assessment live. Content frozen. Runbook rehearsed. |
 | Exit criteria | **PRD:** retention and learning data support a continue/pivot decision. Completers and dropouts have been interviewed (PRD §13 step 5). |
-| Key deliverables | A weekly guardrail review (PRD §13). A fix log in which every change is versioned and dated. Final transfer assessment and delayed checks. A decision memo. |
+| Key deliverables | A weekly guardrail review (PRD §13). A fix log in which every change is versioned and dated. Final transfer assessment (blind-scored) and delayed checks. A decision memo. |
 | Not done in this phase | New features. New content beyond fixes. Mid-pilot changes to scheduling rules or reminder policy, unless a guardrail trips; any such change is logged because it affects interpretation. |
-| Kill/pivot checkpoint | Use the decision matrix below. |
+| Kill/pivot checkpoint | Use the decision table in `10-measurement-and-validation.md` §9 (summary below). **Content-only branch:** if the checklist arm does as well as DevStep on return and learning, sell the path as content (a workbook plus the lab kits) and build no more loop features. |
 
-**Pilot decision matrix (Proposal).** Thresholds are the PRD §13 targets. Their
-definitions are in `10-measurement-and-validation.md`.
-
-| Return behaviour (activation, week-4 retention, return after absence) | Learning (transfer, delayed retention) | Decision |
-| --- | --- | --- |
-| At or near target | At or near target | **Continue:** unlock P1 items by evidence (§4.2) and test pricing (PRD §15). |
-| At or near target | Below target | **Revise the curriculum and assessments** before adding any feature (PRD §13: engagement without transfer is not success). |
-| Below target | At or near target among completers | **Fix start and return friction**, then rerun a smaller pilot. |
-| Below target | Below target | **Pivot the wedge or stop.** Do not add features to rescue it. |
+**Pilot decision (summary).** The decision table, its bands and its thresholds
+live in `10-measurement-and-validation.md` §9; this plan keeps no separate copy.
+In short: **continue** only when the core metrics are met or near, transfer is
+met, guardrails are clear and DevStep at least matches the checklist arm; then
+unlock P1 items by evidence (§4.2) and test pricing (PRD §15). Engagement without
+transfer means **revise the curriculum**; transfer without return means
+**revise the loop**; DevStep no better than the checklist means the
+**content-only branch** or another pivot; most metrics missed means **stop**.
 
 ## 3. Indicative timeline
 
@@ -201,57 +200,66 @@ gantt
 
     section Validation
     Discovery interviews 8 to 12          :crit, v1, 2026-10-12, 21d
-    Sample tried by target users          :v2, 2026-10-26, 7d
-    Concierge trial 10 to 15 people       :crit, v3, 2026-11-02, 14d
-    Synthesis and gate review             :crit, v4, after v3, 7d
-    Planning gate                         :milestone, m1, 2026-11-23, 0d
-    Thin slice demo                       :milestone, m2, 2027-01-25, 0d
-    Alpha test with friendly users        :v5, 2027-02-15, 7d
-    Alpha exit                            :milestone, m3, 2027-02-22, 0d
-    Pilot recruitment and consent         :v6, 2027-04-19, 49d
-    Measured pilot 6 weeks                :crit, v7, 2027-06-07, 42d
-    Delayed checks and exit interviews    :crit, v8, after v7, 21d
-    Continue or pivot decision            :milestone, m6, 2027-08-09, 0d
+    Sample and Lab 2 tried by target users :v2, 2026-10-19, 14d
+    Gate 1                                :milestone, g1, 2026-11-01, 0d
+    Concierge onboarding                  :crit, v3a, 2026-11-02, 7d
+    Concierge trial 10 to 15 people       :crit, v3, 2026-11-09, 14d
+    Exit interviews and friction list     :crit, v4, 2026-11-23, 5d
+    Planning gate                         :milestone, m1, 2026-11-30, 0d
+    Thin slice demo                       :milestone, m2, 2027-02-01, 0d
+    Alpha test with friendly users        :v5, 2027-02-22, 7d
+    Alpha exit                            :milestone, m3, 2027-03-01, 0d
+    Pilot recruitment and consent         :v6, 2027-07-12, 56d
+    Pilot cohort 1 6 weeks                :crit, v7, 2027-09-06, 42d
+    Pilot cohort 2 6 weeks                :crit, v7b, 2027-09-20, 42d
+    Delayed checks and exit interviews    :crit, v8, 2027-10-18, 43d
+    Analysis and decision review          :crit, v9, 2027-11-30, 10d
+    Continue or pivot decision            :milestone, m6, 2027-12-10, 0d
 
     section Engineering
-    Planning decisions ADR and data model :e0, 2026-10-12, 42d
-    Foundations and content import        :crit, e1, 2026-11-23, 28d
+    Planning decisions ADR and data model :e0, 2026-10-12, 49d
+    Foundations and content import        :crit, e1, 2026-11-30, 21d
     Year-end buffer                       :e1b, 2026-12-21, 14d
-    Thin vertical slice                   :crit, e2, 2027-01-04, 21d
-    Alpha breadth                         :crit, e3, 2027-01-25, 21d
-    Recovery reminders migration          :e4, 2027-02-22, 42d
-    Analytics export deletion ops         :e5, 2027-04-05, 49d
-    Restore test and pilot dry run        :crit, e6, 2027-05-24, 14d
+    Thin vertical slice                   :crit, e2, 2027-01-04, 28d
+    Alpha breadth                         :crit, e3, 2027-02-01, 21d
+    Recovery reminders migration          :e4, 2027-03-01, 49d
+    Pilot arms and checklist page         :e7, after e4, 21d
+    Analytics export deletion ops         :e5, after e7, 56d
+    Restore test and pilot dry run        :crit, e6, 2027-08-16, 14d
 
     section Content
-    Sample M2 mission and lab             :c1, 2026-10-12, 14d
+    Sample M2 mission and Lab 2           :c1, 2026-10-12, 14d
     Reviewer recruited                    :milestone, m0, 2026-10-30, 0d
     M1 and M2 drafts for concierge        :c2, 2026-10-19, 28d
-    M1 and M2 into content format         :c3, 2026-11-23, 28d
-    M1 lab and M1 M2 reviewer pass        :c3b, 2027-01-04, 21d
-    M3 to M6 outlines and transfer drafts :c4, 2027-01-25, 21d
-    M3 and M4 missions and labs           :crit, c5, 2027-02-22, 49d
-    Reviewer pass M3 and M4               :c7, 2027-03-29, 21d
-    M5 and M6 missions and labs           :crit, c6, 2027-04-12, 42d
-    Reviewer pass M5 and M6               :crit, c8, 2027-05-10, 21d
-    Content freeze                        :milestone, m4, 2027-05-31, 0d
+    M1 and M2 into content format         :c3, 2026-11-30, 21d
+    M1 lab and M1 M2 reviewer pass        :c3b, 2027-01-04, 28d
+    M3 to M6 outlines and transfer drafts :c4, 2027-02-01, 28d
+    M3 and M4 missions and labs           :crit, c5, 2027-03-01, 63d
+    Reviewer pass M3 and M4               :c7, 2027-04-12, 35d
+    M5 and M6 missions and labs           :crit, c6, 2027-05-03, 63d
+    Reviewer pass M5 and M6               :crit, c8, 2027-06-14, 35d
+    Transfer forms diagnostic and rework  :crit, c9, 2027-07-05, 39d
+    Content freeze                        :milestone, m4, 2027-08-13, 0d
 ```
 
 How to read the chart:
 - The engineering and content tracks look parallel, but **one person works both**.
   During alpha the split is about 70% engineering and 30% content. During
   readiness it is about 35% engineering and 65% content (**Hypothesis**).
-- From alpha exit onwards, readiness engineering (e4, e5) has float. Content
+- From alpha exit onwards, readiness engineering (e4, e7, e5) has float. Content
   M3–M6 and its review do not.
-- The pilot runs through June and July. Check the recruitment region's holiday
-  calendar (risk RK15).
+- Freezing content on 13 Aug and starting cohort 1 on 6 Sep keeps the pilot out
+  of the August holiday period. Recruitment runs over the summer, so it starts
+  early (risks RK14, RK15).
+- The delayed-checks bar spans both cohorts: from cohort 1's day 43 to cohort 2's
+  day 70 (29 Nov).
 
 ## 4. Epics and stories
 
 ### 4.1 P0 requirements mapped to epics
 
 Size is relative. **Hypothesis** for calibration: S ≈ 3–6, M ≈ 8–16 and
-L ≈ 20–35 focused engineering hours. Summed over the table, that is ≈180–340 h, which matches the
+L ≈ 20–35 focused engineering hours. Summed over the table, that is ≈185–355 h, which roughly matches the
 PRD's 5–7 near-full-time weeks for alpha plus readiness. The thin slice will
 recalibrate it. Content effort is sized separately in §7. Phase "Alpha"
 includes the slice. Where a row names two phases, the later phase completes it.
@@ -260,8 +268,8 @@ includes the slice. Where a row names two phases, the later phase completes it.
 | --- | --- | --- | --- | --- | --- | --- |
 | — | EP01 Foundations | cross-cutting | Alpha | M | Gate (G01–G03) | Repository and environments. Deploy pipeline to the hosting chosen in `01-tech-stack-and-hosting.md`. Schema migrations. A controllable clock outside production. Test harness with per-owner authorisation tests. |
 | F11 | EP02 Content pipeline and catalogue | `catalogue` + content pipeline | Alpha (validate, version, publish, import). Readiness (retire, last-reviewed report) | L | EP01, G05 | Validate content files: schema, prerequisite cycles rejected, sources and reviewer present. Publishing creates an immutable version. Retiring keeps history. Report of last-reviewed dates. |
-| F09 | EP03 Identity and continuity | `identity` | Alpha (login, guest claim, idempotent completion, cross-device). Readiness (export, deletion) | L | EP01 | Guest progress on the device is claimed at sign-up. Secure login per `09-security-privacy-ops.md`. Idempotency keys on attempt and completion. `base_revision` conflict on drafts. Export and deletion requests. |
-| F03 | EP04 Learning player | `learning` | Alpha (slice) | L | EP02 | One step at a time: scenario, explanation, response, hints, feedback, completion. Draft saved before each step transition. A local draft survives network loss and shows unsynced status. Hint and reveal use recorded. |
+| F09 | EP03 Identity and continuity | `identity` | Alpha (login, guest claim, idempotent completion, cross-device). Readiness (export, deletion) | L | EP01 | Invite-only sign-up: a single-use invite code bound to the invited email. An uninvited visitor who finishes the sample sees how to ask to join. Guest work (onboarding and the sample only) stays in the browser; at sign-up `POST /v1/guest/claim` uploads it, the server re-evaluates every answer and records evidence capped at `practised`, idempotently. Email and password with verification, plus GitHub OAuth (`09-security-privacy-ops.md`). Idempotency keys on attempt and completion. `base_revision` conflict on drafts. Export and deletion requests. |
+| F03 | EP04 Learning player | `learning` | Alpha (slice) | L | EP02 | One step at a time: scenario, explanation, response, hints, feedback, completion. Draft saved before each step transition. A local draft survives network loss and shows unsynced status; "Check answer" is disabled while offline. Hint and reveal use recorded. Guests get the sample from `GET /v1/guest/sample`, and `POST /v1/guest/attempts` evaluates it without storing anything. |
 | F04 | EP05 Assessment and evidence | `assessment` | Alpha (slice) | M | EP04 | Structured items auto-scored against the rubric. Open-ended items self-assessed against an exemplar and labelled as such. Each attempt stores content version, outcome and assistance. Reading never raises a level. A reveal never counts as demonstration. |
 | F02 | EP06 Today and reviews | `scheduling` | Alpha (slice) | M | EP04, EP05, EP07 | One action with time and rationale. An open session is resumed first. "Smaller" swaps in a curated `small` equivalent. Shows roadmap, module, topic and purpose (PRD §8A). |
 | F05 | EP06 Today and reviews | `scheduling` | Alpha | M | EP05 | Reviews use alternate prompts. Intervals are ≈1, 3, 7 and 21 days and configurable. Cap of 2 per session (1 in `small`). Deferred reviews are preserved and spread out, with no overdue counter. |
@@ -270,14 +278,15 @@ includes the slice. Where a row names two phases, the later phase completes it.
 | F01 | EP08 Goal and baseline | `profile` | Alpha (goal, stack, availability, time zone). Readiness (skippable diagnostic) | M | EP03 | One goal, stack context, days and session length. Time zone captured and editable. Diagnostic is optional, and skipped skills stay unknown. |
 | F07 | EP10 Labs | `catalogue`, `learning`, `assessment` + lab kits | Alpha (lab page, M1–M2 kits). Readiness (M3–M6 kits) | M | EP02, EP04, EP05 | Lab page with prerequisites, setup check, ordered tasks, checkpoints, rubric and save-and-return. Evidence is submitted as structured text, with no uploads, and stored with basis `learner_submitted`. |
 | F08 | EP11 Evidence view | `assessment` | Alpha (basic). Readiness (full) | M | EP05 | Introduced, practised, demonstrated and retained shown separately, with dates. Basis and limitations visible. Lab and self-assessed evidence labelled. |
-| F12 | EP13 Instrumentation | `analytics` | Alpha (event capture). Readiness (metric queries, delayed outcomes) | M | EP01 | PRD §13 events carry IDs, content version, mode and timestamps only. A payload allow-list rejects free text. Queries follow `10-measurement-and-validation.md`. An analytics outage never blocks learning. |
+| F12 | EP13 Instrumentation | `analytics` | Alpha (event capture). Readiness (metric queries, delayed outcomes) | M | EP01 | PRD §13 events carry IDs, content version, mode and timestamps only. A payload allow-list rejects free text. Guest events use a client-generated `subject_id` that the account adopts on claim. Queries follow `10-measurement-and-validation.md`. An analytics outage never blocks learning. |
 | F06 | EP09 Recovery, pause and return | `scheduling` | Readiness | S | EP06, EP07 | Return screen after absence. A small restart with a brief retrieval check and a summary of prior work. No catch-up overload. |
 | R05 | EP09 Recovery, pause and return | `roadmap`, `scheduling` | Readiness | S | EP07, F06 | Pause and resume keep topic states and drafts. Future work is rescheduled without missed-lesson debt. |
 | R03 | EP07 Roadmap progression | `roadmap` | Readiness | M | R02, alternate assessments | Deferring sets `deferred` and earns no credit. Challenge-out uses an alternate assessment and can complete the topic. Prerequisites are explained. |
 | R04 | EP07 Roadmap progression | `roadmap` | Readiness | S | R02, R03 | Completion is awarded only when every required topic is satisfied. The summary separates optional labs and self-assessed evidence. Reviews continue afterwards and never revoke completion. |
-| F10 | EP12 Reminders | `notifications` | Readiness | M | EP03, EP06, EP08 | Opt-in consent. Schedule in the learner's time zone. At most one reminder per learning day, suppressed once that day's session is done. Pause, snooze, quiet hours. Signed unsubscribe. Idempotent dispatch. |
+| F10 | EP12 Reminders | `notifications` | Readiness | M | EP03, EP06, EP08 | Opt-in consent. Schedule in the learner's time zone. At most one reminder per learning day, suppressed once that day's session is done. Pause, snooze, quiet hours. Signed unsubscribe. At-most-once dispatch. |
 | R06 | EP14 Version migration | `roadmap`, `catalogue` | Readiness | M | EP02, EP07 | A new version never silently reduces progress. The learner sees the changes and the credit they keep, then chooses to migrate. Tested with a real M1–M2 revision. |
 | — | EP15 Operational readiness | cross-cutting | Readiness | M | All alpha epics | Backups and a restore test. Monitoring and alerts. Performance budgets measured under recorded conditions. Accessibility pass. Rate limits. Pilot runbook (`09-security-privacy-ops.md`). |
+| — (PRD §13 step 4) | EP16 Pilot arms and checklist | `identity`, `roadmap`, `analytics` | Readiness | M | EP03, EP07, EP12, EP13 | `arm` stored on invites and copied to the enrolment; cohort and arm come from the invite, using the allocation list generated before recruitment opens (`10-measurement-and-validation.md`). A static checklist page lists the same missions, alternate prompts, topic checks and labs in a fixed order and opens them in the same player. The checklist arm has no Today recommendation, adaptive review or recovery flow, and gets the same reminders. Every analytics event and metric query can be split by arm. |
 
 ### 4.2 P1 and Later — locked until evidence arrives
 
@@ -302,23 +311,23 @@ These are **Proposals**. `09-security-privacy-ops.md` owns the security detail.
 
 ## 5. Thin vertical slice
 
-**Definition:** a guest completes the published sample mission on a phone and
-gets authored feedback. They create an account, and the guest work is claimed. The
-attempt and `practised` evidence are recorded against the exact content version.
-A review is scheduled in the learner's time zone. The next day, Today on a second
-device shows that review before the next prerequisite-ready mission. Everything
-runs on the real hosting.
+**Definition:** a guest completes the published sample mission in a phone browser
+and gets authored feedback; the work stays on that device. They sign up with an
+invite, and the claim re-evaluates the work on the server and records the attempt
+and `practised` evidence against the exact content version. A review is scheduled
+in the learner's time zone. The next day, Today on a second device shows that
+review before the next prerequisite-ready mission. Everything runs on the real hosting.
 
 ### Demo script (acceptance)
 
-1. A guest opens the public sample link on a phone without signing in. The player says that guest work is saved only on this device (PRD §5).
-2. The player runs the sample mission (the discovery sample, M2 "query plans", already in the `06-content-system.md` format) one step at a time. The draft autosaves, and the guest uses one hint.
-3. The guest submits. The attempt is scored against the rubric and authored feedback appears.
-4. The guest creates an account, and their progress is claimed (`POST /v1/guest/claim`). The learner is enrolled in the single roadmap, pinned to its published version (R01).
-5. `GET /v1/evidence` shows `practised` evidence with assistance `hint` and the content version.
+1. A guest opens the public sample link on a phone without signing in. The player says: "Saved only in this browser on this device until you create an account." (PRD §5)
+2. The player runs the sample mission (the discovery sample, M2 "query plans", already in the `06-content-system.md` format, served by `GET /v1/guest/sample`) one step at a time. The draft autosaves in the browser, and the guest uses one hint.
+3. The guest submits. `POST /v1/guest/attempts` scores it against the rubric without storing anything, and authored feedback appears.
+4. The guest signs up with a single-use invite code bound to their email. `POST /v1/guest/claim` uploads the local bundle, and the server re-evaluates each answer against the pinned content version. The learner is enrolled in the single roadmap, pinned to its published version (R01).
+5. `GET /v1/evidence` shows `practised` evidence (the claim cap) with assistance `hint` and the content version.
 6. A review is scheduled per `05-learning-engine.md`. Because a hint was used, it is an earlier alternate review. It is stored in UTC and evaluated in the learner's IANA zone.
-7. The clock is advanced one day in staging, and once more in real time before the demo is signed off. On a second device, `GET /v1/today` returns the alternate review within the cap, with a rationale. The next action is M1's first mission.
-8. Sending the completion again with the same `Idempotency-Key` records nothing new. The analytics events contain no free text.
+7. The clock is advanced one day in a preview environment, and once more in real time on production before the demo is signed off. On a second device, the learner signs in and `GET /v1/today` returns the alternate review within the cap, with a rationale. The next action is M1's first mission.
+8. Sending the claim again with the same `Idempotency-Key` records nothing new. The analytics events contain no free text, and the guest events join the account through the adopted `subject_id`.
 
 The slice deliberately leaves out labs, the roadmap view, the full evidence view,
 recovery, reminders, the diagnostic, export and deletion.
@@ -331,13 +340,13 @@ activation path.
 | Risk | How the slice exposes it early |
 | --- | --- |
 | The content format cannot express real missions | A real mission travels from file to validation, a published version, the player and feedback. |
-| Errors in data ownership or the guest claim | Guest records move to an account, and authorisation tests run against them. |
+| Errors in data ownership or the guest claim | The browser bundle is claimed, re-evaluated on the server and capped at `practised`, and authorisation tests run against the new records. |
 | Evidence rules implemented wrongly | Hint use, `practised` versus `demonstrated`, and version pinning are all visible. |
 | Time-zone and scheduling errors | The review due date is computed in the learner's zone, and the clock is controllable. |
-| Duplicate submissions or concurrent devices | The demo repeats completion and uses a second device. |
+| Duplicate submissions or concurrent devices | The demo repeats the claim and uses a second device. |
 | Hosting or free-tier fit | The slice runs on the `01-tech-stack-and-hosting.md` choice, not on localhost. |
 | Analytics privacy | The payload allow-list is enforced from the first event. |
-| Activation and recruitment | This is PRD §5 "first value before account". The same link becomes the public sample used for recruitment (PRD §15). |
+| Activation and recruitment | This is PRD §5 "first value before account". The same link becomes the public sample used for recruitment (PRD §15); an uninvited visitor is shown how to ask to join. |
 | Estimates | The slice's actual time against plan triggers the 2× re-plan rule (§2, Phase 3). |
 
 ## 6. Build order and critical path
@@ -350,8 +359,9 @@ engineering has float.
 flowchart TB
     subgraph PRE["Before the gate"]
         DISC["Discovery and sample"]
+        G1["Gate 1"]
         CONC["Concierge trial"]
-        C1["Sample mission and M2 lab"]
+        C1["Sample mission and Lab 2"]
         C2["M1 and M2 drafts"]
         GATE["Planning gate"]
     end
@@ -377,6 +387,7 @@ flowchart TB
         FREEZE["Content freeze"]
         EP09["EP09 Recovery, pause, return"]
         EP12["EP12 Reminders"]
+        EP16["EP16 Pilot arms and checklist"]
         EP14["EP14 Version migration"]
         R34["EP07 R03 and R04"]
         EP13B["EP13 Metric queries"]
@@ -386,7 +397,7 @@ flowchart TB
     end
     PILOT["Measured pilot and delayed checks"]
 
-    DISC ==> CONC ==> GATE ==> EP01 ==> EP02 ==> EP04 ==> EP05 ==> EP06 ==> SLICE ==> EP07 ==> ALPHA
+    DISC ==> G1 ==> CONC ==> GATE ==> EP01 ==> EP02 ==> EP04 ==> EP05 ==> EP06 ==> SLICE ==> EP07 ==> ALPHA
     ALPHA ==> C4 ==> C5 ==> FREEZE ==> DRY ==> PILOT
 
     DISC --> C1 --> C2 --> C3
@@ -398,6 +409,7 @@ flowchart TB
     EP05 --> EP11 --> ALPHA
     ALPHA --> EP09 --> DRY
     ALPHA --> EP12 --> DRY
+    EP12 --> EP16 --> DRY
     ALPHA --> EP14 --> DRY
     ALPHA --> R34 --> DRY
     ALPHA --> EP13B --> DRY
@@ -405,7 +417,7 @@ flowchart TB
     ALPHA --> RECRUIT --> PILOT
 
     classDef critical fill:#ffe3e3,stroke:#b42318,stroke-width:3px,color:#111
-    class DISC,CONC,GATE,EP01,EP02,EP04,EP05,EP06,SLICE,EP07,ALPHA,C4,C5,FREEZE,DRY,PILOT critical
+    class DISC,G1,CONC,GATE,EP01,EP02,EP04,EP05,EP06,SLICE,EP07,ALPHA,C4,C5,FREEZE,DRY,PILOT critical
 ```
 
 **Build order inside alpha (Proposal):**
@@ -415,8 +427,8 @@ flowchart TB
 4. EP07 R01–R02 and EP08.
 5. EP10 and EP11 basics.
 
-**Build order inside readiness:** EP09, then EP12, EP14, R03–R04, EP13 queries, and
-finally EP15. EP15 runs last so that the restore test and performance checks run against
+**Build order inside readiness:** EP09, then EP12, EP16 (it reuses the player and
+the reminders), EP14, R03–R04, EP13 queries, and finally EP15. EP15 runs last so that the restore test and performance checks run against
 the pilot build.
 
 ## 7. Content production track
@@ -425,39 +437,44 @@ the pilot build.
 
 | Milestone (baseline date) | Authored | Reviewed | Form |
 | --- | --- | --- | --- |
-| Discovery exit (1 Nov 2026) | Sample mission M2 "query plans" and M2 lab kit v0 | Tried by at least five target users (**Proposal**), and by the reviewer once recruited | Draft in the `06-content-system.md` format |
-| Concierge start (2 Nov 2026) | M1 missions 1–3 with alternate prompts, the M2 sample and M2 lab. The other M2 missions are written at least one week ahead of participants. | Reviewer reads for technical correctness. **Proposal:** a read rather than a full try-out, because nothing is published in the app yet. | Documents and a form |
-| Planning gate (23 Nov 2026) | Authoring hours recorded; M1–M2 drafts revised from feedback | — | Drafts |
-| Thin slice (about 25 Jan 2027) | Sample mission published through the pipeline | Reviewer-tried (PRD §8) | Published version |
-| Alpha exit (22 Feb 2027) | M1–M2: 6 missions, at least 12 alternate prompts, topic checks, M1 and M2 labs. M3–M6 outlines. Drafts of the baseline and final transfer assessments. | M1–M2 reviewer-tried and accessibility-reviewed | Published |
-| Content freeze (31 May 2027) | All six modules: 18 missions, at least 36 alternate prompts, 6 labs, distinct baseline and final transfer assessments, diagnostic items. A static-checklist version if the comparison runs. | Everything reviewer-tried. Sources, stack/version scope, reviewer and last-reviewed date recorded (F11). | Published and frozen |
-| During the pilot (7 Jun – 8 Aug 2027) | Fixes only | Each fix reviewed, versioned and logged | New versions (R06 rules apply) |
+| Gate 1 (1 Nov 2026) | Sample mission M2 "query plans" and Lab 2 kit v0 (the first lab built) | Sample tried by 4–6 interviewees and Lab 2 set up by 2–3 (`10-measurement-and-validation.md` §6.7), and by the reviewer once recruited | Draft in the `06-content-system.md` format |
+| Concierge trial start (9 Nov 2026) | M1 missions 1–3 with alternate prompts, the M2 sample and Lab 2. The other M2 missions are written at least one week ahead of participants. | Reviewer reads for technical correctness. **Proposal:** a read rather than a full try-out, because nothing is published in the app yet. | Documents and a form |
+| Planning gate (30 Nov 2026) | Authoring hours recorded; M1–M2 drafts revised from feedback | At least five target users have tried the sample and the Lab 2 path, counting concierge Lab 2 attempts (G10) | Drafts |
+| Thin slice (about 1 Feb 2027) | Sample mission published through the pipeline | Reviewer-tried (PRD §8) | Published version |
+| Alpha exit (1 Mar 2027) | M1–M2: 6 missions, at least 12 alternate prompts, topic checks, M1 and M2 labs. M3–M6 outlines. Drafts of the baseline and final transfer assessments. | M1–M2 reviewer-tried and accessibility-reviewed | Published |
+| Content freeze (13 Aug 2027) | All six modules: 18 missions, at least 36 alternate prompts, 6 labs, distinct baseline and final transfer assessments, diagnostic items. The checklist arm uses the same items in a fixed order, so it needs no extra authoring. | Everything reviewer-tried, all six modules before the pilot (no rolling release). Sources, stack/version scope, reviewer and last-reviewed date recorded (F11). | Published and frozen |
+| During the pilot (6 Sep – 29 Nov 2027) | Fixes only | Each fix reviewed, versioned and logged. Baseline and final transfer tasks blind-scored. | New versions (R06 rules apply) |
 
-`07-curriculum-plan.md` decides whether alternate prompts also serve as topic
-checks (PRD §8A) and as the curated `small`-mode equivalents (PRD §9). If they
-do not, the inventory and the estimates below grow.
+Alt A of each mission is also check-eligible, so topic checks need no extra
+authoring (`05-learning-engine.md`). Small mode is a separate curated variant per
+mission, already counted in the mission line of `06-content-system.md`'s effort model.
 
-### Effort hypotheses (calibrate on the discovery sample, gate item G14)
+### Effort summary (calibrate on the discovery sample, gate item G14, and after Module 1)
 
-| Item | Count (PRD §8) | Author hours each (Hypothesis) | Subtotal (h) |
-| --- | --- | --- | --- |
-| Short mission with ≥2 alternates, worked example, misconceptions, hints, feedback, sources | 18 | 5–8 | 90–144 |
-| Lab kit: starter changes, synthetic data, setup check, instructions, rubric, local checks | 6 | 12–20 | 72–120 |
-| Baseline and final transfer assessments with rubric | 2 | 8–12 | 16–24 |
-| Onboarding diagnostic items | 1 set | 4–8 | 4–8 |
-| Revisions after review (≈20–25%) | — | — | 40–70 |
-| **Total author time** | | | **≈220–370** |
-| Reviewer time: try-outs (≈1 h per mission, ≈2–3 h per lab) plus re-checks | | | **≈40–55** |
+The line-by-line model lives in `06-content-system.md` §14; this table only
+summarises it. All figures are **Hypotheses**.
+
+| Work | Hours |
+| --- | --- |
+| Author (founder): missions, held-back items, small variants, shared lab starter, six labs, transfer forms and rubric, roadmap manifest, rework | ≈300–450 |
+| Reviewer: try-outs and re-checks before the pilot | ≈50–80 |
+| **Planning figure before the pilot** | **≈430** |
+| Reviewer during the pilot: fix reviews and support | ≈20 |
+| Blind scoring of the baseline and final transfer tasks (reviewer), with at least 20% double-scored by a backup scorer (`10-measurement-and-validation.md`) | Quoted separately |
+
+**Calibration rule:** if Module 1 takes more than 1.3× the model, re-plan before
+Module 2 (§8 re-plan triggers).
 
 **Proposal:** all six labs share one base work-order starter project, and each lab is a
-tagged variant of it. This should cut lab effort, but `07-curriculum-plan.md` decides.
+tagged variant of it (`07-curriculum-plan.md`). There is no second lab-kit edition
+before the pilot; Lab 2's SQL-only route covers non-PHP learners.
 
 ### Reviewer recruitment and load
 
 - **When:** start recruiting in discovery week 1, with an agreement in place by **30 Oct 2026**, before the concierge trial. This is gate item G13. PRD §14 says to recruit early.
 - **Profile:** a working backend developer with SQL performance and reliability experience who did not author the content. Laravel/PHP familiarity is useful for the labs.
-- **Load (Hypothesis):** about 1–2 h/week until alpha, then a peak of about 5–8 h/week from Mar to May 2027. Book review windows in advance (§3 c7, c8).
-- **Backup:** name a second reviewer by alpha exit, to reduce the bus-factor risk.
+- **Load (Hypothesis):** about 1 h/week until the planning gate (≈5–8 h: the sample, Lab 2 and the concierge drafts); about 1–2 h/week in alpha (≈15–20 h: M1–M2 and the shared starter); and about 1–2 h/week on average in readiness, concentrated in booked review windows of 3–5 h/week (≈30–50 h: M3–M6, their labs and the transfer forms; §3 c7, c8). That sums to ≈50–80 h before the pilot, matching the effort model. During the pilot add ≈20 h plus blind transfer scoring. **Quote ≈90 h.**
+- **Backup:** name a backup reviewer by alpha exit, who is also the backup scorer for transfer double-scoring, to reduce the bus-factor risk.
 - **Rule:** an AI-drafted item counts as done only after a human has authored it and the reviewer has tried it (PRD §14).
 
 ## 8. Capacity assumptions
@@ -465,30 +482,31 @@ tagged variant of it. This should cut lab effort, but `07-curriculum-plan.md` de
 | Role | Who | Weekly hours (Hypothesis) | Notes |
 | --- | --- | --- | --- |
 | Builder, author and operator | Founder | **20** (baseline) | The same hours cover engineering, content and validation operations. Confirm at the gate (G16). |
-| Technical reviewer | Part-time, external | About 1–2, rising to 5–8 in Mar–May 2027 | See §7. Paid or volunteer is open question 8. |
+| Technical reviewer | Part-time, external | About 1–2 on average, with booked windows of 3–5 in readiness | ≈50–80 h before the pilot, ≈20 h during it, plus blind transfer scoring; quote ≈90 h (§7). Paid or volunteer is open question 5. |
+| Backup scorer | Part-time, external (the backup reviewer) | Only around the baseline and final transfer tasks | Double-scores at least 20% of transfer responses blind and covers reviewer absence (`10-measurement-and-validation.md`). |
 | Participants | Interviewees, concierge, pilot | Calendar-bound | Their pace fixes the length of the validation phases. |
 
 **Effort envelope (Hypothesis):**
 - Before the gate: ≈100–140 h. That covers interviews, the sample, concierge drafts and operations, and planning decisions.
-- After the gate: ≈390–690 h, with a midpoint of about 520 h. Engineering is ≈180–340 h. Content is ≈190–320 h. Pilot preparation is ≈15–25 h.
+- After the gate: ≈430–750 h, with a midpoint of about 590 h. Engineering is ≈185–355 h. Founder authoring is ≈230–370 h (the ≈300–450 h author total in `06-content-system.md`, less about 70–80 h done before the gate). Pilot preparation is ≈15–25 h. The baseline has about 34 working weeks (≈680 h) between the gate and content freeze.
 - During the pilot: about 5–8 h/week for support, guardrail review and interviews.
 
 ### How the timeline stretches
 
 | Scenario | Founder h/week | Gate | Alpha exit | Pilot start | Decision |
 | --- | --- | --- | --- | --- | --- |
-| A. PRD reading: near-full-time builder plus a separate author (≈15 h/week) | ≈40 + author | 23 Nov 2026 | ~mid Jan 2027 | ~Apr 2027 (content-bound) | ~Jun 2027 |
-| B. Strong part-time | 30 | 23 Nov 2026 | ~late Jan 2027 | ~early Apr 2027 | ~mid Jun 2027 |
-| **C. Baseline (the gantt in §3)** | **20** | **23 Nov 2026** | **22 Feb 2027** | **7 Jun 2027** | **9 Aug 2027** |
-| D. Evenings only | 10 | ~mid Jan 2027 | ~mid Jun 2027 | ~mid Jan 2028 | ~late Mar 2028 |
+| A. PRD reading: near-full-time builder plus a separate author (≈15 h/week) | ≈40 + author | 30 Nov 2026 | ~mid Jan 2027 | ~Jun–Jul 2027 (content-bound) | ~Sep–Oct 2027 |
+| B. Strong part-time | 30 | 30 Nov 2026 | ~early Feb 2027 | ~Jul 2027, or Sep if it would run into the summer holidays (RK15) | ~Oct 2027 |
+| **C. Baseline (the gantt in §3)** | **20** | **30 Nov 2026** | **1 Mar 2027** | **6 Sep 2027 (cohort 2: 20 Sep)** | **≈10 Dec 2027** |
+| D. Evenings only | 10 | ~Dec 2026 | ~Jun 2027 | ~mid-2028 | ~autumn 2028 |
 
 What the scenarios show:
-- **Validation phases do not compress.** The gate cannot move much earlier than late Nov 2026, and the pilot plus delayed checks always takes about 9–10 weeks.
+- **Validation phases do not compress.** The gate cannot move much earlier than 30 Nov 2026. Two staggered cohorts, delayed checks and exit interviews always take about 12 weeks, plus about 10 days of analysis.
 - **Content is the bottleneck in every scenario.** A full-time builder does not bring the pilot forward much unless authoring hours also rise (scenario A compared with B).
-- **At about 10 h/week the plan takes well over a year.** Below about 15 h/week sustained, switch to content-first sequencing: author all six modules and run them as an extended concierge before building (open question 5).
+- **At about 10 h/week, everything after the planning gate roughly doubles** and the pilot moves to about mid-2028. Below about 15 h/week sustained, switch to content-first sequencing: author all six modules and run them as an extended concierge before building (open question 3).
 
 **Compression levers, best first:**
-1. A paid co-author for M3–M6, or the reviewer co-authoring.
+1. A paid co-author for M3–M6, or the reviewer co-authoring. At the baseline 20 h/week this can bring the pilot forward to about Jun–Jul 2027.
 2. A shared lab starter project.
 3. Managed services and a simple stack (`01-tech-stack-and-hosting.md`).
 4. AI-assisted first drafts. Do not plan on large gains from this, because every draft still needs authoring and review.
@@ -499,7 +517,7 @@ the pilot with unreviewed modules.
 **Re-plan triggers (Proposal):**
 - Actual hours stay below 75% of plan for three consecutive weeks.
 - The slice takes more than 2× its plan.
-- After M1–M2, the measured authoring rate is more than 1.5× the §7 hypothesis.
+- After Module 1, the measured authoring hours are more than 1.3× the model in `06-content-system.md`.
 
 ## 9. Not now
 
@@ -517,19 +535,19 @@ by PRD decision. The rest are **Proposals** for tempting work to defer.
 | Enterprise dashboards and team plans | PRD §7, §15 | Individual demand comes first, and the product must avoid becoming employer surveillance. | Paying individuals ask for a team purchase. |
 | Full browser IDE, hosted sandboxes, server-side code execution | PRD §7, §11, §14 | Cost and security. | Lab setup is still the main dropout reason even after the no-setup fallback. |
 | Automated job-market ranking | PRD §7 | Fear-marketing risk and data cost. | Users want help choosing. Try F14 first. |
-| Lab versions for other stacks | PRD §8 | Audience fit for the first stack is unconfirmed. | Interviews or the pilot show a large non-PHP segment wanting this path. |
+| Lab versions for other stacks (a second lab-kit edition) | PRD §8 | Audience fit for the first stack is unconfirmed, and Lab 2's SQL-only route covers non-PHP learners. None before the pilot. | Interviews or the pilot show a large non-PHP segment wanting this path. |
 | Video lessons | PRD §14 | Production cost. | Text worked examples fail comprehension checks. |
 | Multiple initial curricula | PRD §14 | Spreads content effort too thin. | The R07 unlock conditions (§4.2). |
 | Content admin UI or CMS | Proposal | Files plus the pipeline are enough for one author. | A non-technical author joins, or two or more authors edit at the same time. |
 | Visual roadmap map or graphical editor | PRD §8A | The ordered list is enough for the MVP. | Users report they cannot understand the path from the list. |
-| Payments and pricing pages | PRD §15 | Learning value is unproven. | The pilot decision is "continue". Then test a paid path against a subscription. |
+| Payments and pricing pages | PRD §15 | Learning value is unproven. | The pilot decision is "continue", then test a paid path against a subscription; or the content-only branch is taken. |
 | Redis, extra caching or separate services | PRD §11 | A modular monolith with a database queue is enough for a pilot. | A measured breach of a PRD §12 performance budget at pilot load. |
 | Object storage and file uploads | PRD §11 | Lab evidence is captured as structured text. | Lab evidence genuinely needs files. |
 | Push, SMS or chat reminders | PRD §6, F10 | One opt-in email channel is enough to test reminders. | Pilot shows reminders are valued but email goes unseen. |
 | Companion, mascot or animation | PRD §6, F15 | Not a launch dependency. | The F15 unlock conditions (§4.2). |
 | BI or analytics vendor dashboards | Proposal | SQL queries cover a 30–50-person pilot. | Running the metrics by hand takes more than about an hour a week. |
-| Marketing site, SEO, brand identity | PRD header (working name only) | Recruitment is by invitation. | Public recruitment beyond the pilot. Check name availability before buying anything. |
-| Multiple login providers | Proposal | One method, decided in `09-security-privacy-ops.md`, is enough. | Pilot sign-up drop-off at the login step. |
+| Marketing site, SEO, brand identity | PRD header (working name only) | Recruitment is by invitation; sign-up needs an invite code. A plain domain for email is bought in Phase 1. | Public recruitment beyond the pilot. Check name availability before any brand work. |
+| More login methods (passkeys, other OAuth providers) | Proposal | Email and password with verification, plus GitHub OAuth, cover the pilot (`09-security-privacy-ops.md`). | Pilot sign-up drop-off at the login step. |
 | Offline mode beyond local draft recovery | PRD §12 | Draft recovery is already required. | Evidence of practice with no connection, for example while commuting. |
 | Localisation | Proposal | English-only pilot. | A target segment needs another language. |
 
@@ -545,55 +563,53 @@ every phase exit.
 
 | ID | Risk | Source | L | I | Mitigation | Early-warning signal |
 | --- | --- | --- | --- | --- | --- | --- |
-| RK01 | Another app becomes an extra obligation | PRD §16 | M | H | One action, an adjustable schedule, a finite path, easy pause. No punitive messaging. | Concierge participants return only after chasing. Burden response falls, or reminder pauses rise. |
+| RK01 | Another app becomes an extra obligation | PRD §16 | M | H | One action, an adjustable schedule, a finite path, easy pause. No punitive messaging. | Concierge unprompted return misses the threshold in `10-measurement-and-validation.md`. Burden response falls, or reminder pauses rise. |
 | RK02 | Small lessons create shallow familiarity | PRD §16 | M | H | Alternate scenarios, delayed checks, optional labs. Exposure is kept separate from demonstration. | High completion with a flat transfer gain. Skills reach `demonstrated` but not `retained`. |
-| RK03 | Learners cannot set up labs | PRD §16 | H | M | Setup check, a tested starter, and a clearly labelled no-setup fallback. Tested in discovery. | Discovery testers fail setup. Drop-off between lab start and the first checkpoint. |
+| RK03 | Learners cannot set up labs | PRD §16 | H | M | Setup check, a tested starter, and a clearly labelled no-setup fallback. Lab 2 tested in discovery and the concierge trial. 3-OS setup matrix and Docker licensing guidance agreed at the gate (G19, G20). | Discovery testers fail setup. Drop-off between lab start and the first checkpoint. |
 | RK04 | Incorrect or outdated content | PRD §16 | M | H | Review gates, sources, versioning, error reports, retirement procedure. | Reviewer finds substantive errors. Learners report errors. |
 | RK05 | Points or AI answers replace learning | PRD §16 | L | M | Effort is kept separate from evidence. Reveals never count as demonstration. No AI in the MVP. | Rising `answer_revealed` rate (PRD §13 guardrail). |
-| RK06 | Differentiation proves too weak | PRD §16 | M | H | Test against a checklist or general-AI workflow before expanding the catalogue. | Interviewees are content with docs, a calendar and a chat tool. Concierge participants say a checklist would do. |
+| RK06 | Differentiation proves too weak | PRD §16 | M | H | The pilot compares DevStep with a randomised static-checklist arm (EP16) before the catalogue expands. The "checklist plus AI study mode plus calendar" alternative is probed in discovery and exit interviews. If the checklist does as well, take the content-only branch. | Interviewees are content with docs, a calendar and a chat tool. Concierge exit interviews credit only the content. |
 | RK07 | Learners need rest more than reminders | PRD §16 | M | M | Pause, lower frequency, no punitive messages. | Reminders disabled. Usage only in small mode. |
-| RK08 | **Content bottleneck**: authoring slower than planned | Delivery | H | H | Calibrate in discovery. Author before code. Prove the format before M3–M6. Protect content hours. Use the co-author lever. | The sample takes more than 1.5× its estimate. Converting M1–M2 slips. |
-| RK09 | **Reviewer availability** | Delivery | M | H | Recruit early with agreed hours. Book review windows. Name a backup reviewer by alpha exit. | Review turnaround exceeds two weeks, or a booked window is missed. |
+| RK08 | **Content bottleneck**: authoring slower than planned | Delivery | H | H | Calibrate in discovery. Author before code. Prove the format before M3–M6. Protect content hours. Use the co-author lever. | The sample, or Module 1, takes more than 1.3× the model in `06-content-system.md`. Converting M1–M2 slips. |
+| RK09 | **Reviewer availability** | Delivery | M | H | Recruit early with agreed hours (quote ≈90 h). Book review windows. Name a backup reviewer, who is also the backup scorer, by alpha exit. | Review turnaround exceeds two weeks, or a booked window is missed. |
 | RK10 | **Scope creep** | Delivery | H | M | Use the not-now list. A new item must serve a pilot metric or guardrail. WIP limit of one. Record changes in `13-decisions-and-open-questions.md`. | The backlog grows faster than it burns down. Items appear with no PRD ID. |
 | RK11 | **Solo-operator bus factor** | Delivery | H | H | Keep docs, content and runbook in the repository. Use managed services. Test the restore. Name a backup reviewer. Promise pilot participants no 24/7 support. | Founder unavailable for more than one week. Undocumented manual steps. |
-| RK12 | **Free-tier limits or a surprise bill** | Delivery | M | M | Limits listed in `01-tech-stack-and-hosting.md`. Spending alerts and caps. Estimates of pilot email volume and load. | Usage passes about 70% of a free-tier limit. Today misses its performance budget. |
+| RK12 | **Free-tier limits or a surprise bill** | Delivery | M | M | Limits listed in `01-tech-stack-and-hosting.md`. Provider budget alerts where available, otherwise a monthly bill check. Estimates of pilot email volume and load. | Usage passes about 70% of a free-tier limit. Today misses its performance budget. |
 | RK13 | Founder capacity drops or burnout | Delivery | M | H | Plan at a sustainable baseline. Keep the year-end buffer. Use the re-plan triggers (§8). | Hours below 75% of plan for three weeks. |
-| RK14 | Pilot recruitment falls short of 30–50 | Delivery | M | H | Start six weeks ahead. Use the public sample, concierge-alumni referrals, and channels that respect community rules (PRD §15). | Discovery struggles to find 8 interviewees. Fewer than half the target signed up three weeks before start. |
-| RK15 | Pilot runs into holiday periods | Delivery | M | M | Check the recruitment region's calendar. Delay the pilot rather than run it through a main holiday. | Projected start drifts into a main holiday period. |
+| RK14 | Pilot recruitment falls short of 30–50 | Delivery | M | H | Start about eight weeks ahead (mid-Jul), because summer holidays slow replies. Use the public sample, concierge-alumni referrals, and channels that respect community rules (PRD §15). | Discovery struggles to find 8 interviewees. Fewer than half the target signed up three weeks before start. |
+| RK15 | Pilot runs into holiday periods | Delivery | M | M | Check the recruitment region's calendar. The baseline avoids August by freezing content on 13 Aug and starting on 6 Sep. Delay the pilot rather than run it through a main holiday. | Projected start drifts into a main holiday period. |
 | RK16 | Engineering estimates are wrong | Delivery | M | M | The slice calibrates the estimates, and the 2× rule triggers a re-plan. | Slice takes more than 2× its plan. |
 | RK17 | Data loss or privacy incident during the pilot | Delivery | L | H | Backups and a restore test before the pilot (PRD §12). Authorisation tests. Analytics allow-list. | Restore test not done by the dry run. Gaps in authorisation tests. |
 | RK18 | AI-assisted drafting introduces subtle errors | Delivery | M | M | AI drafts never count as done. The reviewer tries everything. | Higher reviewer error rate on AI-assisted items. |
 
 ## 11. Budget categories
 
-These are categories only. No amounts are set until quotes and pricing pages have been checked (PRD
-§14). Estimates and vendor options belong in `01-tech-stack-and-hosting.md`. Keep the
-baseline working without any model calls.
+No amounts are set until quotes and pricing pages have been checked (PRD §14).
+Infrastructure estimates and vendor options belong in `01-tech-stack-and-hosting.md`;
+its ≈$30/month pilot figure covers infrastructure only. People costs (reviewer, backup
+scorer, optional co-author, incentives) are planned here, in hours, until quotes give
+amounts. Keep the baseline working without any model calls.
 
 - [ ] **Hosting (app runtime).** Check the pricing pages and free-tier limits for each option in `01-tech-stack-and-hosting.md`. *Needed by:* the thin slice.
 - [ ] **Database and backups.** Check pricing for managed backups and restore, and confirm that a restore can be tested. *Needed by:* alpha. The restore test is due before the pilot.
-- [ ] **Domain name** (added). Check name availability and registrar pricing. *Needed by:* email sending and the public sample.
+- [ ] **Domain name** (added). Check name availability and registrar pricing. *Needed by:* Phase 1, so the email sending domain can warm up weeks before the pilot. A plain domain only; no brand work.
 - [ ] **Email** (reminders, plus account emails if used). Check the pricing page at pilot volume, which is at most one reminder per learner per learning day, and check the provider's sending-domain requirements. *Needed by:* pilot readiness.
-- [ ] **Content review.** Get a quote, or agree a rate with the reviewer and the backup reviewer, for ≈40–55 h (Hypothesis). *Needed by:* discovery (G13).
+- [ ] **Content review and scoring** (people cost). Get a quote, or agree a rate, with the reviewer for about 90 h (≈50–80 h before the pilot, ≈20 h during it, plus blind transfer scoring; Hypothesis, §7), and with a backup scorer for double-scoring and cover. *Needed by:* discovery (G13).
 - [ ] **Monitoring** (errors, uptime, alerts). Check the free-tier pricing pages. *Needed by:* pilot readiness (EP15).
 - [ ] **Optional AI usage.** Not budgeted for the MVP. When F13 is considered, apply the PRD §14 cost model and set per-user and global caps first.
 - [ ] **Co-author** (added, contingent). Get a quote only if the content lever is triggered (§8).
 - [ ] **Participant thanks or incentives** (added, open question). Decide whether to offer them, and check community rules.
+- [ ] **Spending alerts.** A provider budget alert on every paid service where available, otherwise a monthly bill check. *Needed by:* the first paid service.
 - [ ] Track **cost per weekly active learner** and **cost per demonstrated skill** from the pilot onwards (PRD §14). The definitions are in `10-measurement-and-validation.md`.
 
 ## Open questions for discussion
 
 1. **What weekly hours can the founder sustain?** *Recommended default:* plan at 20 h/week, then re-baseline at the gate using actual hours from discovery and the concierge trial.
-2. **Which sample should discovery use?** *Recommended default:* the M2 "query plans" mission and the M2 lab. It is the PRD §5 example, it is concrete, and it tests the lab-setup risk early.
-3. **Should the pilot start with all six modules reviewed, or release M5–M6 during the pilot?** *Recommended default:* all six reviewed before day 1, as PRD §14 requires. Delay the pilot rather than risk learners hitting a content wall, which would confound the retention data.
-4. **Should a co-author be paid for M3–M6?** *Recommended default:* decide at alpha exit from the measured authoring rate. Trigger it if projected content freeze is more than four weeks later than the planned pilot start.
-5. **Should the plan switch to content-first sequencing if capacity is low?** *Recommended default:* yes, if sustained capacity is below about 15 h/week. Author all six modules and run them as an extended concierge before building.
-6. **How should the concierge trial be delivered?** *Recommended default:* email, shared documents and one form. No new tools and no build.
-7. **Is a hosting spike allowed before the gate?** *Recommended default:* yes, at most one day, and the code is thrown away. Only if `01-tech-stack-and-hosting.md` flags an unresolved hosting risk.
-8. **Should the reviewer be paid or a volunteer?** *Recommended default:* paid at an agreed rate. Reliable availability matters more than the cost (RK09).
-9. **How should pilot timing handle holidays?** *Recommended default:* do not run the pilot through the recruitment region's main holiday period. Delay it instead.
-10. **Should there be a static-checklist comparison arm?** *Recommended default:* only as a document-based arm with no extra engineering, and only if `10-measurement-and-validation.md` recommends it.
-11. **How are export and deletion handled during alpha?** *Recommended default:* the operator handles them manually for friendly alpha users. Self-serve export and deletion (F09) are required before the pilot.
+2. **Should a co-author be paid for M3–M6?** *Recommended default:* decide after Module 1's calibration, and at the latest at alpha exit. Trigger it if projected content freeze is more than four weeks later than 13 Aug 2027. It could bring the pilot to about Jun–Jul 2027.
+3. **Should the plan switch to content-first sequencing if capacity is low?** *Recommended default:* yes, if sustained capacity is below about 15 h/week. Author all six modules and run them as an extended concierge before building.
+4. **Is a hosting spike allowed before the gate?** *Recommended default:* yes, at most one day, and the code is thrown away. Only if `01-tech-stack-and-hosting.md` flags an unresolved hosting risk.
+5. **Should the reviewer be paid or a volunteer?** *Recommended default:* paid at an agreed rate. Reliable availability matters more than the cost (RK09).
+6. **How are export and deletion handled during alpha?** *Recommended default:* the operator handles them manually for friendly alpha users. Self-serve export and deletion (F09) are required before the pilot.
 
 ## PRD traceability
 

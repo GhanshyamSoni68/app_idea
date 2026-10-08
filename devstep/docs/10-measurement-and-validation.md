@@ -12,7 +12,8 @@ to exist.
 
 - Validation runs in three gated stages (PRD §13): 8–12 interviews, then a
   two-week concierge trial with 10–15 people, then a six-week pilot with 30–50
-  people plus delayed checks. Nothing is built before gate 1.
+  people plus delayed checks. No product is built before gate 2, the
+  planning gate. Dates are indicative and owned by `12-delivery-plan.md`.
 - Analytics is one `analytics_events` table, queried with SQL. The server emits
   every event it can observe. A per-event allow-list keeps answer text, code,
   email and all other free text out.
@@ -169,8 +170,10 @@ reads them.
 
 | Event | By | Trigger | Properties | Never include |
 | --- | --- | --- | --- | --- |
-| `invitation_redeemed` (added) | server | A pilot invite code is used for the first time, by a guest or an account | `invitation_id` | Email |
+| `sample_started` (added) | client (guest) | The guest opens the public sample scenario for the first time in this browser | — | Referrer URL |
+| `invitation_redeemed` (added) | server | A pilot invite code is redeemed at sign-up (sign-up is invite-only during the pilot) | `invite_id` | Email |
 | `account_created` (added) | server | An account is created | `was_guest` (bool), `origin` (`sample_scenario`, `invitation`, `direct`) | Email, name |
+| `guest_progress_claimed` (added) | server | `POST /v1/guest/claim` succeeds for the first time (an idempotent replay emits nothing). Evidence is re-evaluated and capped at `practised` (`05-learning-engine.md`). | `attempts_claimed`, `sample_completed` (bool), `into_existing_account` (bool) | Answers, email |
 | `roadmap_enrolled` (added) | server | `POST /v1/enrolments` succeeds | `roadmap_enrolment_id`, `roadmap_id`, `roadmap_version_id`, `required_topic_count` | — |
 | `topic_started` (added) | server | A topic moves from `not_started` to `in_progress` | `topic_id`, `module_id`, `topic_kind`, `roadmap_version_id` | — |
 | `topic_completed` (added) | server | A topic moves to `completed`. Fires exactly once (R02). | `topic_id`, `module_id`, `topic_kind`, `completion_basis` (`rules_met`, `challenge_out`, `migrated_credit`), `required_completed`, `required_total` | — |
@@ -178,16 +181,30 @@ reads them.
 | `roadmap_completed` (added) | server | Every required topic is complete (R04) | `roadmap_enrolment_id`, `roadmap_version_id`, `elapsed_days`, `optional_labs_with_evidence` | — |
 | `enrolment_paused` (added) | server | `PATCH /v1/enrolments/{id}` sets the enrolment to paused | `roadmap_enrolment_id`, `planned_pause_days` (nullable) | — |
 | `enrolment_resumed` (added) | server | A paused enrolment is resumed | `roadmap_enrolment_id`, `paused_days` | — |
+| `migration_offered` (added) | server | A newer roadmap version is offered to an active enrolment (shown on Roadmap, rules in `05-learning-engine.md`) | `roadmap_enrolment_id`, `from_roadmap_version_id`, `to_roadmap_version_id`, `refresh_suggested_topics` | — |
+| `migration_accepted` (added) | server | The learner accepts the preview (`POST /v1/enrolments/{id}/migrate`). A new enrolment is created and the old one marked `migrated`. | `roadmap_enrolment_id` (the old one), `new_roadmap_enrolment_id`, `to_roadmap_version_id`, `waited_for_open_session` (bool) | — |
+| `migration_declined` (added) | server | The learner declines the offer | `roadmap_enrolment_id`, `to_roadmap_version_id` | — |
 | `return_screen_seen` (added) | client | The return screen is shown (`08-ux-and-screens.md` defines when) | `days_inactive` (capped at 365), `offered_small` (bool) | — |
 | `small_mode_chosen` (added) | client | The learner picks the smaller option on Today, on the return screen or inside a session | `origin` (`today`, `return_screen`, `in_session`), `mission_id` | — |
 | `reminder_enabled` (added) | server | Reminders are switched on | `source` (`onboarding`, `settings`), `days_per_week` | Reminder address |
 | `reminder_sent` (added) | server (`actor = system`) | A reminder is handed to the email provider | `notification_delivery_id`, `template_key` (enum), `is_return_template` (bool) | Address, subject, body |
-| `reminder_skipped` (added) | server (`actor = system`) | A reminder that was due is suppressed | `reason` (`already_practised`, `paused`, `quiet_hours`, `daily_cap`, `send_failed`) | — |
+| `reminder_skipped` (added) | server (`actor = system`) | A due reminder's `notification_deliveries` row ends as `suppressed` or `failed` | `status` (`suppressed`, `failed`), `reason` (the row's suppression reason: `already_practised`, `paused`, `snoozed`, `quiet_hours`, `unsubscribed`, `not_learning_day`; null when `failed`) | Provider error text |
 | `reminder_unsubscribed` (added) | server | Reminders are turned off in settings or through the unsubscribe link | `source` (`settings`, `email_link`) | — |
 | `weekly_check_shown` (added) | client | The weekly burden prompt is shown after the learner's first `session_completed` in a pilot week (UI in `08-ux-and-screens.md`) | `week_index` | — |
 | `weekly_check_answered` (added) | client | The learner answers the weekly prompt | `week_index`, `manageable` (1–5), `guilty_or_overwhelmed` (`no`, `a_little`, `yes`) | Comment text. Link out to the research form instead. |
 | `lab_setup_reported` (added) | client | The learner records the result of a lab's setup check on the lab page | `lab_id`, `result` (`passed`, `failed`, `gave_up`, `used_no_setup_fallback`), `setup_minutes_band` (`lt_10`, `10_30`, `gt_30`) | Error output, OS details |
 | `error_shown` (added) | client | The learner sees an error state | `error_code` (`offline`, `save_failed`, `sync_conflict`, `server_error`, `not_found`, `rate_limited`, `unknown`), `surface` (`today`, `player`, `roadmap`, `evidence`, `lab`, `settings`) | Message text, stack trace, URL |
+| `export_requested` (added) | server | `POST /v1/me/export` is accepted | — | — |
+| `account_deletion_requested` (added) | server | `DELETE /v1/me` starts the deletion grace period | — | — |
+
+**Reminder events mirror `notification_deliveries`** (`04-data-model.md`):
+`sent` → `reminder_sent`; `suppressed` and `failed` → `reminder_skipped`;
+`claimed` is an internal state with no event. There is at most one delivery
+row per learner per learning day, and no automatic retry.
+
+**Account lifecycle.** When a deleted account is purged, its
+`account_deletion_requested` event goes with the rest of that account's
+events; the exclusion count in `pilot_participants` is what remains (§8.5).
 
 **Derived, not emitted:** session abandonment (a session started and not
 completed within 24 hours), absence (a gap in learner-initiated events) and
@@ -200,10 +217,11 @@ views, scroll depth and time on page. None of these feeds a decision in §9.
 
 | Check | How | Pass |
 | --- | --- | --- |
-| Coverage | Run a scripted walkthrough on a test account: guest sample, account, onboarding, enrol, a `small` session, a `practise` session with a hint and a reveal, lab setup and evidence, pause reminders, unsubscribe | Every event in §3.5–3.6 appears at least once and its properties pass validation |
+| Coverage | Run a scripted walkthrough on a test account: guest sample and claim, account, onboarding, enrol, a `small` session, a `practise` session with a hint and a reveal, lab setup and evidence, "Rest today", unsubscribe, a migration offer accepted and one declined, export, deletion request | Every event in §3.5–3.6 appears at least once and its properties pass validation |
 | Exactly once | Repeat the complete and submit calls with the same idempotency key | One `session_completed` and one `topic_completed` |
-| Forbidden-data scan | SQL that flags any `props` string that is not a UUID or enum member, contains `@` or whitespace, or is longer than 40 characters | Zero rows |
-| Orphans | Look for `first_answer_submitted` or `session_completed` with no `session_started` for the same `learning_session_id` | Zero rows |
+| Forbidden-data scan | SQL that flags any `properties` string that is not a UUID or enum member, contains `@` or whitespace, or is longer than 40 characters | Zero rows |
+| Orphans | Look for server `first_answer_submitted` or `session_completed` with no `session_started` for the same `session_ref` | Zero rows |
+| Deletion purge | Purge a test account in the pilot schema | Zero rows with its `subject_id`; the last frozen snapshot is unchanged; the arm's exclusion count rises by one |
 | Clock sanity | Compare client `occurred_at` with `received_at` while online | Most within a few seconds. Investigate outliers. |
 | Exclusions | Test and operator accounts are flagged `is_internal` in `pilot_participants` | Absent from every view |
 
@@ -216,14 +234,15 @@ otherwise.
 
 | Term | Definition |
 | --- | --- |
-| Participant | A row in `pilot_participants` (added) with consent recorded, not internal and not withdrawn. Invited people who never visit still count in the denominators where stated. |
+| Invitee | A row in `pilot_participants` (added), created when the invite is issued, with cohort and arm taken from the invite. Its `subject_id` stays empty until the invite is redeemed at sign-up, so invitees who never sign up are counted from `pilot_participants`, never from events. They still count in the denominators where stated. |
+| Participant | An invitee who has signed up and recorded consent, and is not internal or excluded. Deleted accounts and withdrawals are excluded (`excluded_reason` is `account_deleted` or `withdrawn`, and `subject_id` is cleared at purge) and reported as counted exclusions per arm (§8.5). |
 | Learner-initiated activity | Any event with `actor = learner`. |
 | Day 1, day N | Day 1 is the `local_date` of the learner's first learner-initiated event. Day N = day 1 + (N − 1). |
 | Meaningful practice task (MPT) | A `session_completed` with `items_attempted ≥ 1` in any mode, including `small`, or a `lab_evidence_submitted`. A session that only involved reading does not count. |
 | Activated learner | A participant whose first MPT happens within 24 hours of their first learner-initiated event. |
 | Weekly active learner (WAL) | A learner with at least one MPT in the week. |
 | Week | During the pilot: `week_index = floor((local_date − cohort_start_date) / 7) + 1`, covering weeks 1–6. After the pilot: ISO weeks in learner-local dates. |
-| Unassisted alternate success (UAS) | An `attempt_evaluated` where `outcome = met`, `assistance = none`, `is_alternate = true`, `evidence_basis` is `auto_scored` or `human_reviewed`, `evidence_level_after` is `demonstrated` or `retained`, and `attempt_purpose` is not one of the research instruments (`transfer_baseline`, `transfer_final`, `pilot_delayed_check`). |
+| Unassisted alternate success (UAS) | A server `attempt_evaluated` where `outcome = correct`, `assistance = none`, `is_alternate = true`, `evidence_basis` is `auto_scored` or `human_reviewed`, `evidence_level_after` is `demonstrated` or `retained`, and `attempt_purpose` is not one of the research instruments (`transfer_baseline`, `transfer_final`, `pilot_delayed_check`). |
 | Maturity | A learner counts towards a windowed metric only once the whole window has ended before the data cut-off. For example, week-4 retention needs day 28 ≤ cut-off. |
 | Cut-off | Every report states its cut-off. Weekly snapshots are frozen once taken (§5.2). |
 
@@ -237,19 +256,19 @@ alternate unassisted task. Practice-only users are reported separately.
 | **North star** | Distinct learners with at least one UAS in the week | The headline number. The PRD sets no target, so track the trend by week. |
 | Practice-only | WAL with no UAS that week | Shown beside the north star so early learners stay visible (PRD §13). |
 | Self-assessed only | WAL whose only demonstration-level evidence that week is `self_assessed` | Not counted in the headline (Open question 1). |
-| Hint-assisted only | WAL whose only successes that week used `assistance = hint` | Not counted in the headline (Open question 6). |
+| Hint-assisted only | WAL whose only successes that week used `assistance = hint` | Not counted in the headline: a hint never demonstrates a skill (`05-learning-engine.md`). |
 | Share | North star ÷ WAL | Context only, not a target. |
 
 ### 4.3 Pilot metrics (PRD §13)
 
 | Metric | Numerator | Denominator | Window | Target | Always report alongside |
 | --- | --- | --- | --- | --- | --- |
-| Activation | Participants whose first MPT happens ≤ 24 h after their first learner-initiated event | Every invited participant, including those who never visited | 24 h from the first visit | ≥ 60% | Time from invitation to first visit. Count who never visited. An invitation-anchored variant (Open question 2). |
+| Activation | Participants whose first MPT happens ≤ 24 h after their first learner-initiated event | Every invitee in `pilot_participants`, including those who never signed up | 24 h from the first visit | ≥ 60% | Time from invitation to first visit. Count who never signed up. Exclusions per arm. An invitation-anchored variant (Open question 2). |
 | Start friction | Median of `first_answer_submitted.occurred_at` − `recommendation_seen.occurred_at`, over new sessions started from a recommendation that reached a first answer (resumed sessions excluded) | The sessions in that set (report n) | Per week and for the whole pilot | Median < 2 min | Abandonment A1: recommendation seen, but no session started within 30 min. A2: session started, but no first answer before it closed or within 24 h. Also p75, and splits by `mode` and `device_class`. |
 | Week-4 retention | Activated learners with at least one MPT on days 22–28 | Activated learners whose day 28 ≤ cut-off | Days 22–28 | ≥ 35% | Split by arm and cohort. Share of retained learners whose MPTs on days 22–28 were all `small` sessions. |
 | Return after absence | Return episodes followed by an MPT within 7 days (the return day plus 6) | Return episodes: the first learner-initiated event after ≥ 7 consecutive local days with none, among activated learners, with the 7-day follow-up window complete | 7 days after the return | ≥ 40%. Report the denominator. | Counts of episodes and of learners. First episode per learner. Planned pause (`enrolment_paused`) versus unplanned absence. Whether the return came through a reminder link. Learners still absent at cut-off (absent, not returned). |
-| Transfer learning | Per learner: final score % − baseline score %, using the same rubric on the other form | Learners with both tasks scored (report n, and how many invited participants have no final) | Baseline on day 0, final on day 42 ± 3 | Directionally positive, with a median gain of 15 percentage points | Every individual value (n is small), quartiles, split by form order and by arm. |
-| Delayed retention | First delayed checks per (learner, skill) with `outcome = met` and `assistance = none` | First delayed checks completed with `days_since_demonstrated ≥ 7` | At least 7 days after demonstration | ≥ 65% across completed checks | Missing checks: (learner, skill) pairs demonstrated ≥ 14 days before cut-off with no delayed check. Split in-product checks from the pilot delayed check. |
+| Transfer learning | Per learner: final score % − baseline score %, using the same rubric on the other form | Learners with both tasks scored (report n, and how many invitees have no final) | Baseline on day 0, final on day 42 ± 3 | Directionally positive, with a median gain of 15 percentage points | Every individual value (n is small), quartiles, split by form order and by arm. |
+| Delayed retention | First delayed checks per (learner, skill) with `outcome = correct` and `assistance = none` | First delayed checks completed with `days_since_demonstrated ≥ 7` | At least 7 days after demonstration | ≥ 65% across completed checks | Missing checks: (learner, skill) pairs demonstrated ≥ 14 days before cut-off with no delayed check. Split in-product checks from the pilot delayed check. |
 | Burden | `weekly_check_answered` with `manageable` of 4 or 5 | All `weekly_check_answered` | Per pilot week | ≥ 70% agree | Response rate = answered ÷ shown. Only active learners see the prompt; inactive learners are covered by exit interviews (§8.7). |
 
 ### 4.4 Pseudo-SQL
@@ -261,16 +280,17 @@ the rest follow the queries. Column names follow §3.3, and
 cut-off date.
 
 ```sql
--- Shared views: consenting, non-internal participants, and meaningful practice tasks
+-- Shared views: consenting, non-internal, non-excluded participants, and meaningful practice tasks
+-- (a purged account has no events and an empty subject_id, so it cannot join)
 CREATE VIEW ev AS
 SELECT e.*, p.cohort_id, p.arm, p.cohort_start_date
-FROM analytics_events e JOIN pilot_participants p USING (analytics_learner_id)
-WHERE NOT p.is_internal AND p.withdrawn_at IS NULL;
+FROM analytics_events e JOIN pilot_participants p USING (subject_id)
+WHERE NOT p.is_internal AND p.excluded_reason IS NULL;
 
 CREATE VIEW mpt AS
-SELECT analytics_learner_id AS lid, arm, cohort_start_date, occurred_at, local_date, mode
+SELECT subject_id AS lid, arm, cohort_start_date, occurred_at, local_date, mode
 FROM ev
-WHERE (event_name = 'session_completed' AND (props->>'items_attempted')::int >= 1)
+WHERE (event_name = 'session_completed' AND (properties->>'items_attempted')::int >= 1)
    OR event_name = 'lab_evidence_submitted';
 ```
 
@@ -278,14 +298,14 @@ North star and practice-only, per pilot week and arm:
 
 ```sql
 WITH uas AS (
-  SELECT DISTINCT analytics_learner_id AS lid, arm, week_index(local_date, cohort_start_date) AS wk
+  SELECT DISTINCT subject_id AS lid, arm, week_index(local_date, cohort_start_date) AS wk
   FROM ev
-  WHERE event_name = 'attempt_evaluated'
-    AND props->>'outcome' = 'met' AND props->>'assistance' = 'none'
-    AND (props->>'is_alternate')::bool
-    AND props->>'evidence_basis' IN ('auto_scored', 'human_reviewed')
-    AND props->>'evidence_level_after' IN ('demonstrated', 'retained')
-    AND props->>'attempt_purpose' NOT IN ('transfer_baseline', 'transfer_final', 'pilot_delayed_check')
+  WHERE event_name = 'attempt_evaluated' AND source = 'server'
+    AND properties->>'outcome' = 'correct' AND properties->>'assistance' = 'none'
+    AND (properties->>'is_alternate')::bool
+    AND properties->>'evidence_basis' IN ('auto_scored', 'human_reviewed')
+    AND properties->>'evidence_level_after' IN ('demonstrated', 'retained')
+    AND properties->>'attempt_purpose' NOT IN ('transfer_baseline', 'transfer_final', 'pilot_delayed_check')
 ), wal AS (
   SELECT DISTINCT lid, arm, week_index(local_date, cohort_start_date) AS wk FROM mpt
 )
@@ -301,7 +321,7 @@ activation definition):
 
 ```sql
 WITH days AS (
-  SELECT DISTINCT analytics_learner_id AS lid, local_date FROM ev WHERE actor = 'learner'
+  SELECT DISTINCT subject_id AS lid, local_date FROM ev WHERE actor = 'learner'
 ), gaps AS (
   SELECT lid, local_date AS return_date,
          local_date - LAG(local_date) OVER (PARTITION BY lid ORDER BY local_date) - 1 AS inactive_days
@@ -319,20 +339,20 @@ Delayed retention with missing checks:
 
 ```sql
 WITH checks AS (     -- first qualifying delayed check per learner and skill
-  SELECT DISTINCT ON (analytics_learner_id, props->>'skill_id')
-         analytics_learner_id AS lid, props->>'skill_id' AS skill_id,
-         props->>'outcome' AS outcome, props->>'assistance' AS assistance
+  SELECT DISTINCT ON (subject_id, properties->>'skill_id')
+         subject_id AS lid, properties->>'skill_id' AS skill_id,
+         properties->>'outcome' AS outcome, properties->>'assistance' AS assistance
   FROM ev
   WHERE event_name = 'attempt_evaluated'
-    AND props->>'attempt_purpose' IN ('delayed_check', 'pilot_delayed_check')
-    AND (props->>'days_since_demonstrated')::int >= 7
-  ORDER BY analytics_learner_id, props->>'skill_id', occurred_at
+    AND properties->>'attempt_purpose' IN ('delayed_check', 'pilot_delayed_check')
+    AND (properties->>'days_since_demonstrated')::int >= 7
+  ORDER BY subject_id, properties->>'skill_id', occurred_at
 ), demonstrated AS ( -- first demonstration meeting the UAS conditions in §4.1
-  SELECT analytics_learner_id AS lid, props->>'skill_id' AS skill_id, MIN(local_date) AS d_demo
-  FROM ev WHERE <UAS conditions> AND props->>'evidence_level_after' = 'demonstrated'
+  SELECT subject_id AS lid, properties->>'skill_id' AS skill_id, MIN(local_date) AS d_demo
+  FROM ev WHERE <UAS conditions> AND properties->>'evidence_level_after' = 'demonstrated'
   GROUP BY 1, 2
 )
-SELECT (SELECT COUNT(*) FROM checks WHERE outcome = 'met' AND assistance = 'none') AS passed,
+SELECT (SELECT COUNT(*) FROM checks WHERE outcome = 'correct' AND assistance = 'none') AS passed,
        (SELECT COUNT(*) FROM checks)                                              AS completed_checks,
        (SELECT COUNT(*) FROM demonstrated d
          WHERE d.d_demo + 14 <= :cutoff
@@ -342,11 +362,12 @@ SELECT (SELECT COUNT(*) FROM checks WHERE outcome = 'met' AND assistance = 'none
 
 How to compute the remaining metrics:
 
-- **Activation:** start from `pilot_participants` and LEFT JOIN to events, so
-  invited people who never visited stay in the denominator.
+- **Activation:** start from `pilot_participants` (one row per invite) and
+  LEFT JOIN to events on `subject_id`, so invitees who never signed up (empty
+  `subject_id`) stay in the denominator. Excluded rows are counted separately.
 - **Start friction:** join the first `recommendation_seen` per
   `recommendation_id` to `session_started` with the same `recommendation_id`,
-  then to `first_answer_submitted` with the same `learning_session_id`. Drop
+  then to `first_answer_submitted` with the same `session_ref`. Drop
   sessions that have a `session_resumed` before the first answer. A1 and A2
   are the rows that drop out at each join.
 - **Transfer gain:** take the latest `attempt_evaluated` per `attempt_id`, to
@@ -382,7 +403,7 @@ benchmarks.
 
 | Guardrail | Definition | Flag when | First response |
 | --- | --- | --- | --- |
-| Reminders disabled | Among learners with reminders enabled at the start of the week, the share with `reminder_unsubscribed` that week. Also tracked cumulatively from enabling. | More than 10% in any week, or more than 20% cumulatively by the end of week 2 | Check the copy, the send time and that `reminder_skipped` is behaving correctly. Ask about it in exit interviews. `reminder_paused` is reported separately: pausing is supported rest (PRD §16), not a failure. |
+| Reminders disabled | Among learners with reminders enabled at the start of the week, the share with `reminder_unsubscribed` that week. Also tracked cumulatively from enabling. | More than 10% in any week, or more than 20% cumulatively by the end of week 2 | Check the copy, the send time and that `reminder_skipped` is behaving correctly. Ask about it in exit interviews. `reminder_paused` and `enrolment_paused` are reported separately: pausing is supported rest (PRD §16), not a failure. |
 | Repeated solution reveals | Learner level: WAL with at least 3 `answer_revealed` in a week, covering more than 50% of the items they attempted. Item level: reveal rate per `assessment_item_id`, once it has at least 8 attempts. | More than 15% of WAL at learner level, or any single item above 25% | For items: content review (`06-content-system.md`). For learners: check difficulty and prerequisites. |
 | Excessive small-mode-only use | WAL whose completed sessions in the last 14 days (at least 2) were all `small` | More than 30% of WAL for 2 weeks in a row | Check whether `practise` sessions feel too long. Ask in exit interviews. A small-only week is fine on its own. |
 | Review backlog | For each active learner, review items due before today and not yet served (a snapshot query on `review_schedule`) | Median above 4, or p90 above 10 | Check the cap and interval configuration (`05-learning-engine.md`). Never show this to learners as a red counter (PRD §9). |
@@ -417,13 +438,13 @@ forecast of unit economics.
 
 | ID | View | Question | Built from | Shape |
 | --- | --- | --- | --- | --- |
-| V1 | Cohort overview | Who is in, and how far did they get? | `pilot_participants`, `ev`, `mpt` | One row per cohort and arm: invited, visited, activated, enrolled, WAL this week, north star, practice-only |
+| V1 | Cohort overview | Who is in, and how far did they get? | `pilot_participants`, `ev`, `mpt` | One row per cohort and arm: invited, signed up, activated, enrolled, WAL this week, north star, practice-only, exports and deletion requests, excluded (deleted or withdrawn) |
 | V2 | Start funnel | Does Today get people answering quickly? | `recommendation_seen`, `session_started`, `first_answer_submitted`, `session_completed` | Weekly counts at each step, A1 and A2, median and p75 start friction by mode and device |
 | V3 | Retention grid | Do people keep coming back? | `mpt`, `return_screen_seen`, `enrolment_paused` | A grid of WAL counts by cohort and week, week-4 retention, return-after-absence episodes |
 | V4 | Learning outcomes | Are people learning? | `attempt_evaluated` | North star by week, transfer gain per learner as a list of values, delayed retention with missing checks |
-| V5 | Roadmap progress | Where do people stall? | `roadmap_*`, `topic_*` | Module funnel, plus a topic table of started, completed and deferred counts |
+| V5 | Roadmap progress | Where do people stall? | `roadmap_*`, `topic_*`, `migration_*` | Module funnel, plus a topic table of started, completed and deferred counts, split by roadmap version; migration offers accepted and declined |
 | V6 | Guardrails | Is it causing harm, or breaking? | §4.6 queries | One row per guardrail: value, threshold, flag |
-| V7 | Content quality | Which items need fixing? | `hint_used`, `answer_revealed`, `attempt_evaluated` by `assessment_item_id` and `content_version_id` | Items sorted by reveal, not-met and hint rate, with a minimum of 8 attempts |
+| V7 | Content quality | Which items need fixing? | `hint_used`, `answer_revealed`, `attempt_evaluated` by `assessment_item_id` and `content_version_id` | Items sorted by reveal, incorrect and hint rate, with a minimum of 8 attempts |
 | V8 | Burden | How does it feel? | `weekly_check_*` | Share agreeing, share answering `yes` to guilt, response rate, by week |
 | V9 | Cost | What does a learner cost? | Invoices and V1 | Monthly, as defined in §4.7 |
 | V10 | Data quality | Can the numbers be trusted? | `ev` and the rejected-event counter | Events per day by name, orphans, forbidden-data scan, clock skew |
@@ -438,7 +459,9 @@ forecast of unit economics.
 
 - **Frozen snapshots.** Each Monday's export is never edited afterwards, so
   late events and re-scoring cannot shift past numbers. Decisions use these
-  snapshots.
+  snapshots. They hold aggregates only (counts, medians and individual values
+  with no `subject_id`), so they survive the purge of a deleted account's
+  events. Later snapshots show that account as a counted exclusion in its arm.
 - **No third-party analytics tool.** Only aggregate CSVs leave the database.
   The volume needs nothing special: a rough estimate is 50 learners × about
   150 events a week, or about 7,500 rows a week.
@@ -464,7 +487,7 @@ Change rules during the pilot (Proposal):
   metrics can be split by `content_version_id`.
 - Product changes go to both arms or to neither. The arm difference itself is
   the only exception.
-- Bugs are fixed straight away and logged by `app_release`.
+- Bugs are fixed straight away and logged by `app_version`.
 
 ## 6. Discovery interviews (PRD §13 step 1)
 
@@ -497,7 +520,7 @@ stop-reason code (§6.8).
 | Q2 | How many years have you worked professionally as a developer? | < 1 / 1–2 / 3–5 / 6–10 / > 10 | < 1 → exclude. Also feeds the quotas. |
 | Q3 | Which best describes most of your work? | Backend / Full-stack / Frontend only / Mobile / Data / DevOps / Other | Prefer backend and full-stack. At most 1 frontend-only. |
 | Q4 | What is your main language or framework at work? | PHP/Laravel, PHP (other), JavaScript or TypeScript (Node), Python, Java or Kotlin, C#/.NET, Ruby, Go, Other | Quotas |
-| Q5 | In the last 12 months, have you started a course, tutorial series, book or learning path for a work-related skill and stopped before finishing? | Yes / No / Not sure | No → waitlist. At most 2 kept as contrast. |
+| Q5 | In the last 12 months, have you started a course, tutorial series, book or learning path for a work-related skill and stopped before finishing? | Yes / No / Not sure | No → reserve list. At most 2 kept as contrast. |
 | Q6 | Which of these have you done in your job in the last year? Tick any. | Built CRUD features on a database / Investigated a slow query or endpoint / Added caching / Used a background job queue / Designed a service boundary / None | Must tick the CRUD option. The rest gives a reliability-experience profile. |
 | Q7 | What is your main learning goal for the next 3 months? | Get better at my current job / Prepare for job interviews soon / Move to a different field / Learn to code / No specific goal | Interviews or learning to code → exclude (PRD §4) |
 | Q8 | Do you work on a developer learning or training product? | Yes / No | Yes → exclude (conflict of interest) |
@@ -552,7 +575,7 @@ silence. Do not describe DevStep at any point in the interview.
 | 0 Open | 3 | Thank them. "I'm trying to understand how developers learn alongside work. There are no right answers, and I'm not selling anything." Confirm consent and recording. Tell them they can skip any question or stop at any time. | Consent |
 | 1 Context | 5 | "Tell me about your current role. What does a typical week look like?" Probes: "Where does learning fit in, if at all?" "When did you last learn something new for work? What was it?" | Persona fit |
 | 2 Last abandoned attempt | 12 | "Tell me about the last course, tutorial or book you started for work and didn't finish." Probes: "What made you start it then?" "How did you choose it?" "Where and when did you usually do it, and on what device?" "Walk me through the last session you did. What were you working on?" "What happened in the days after that?" "Did you try to go back? What happened?" "If a friend asked why it stopped, what would you tell them?" | Stop point and reason (PRD §13 step 1). Avoidance type (PRD §16). |
-| 3 Current alternatives | 6 | "When you need to understand something new for work now, what do you actually do? Tell me about the last time." Probes: "What worked? What got in the way?" "Have you used an AI chat assistant to learn something? Walk me through it." "Do you keep any plan or list of things to learn? What's on it?" | The current substitute (PRD §3, §16) |
+| 3 Current alternatives | 6 | "When you need to understand something new for work now, what do you actually do? Tell me about the last time." Probes: "What worked? What got in the way?" "Have you used an AI chat assistant to learn something? Walk me through it." "Have you used an AI tool's study mode, or blocked learning time in your calendar? How did that go?" "Do you keep any plan or list of things to learn? What's on it?" | The current substitute (PRD §3, §16), including the "checklist + AI study mode + calendar" stack (`11-market-and-positioning.md`) |
 | 4 Time and devices | 4 | "Think about the last two weeks. When, if at all, did you spend time learning? How long each time?" Probes: "Phone or computer?" "What was going on around it?" "The last time you set up a project locally to try something, how did it go?" | Default schedule, phone practice, lab setup (PRD §5, §16) |
 | 5 Skills and value | 6 | "Is there a skill you'd like to have in six months that you don't have now?" Probes: "How would you know you had it? Who would notice?" "Tell me about the last time you or your employer paid for learning. What was it, how was it decided, and was it worth it?" "Does your employer have a learning budget? Have you used it?" | Observable skill, payment history (PRD §15, §16) |
 | 6 Close | 4 | "Is there anything about learning at work I should have asked?" "May I contact you about a two-week trial later? There's no obligation." "Is there anyone you'd suggest I talk to?" | Concierge pipeline |
@@ -585,12 +608,16 @@ If time runs short, shorten parts 3 and 4. Never shorten part 2.
 
 ### 6.7 Sample scenario and lab try-out (PRD §14 discovery exit)
 
-- **Scenario.** In a separate 20-minute session, 4–6 interviewees try one
-  sample scenario while thinking aloud, for example the Module 2 query-plan
-  mission (`07-curriculum-plan.md`) as a form or mock-up. Observe the time to
-  the first answer, where they hesitate, and whether the feedback lands.
-- **Lab.** 2–3 interviewees set up one lab kit on their own machine and report
-  the setup time band and any blockers.
+- **Target.** At least 5 target users try both the sample scenario and the
+  Lab 2 path before the planning gate. Lab 2 attempts in the concierge trial
+  (§7.1) count towards the 5.
+- **Scenario.** In a separate 20-minute session, at least 5 interviewees try
+  the sample scenario while thinking aloud: the Module 2 query-plan mission
+  (`07-curriculum-plan.md`) as a form or mock-up. Observe the time to the first
+  answer, where they hesitate, and whether the feedback lands.
+- **Lab.** Interviewees set up the Lab 2 kit (Module 2) on their own machine
+  and report the setup time band and any blockers. Any shortfall against the
+  target is made up from concierge participants who attempt Lab 2.
 - **Questions afterwards** stay grounded in what they just did: "What was
   unclear?" and "What did you expect after the feedback?"
 
@@ -643,7 +670,7 @@ secondary codes separately. Report counts as n/N, not percentages.
 | Are people avoiding decisions, setup, difficulty or time commitment? | Frequency of S1, S4, S3 and S5 | Build priority between Today (F02), recovery (F06), the lab setup fallback (F07) and small mode |
 | Do they value phone practice? | Which device they used in the last two weeks, and when | How much to invest in the mobile player (`08-ux-and-screens.md`) |
 | Which observable skill would they pay to gain? | Named skills, and how they would show them | Curriculum emphasis, transfer-task design, positioning |
-| What does their current alternative fail to provide? | Alternatives used, and their gaps | Choice of comparison arm (checklist or AI chat) and differentiation (PRD §16) |
+| What does their current alternative fail to provide? | Alternatives used, and their gaps | Differentiation (PRD §16). The pilot arm stays the static checklist (§8.4); interviews decide how much weight the "checklist + AI study mode + calendar" question carries (Open question 5). |
 | How much time is realistic? | Minutes per week, and the pattern | The default schedule of 3 × 10 minutes plus a lab (PRD §5) |
 | How often does stopping mean "had learned enough" (S8)? | Share of S8 | Whether finite completion is the right milestone, which also feeds §11 |
 
@@ -659,8 +686,8 @@ secondary codes separately. Report counts as n/N, not percentages.
    not "AI chat already handles this for me."
 
 If the gate fails, revise the persona or the path and run 4–6 more interviews
-before the concierge trial. Record the decision in
-`13-decisions-and-open-questions.md`.
+before the concierge trial. This adds 1–2 weeks and moves every later date.
+Record the decision in `13-decisions-and-open-questions.md`.
 
 ## 7. Concierge trial (PRD §13 step 2)
 
@@ -669,7 +696,8 @@ before the concierge trial. Record the decision in
 | Item | Proposal |
 | --- | --- |
 | Participants | 10–15. Recruit 15 to allow for drop-out before the start. At least half should not be interviewees, and at most a third should be personal contacts. |
-| Duration | 14 days, plus exit interviews in week 3 |
+| Duration | 14 days, plus exit interviews in week 3. Indicative dates (§10): onboarding 2–8 Nov 2026, trial 9–22 Nov, exit interviews 23–27 Nov, planning gate 30 Nov 2026. |
+| Comparison | None. The concierge trial tests repeat use only; the comparison arm belongs to the pilot (§8.4). |
 | Content | Modules 1–2 from `07-curriculum-plan.md`: 6 short missions, 12 alternate prompts, a 3-minute variant of each mission, and Lab 2 as an optional desktop exercise |
 | Schedule | Participants choose their days. The default of 3 sessions a week (PRD §5) gives 6 planned sessions. |
 | Delivery | One email per scheduled day, at the time the participant chose |
@@ -717,7 +745,7 @@ inactive days); T4 weekly check (the same items as `weekly_check_answered`);
 T5 exit-interview invitation; T6 pause confirmation.
 
 **Weekly and at the end:** send the weekly check on days 7 and 14. During the
-trial, fix content errors only, and log each fix. On days 15–21, hold
+trial, fix content errors only, and log each fix. On days 15–19, hold
 20-minute exit interviews with everyone, including people who stopped (§8.7
 questions; one invitation plus one reminder).
 
@@ -760,6 +788,9 @@ PRD §13 asks whether people return "without extensive personal encouragement".
 ### 7.6 Signals and exit criteria (gate 2)
 
 The signals below are directional at n ≈ 12. Thresholds are a **Proposal**.
+They are written down and dated at Phase 2 entry (after gate 1, before
+onboarding starts) and are not changed during the trial. **Unprompted return
+is the kill test:** if it misses, gate 2 fails whatever the other signals show.
 
 | Success signal | Threshold |
 | --- | --- |
@@ -767,7 +798,7 @@ The signals below are directional at n ≈ 12. Thresholds are a **Proposal**.
 | Unprompted return | At least half of the participants who missed a scheduled session later submit one with no non-template contact |
 | Activation | At least 60%, matching the PRD pilot target |
 | Burden | At least 70% agree, and at most 1 person answers "yes" to feeling guilty or overwhelmed |
-| Lab | At least 2 participants attempt it, with setup issues documented |
+| Lab | At least 2 participants attempt it, with setup issues documented. Their attempts count towards the 5 Lab 2 try-outs in §6.7. |
 
 | Failure signal | Reading |
 | --- | --- |
@@ -799,10 +830,11 @@ skipped or abandoned session), **Minor** (an annoyance).
 | Item | Proposal |
 | --- | --- |
 | Size | 30–50 consenting participants. As a planning assumption only, invite about 44 to end with roughly 36 activated. |
-| Cohorts | C1 and C2, each of 15–25, starting two weeks apart. Onboarding bugs found in C1 are fixed before C2, and C2 acts as a replication check. |
-| Arms | Within each cohort, participants are randomised to DevStep or the static checklist (Option A, §8.4). Randomisation is stratified by stack (Laravel/PHP or other) and experience (1–2 years or 3+). Generate the allocation list before recruitment opens. |
+| Recruitment | Invite-only. People apply through the pilot recruitment form (the §6.2 screener plus consent to be contacted), linked from community posts and from the end of the public sample. Each accepted applicant gets a single-use invite bound to their email (`invites`); the `pilot_participants` row is created at the same time. |
+| Cohorts | C1 and C2, each of 15–25, starting two weeks apart (indicatively 6 and 20 Sep 2027, §10). Onboarding bugs found in C1 are fixed before C2, and C2 acts as a replication check. |
+| Arms | Within each cohort, participants are randomised to DevStep or the static checklist (Option A, §8.4). Randomisation is stratified by stack (Laravel/PHP or other) and experience (1–2 years or 3+). Generate the allocation list before recruitment opens; the arm travels on the invite. |
 | Duration | 6 weeks of practice (default 3 × 10 minutes plus an optional lab each week), then a delayed check at least 21 days after the final transfer task |
-| Freeze | Transfer forms, delayed-check items and rubrics are frozen. Bug fixes are allowed and logged by `app_release`. |
+| Freeze | Transfer forms, delayed-check items and rubrics are frozen. Bug fixes are allowed and logged by `app_version`. |
 | Prior exposure | Concierge participants may join, but are flagged `prior_exposure` and excluded from the headline transfer gain |
 | Business tests | None during the pilot. See §11. |
 
@@ -810,7 +842,7 @@ skipped or abandoned session), **Minor** (an annoyance).
 
 | Pilot day | Instrument | Who | Duration | Scoring |
 | --- | --- | --- | --- | --- |
-| 0, before any mission | Consent, onboarding, baseline transfer task (form A or B, counterbalanced) | Everyone | About 30 minutes | A blind reviewer, using the rubric |
+| 0 (cohort start), before any mission | Consent, onboarding, baseline transfer task (form X or Y, counterbalanced) | Everyone | About 30 minutes | A blind reviewer, using the rubric |
 | 1–42 | Missions, topic checks, reviews, labs | Everyone | As scheduled | Automatic, self-assessed (labelled) or learner-submitted |
 | Weekly | Weekly check (2 items) | Active learners | About 30 seconds | — |
 | 42 ± 3 | Final transfer task, on the other form | Everyone, including inactive participants (one invitation plus one reminder) | About 30 minutes | A blind reviewer |
@@ -821,10 +853,10 @@ skipped or abandoned session), **Minor** (an annoyance).
 
 | Aspect | Proposal |
 | --- | --- |
-| Forms | Two parallel forms, A and B, authored under `06-content-system.md` with content in `07-curriculum-plan.md`. Both cover the same skills (about one scenario per module) with the same rubric, using unseen scenarios that appear in no mission or review. |
-| Counterbalancing | Half of each arm takes A as baseline and B as final; the other half the reverse. Report gain by form order to detect any difference in form difficulty. |
+| Forms | Two parallel forms, X and Y, authored under `06-content-system.md` with content in `07-curriculum-plan.md`. Both cover the same skills (about one scenario per module) with the same rubric, using unseen scenarios that appear in no mission or review. |
+| Counterbalancing | Half of each arm takes X as baseline and Y as final; the other half the reverse. Report gain by form order to detect any difference in form difficulty. |
 | Conditions | Untimed (PRD §10), no hints. Learners are asked not to use AI or documentation, and tick a declaration. Responses with declared assistance are reported but excluded from the headline. |
-| Scoring | The reviewer is blind to phase, arm and learner: responses are exported under random IDs and shuffled. At least 20% are double-scored, gaps of more than one rubric level are resolved by discussion, and the agreement rate is reported. |
+| Scoring | The reviewer is blind to phase, arm and learner: responses are exported under random IDs and shuffled. Scoring is part of the content reviewer's ≈90-hour quote, budgeted in `12-delivery-plan.md`. A named backup scorer double-scores at least 20% and stands in if the reviewer is unavailable. Gaps of more than one rubric level are resolved by discussion, and the agreement rate is reported. |
 | Recording | Scores go into analytics as `attempt_evaluated` (`actor = operator`, `evidence_basis = human_reviewed`), as numbers only. The responses stay in `attempts`. |
 | Separation | Transfer tasks never change in-product evidence levels and never count towards the north star, which keeps the arms comparable. |
 
@@ -835,8 +867,10 @@ checks, labs and planned workload as DevStep, presented as a static, ordered
 checklist that links into the same player. It has no Today recommendation, no
 adaptive review (alternate prompts sit at fixed positions in the list) and no
 recovery flow. Both arms get the same reminder text and schedule, so reminders
-are not what differs. Running this needs an `arm` flag on enrolment and a
-checklist page; `12-delivery-plan.md` should plan for both.
+are not what differs. Running this needs `arm` on invites and enrolments, a
+checklist page that uses the same player and reminders, and `arm` in
+analytics (through `pilot_participants`); `12-delivery-plan.md` plans these as
+a pilot-readiness epic.
 
 | Option | How it works | Pros | Cons | Use when |
 | --- | --- | --- | --- | --- |
@@ -846,7 +880,10 @@ checklist page; `12-delivery-plan.md` should plan for both.
 
 An arm using a general AI chat workflow (PRD §16) is not recommended at this
 sample size. AI use is captured instead through the transfer-task declaration
-and exit interviews.
+and exit interviews. The "checklist + AI study mode + calendar" substitute
+that `11-market-and-positioning.md` names is probed in discovery interviews
+(§6.4 part 3) and kept as a pilot open question (Open question 5); it is not
+run as an arm.
 
 ### 8.5 Sample-size caveats and analysis plan
 
@@ -855,8 +892,8 @@ and exit interviews.
 | Scale | With about 20 people per arm, one person moves a rate by 5 percentage points. Week-4 retention of 35% against 25% is 7 people against 5, a gap chance alone could easily produce. |
 | Reporting | Report counts, individual values, medians and ranges. Never use p-values, "significant", confidence claims or causal wording ("DevStep caused…"). Write "directional" or "consistent with". |
 | What counts | Large differences that hold in both cohorts and across several metrics, and that exit interviews explain. |
-| Denominators | Everyone randomised stays in their arm's denominator. Dropouts are never removed. |
-| Attrition | Report attrition by arm. If one arm loses noticeably more people before the final transfer task, flag the transfer comparison. |
+| Denominators | Everyone randomised stays in their arm's denominator, including dropouts and invitees who never sign up. The only removals are deleted accounts and withdrawals: their events go at purge, frozen snapshots keep what was already reported, and each is listed as a counted exclusion per arm (for example "22 randomised, 1 deleted account"). |
+| Attrition | Report attrition and exclusions by arm. If one arm loses noticeably more people before the final transfer task, flag the transfer comparison. |
 | Subgroups | Subgroups (for example Laravel and other stacks) are described in counts only, never reported as findings. |
 | Analysis plan | Before C1 starts, write and date a one-page plan in the research store and link it from `13-decisions-and-open-questions.md`. It fixes the metrics (§4), thresholds (§9), exclusions, comparison design and cut-off dates. Every later change records its date and reason. |
 
@@ -864,7 +901,7 @@ and exit interviews.
 
 | Topic | Proposal |
 | --- | --- |
-| Informed consent | A plain-language sheet covering: the purpose; that two versions are being compared (without saying which is expected to do better); what is collected (practice events, answers, scores, weekly check, interviews); what analytics never contains (answer text, code, email); retention; that taking part is voluntary; that participants can withdraw at any time and have their data deleted; and a contact. |
+| Informed consent | A plain-language sheet covering: the purpose; that two versions are being compared (without saying which is expected to do better); what is collected (practice events, answers, scores, weekly check, interviews); what analytics never contains (answer text, code, email); retention; that taking part is voluntary; that participants can withdraw at any time and have their data deleted (aggregate figures already in frozen weekly snapshots stay, with no identifier); and a contact. |
 | Voluntariness | Recruit individuals, never through managers or employers. Participation and results are never shared with employers (PRD §15). |
 | Incentives | The same for both arms, and never tied to practice volume or scores, because that would pay for retention. If there is an incentive, tie it to completing the assessment tasks and the exit interview (Open question 4). |
 | Fairness | The checklist arm gets full DevStep access after the delayed check. |
@@ -878,8 +915,8 @@ and exit interviews.
 - **Who.** Every dropout who can be reached (one invitation plus one reminder,
   no pressure) and at least 8 completers spread across both arms. A
   **dropout** is a participant with no MPT in the last 14 days of the six
-  weeks, or none after week 3. Interviews take place within two weeks of the
-  final transfer task.
+  weeks, or none after week 3. Interviews take place between day 43 and
+  day 70.
 - **Questions (20–25 minutes, non-leading).**
   - "Walk me through the last session you did."
   - Dropouts: "What happened after that?" Completers: "What brought you back
@@ -920,7 +957,7 @@ is a project choice.
 | Core metrics Met or Near, transfer Met, guardrails clear, and DevStep at least matching the checklist on both return and learning | **Continue** | Run the business signals (§11). Plan a wider beta and a second path only after content review capacity is confirmed (`12-delivery-plan.md`). |
 | Engagement (activation, week 4, return) Met, but transfer or delayed retention Miss | **Revise the curriculum, not success** (PRD §13) | Diagnose items (V7). Strengthen alternate practice, feedback and labs. Rerun with a smaller cohort. |
 | Transfer Met or Near, but week 4 or return Miss | **Revise the loop** | Act on the dominant exit code: task size → mission sizing; notification burden → reminder defaults; setup → the no-setup fallback. |
-| DevStep and the checklist are similar on both return and learning | **Pivot** the positioning or product | The value may be the content, not the loop. Consider a content-led or checklist product, or a different wedge (`11-market-and-positioning.md`). Do not build more loop features. |
+| DevStep and the checklist are similar on both return and learning | **Pivot** to selling the path as content | The value may be the content, not the loop. Default: sell the path as content (a workbook plus the lab kits). Alternatively, a different wedge (`11-market-and-positioning.md`). Do not build more loop features. |
 | DevStep is worse than the checklist on return or burden | **Revise the loop or stop** | Check whether adaptivity or the reminders add burden. |
 | Activation Miss | **Fix onboarding and recruiting first** | Check recruitment source and persona fit before reading anything else. |
 | A burden or guilt guardrail stays flagged for 2 weeks or more | **Reduce burden first**, whatever else the results show | Lower the default schedule and change reminder defaults. |
@@ -933,42 +970,59 @@ records the decision in `13-decisions-and-open-questions.md`.
 
 ## 10. Validation timeline
 
-The dates are **indicative only**. They use a nominal start of 2026-10-12, and
-`12-delivery-plan.md` owns the build phases. One week of holiday buffer
-follows an alpha that runs through late December. Concierge preparation starts
-before gate 1 to save time, and that work is dropped if the gate fails.
+The dates are **indicative only** and owned by `12-delivery-plan.md`; this
+section copies its canonical dates. They assume a solo founder at 20 hours a
+week and a nominal start of 2026-10-12. A gate 1 fail adds 1–2 weeks and moves
+everything after it. Concierge preparation starts before gate 1 to save time,
+and that work is dropped if the gate fails. Pilot readiness is bound by content
+effort, and the pilot avoids starting in the August holiday period. With a
+paid co-author for Modules 3–6 the pilot could move to about Jun–Jul 2027; at
+10 hours a week, everything after the planning gate roughly doubles.
+
+| Milestone | Indicative date |
+| --- | --- |
+| Gate 1 (after discovery) | 1 Nov 2026 |
+| Concierge: onboarding, trial, exit interviews | 2–8 Nov, 9–22 Nov, 23–27 Nov 2026 |
+| Gate 2, the planning gate | 30 Nov 2026 |
+| Alpha exit | 1 Mar 2027 |
+| Content freeze | 13 Aug 2027 |
+| Cohort 1 and cohort 2 start (day 0) | 6 Sep 2027 and 20 Sep 2027 |
+| Last delayed check (cohort 2, day 63 ± 4) and last exit interview (day 70) | 26 Nov and 29 Nov 2027 |
+| Continue or pivot decision | ≈ 10 Dec 2027 |
 
 ```mermaid
 gantt
-    title DevStep validation - indicative, nominal start 2026-10-12
+    title DevStep validation - indicative, owned by 12-delivery-plan.md
     dateFormat YYYY-MM-DD
-    axisFormat %d %b
+    axisFormat %d %b %y
     section Discovery
     Screener and recruiting            :d1, 2026-10-12, 10d
-    Interviews 8-12                    :d2, 2026-10-15, 16d
-    Sample scenario and lab try-out    :d3, 2026-10-19, 14d
-    Synthesis                          :d4, 2026-10-29, 5d
-    Gate 1                             :milestone, g1, 2026-11-03, 0d
+    Interviews 8-12                    :d2, 2026-10-15, 15d
+    Sample scenario and lab try-out    :d3, 2026-10-19, 12d
+    Synthesis                          :d4, 2026-10-28, 4d
+    Gate 1                             :milestone, g1, 2026-11-01, 0d
     section Concierge
-    Prepare sequence and templates     :c1, 2026-10-26, 10d
-    Recruit and onboard                :c2, 2026-11-02, 7d
+    Prepare sequence and templates     :c1, 2026-10-26, 7d
+    Thresholds frozen                  :milestone, tf, 2026-11-02, 0d
+    Onboarding                         :c2, 2026-11-02, 7d
     Two-week concierge run             :c3, 2026-11-09, 14d
-    Exit interviews and friction list  :c4, 2026-11-23, 7d
-    Gate 2                             :milestone, g2, 2026-11-30, 0d
+    Exit interviews and friction list  :c4, 2026-11-23, 5d
+    Gate 2 planning gate               :milestone, g2, 2026-11-30, 0d
     section Build - see delivery plan
-    Functional alpha                   :b1, 2026-11-30, 28d
-    Holiday buffer                     :b2, 2026-12-28, 7d
-    Pilot readiness                    :b3, 2027-01-04, 21d
-    Pilot recruiting and consent       :b4, 2026-12-07, 42d
-    Analysis plan frozen               :milestone, ap, 2027-01-22, 0d
+    Functional alpha with holidays     :b1, 2026-12-01, 90d
+    Alpha exit                         :milestone, ae, 2027-03-01, 0d
+    Pilot readiness                    :b2, 2027-03-01, 165d
+    Content freeze                     :milestone, cf, 2027-08-13, 0d
+    Pilot recruiting and consent       :b3, 2027-06-28, 70d
+    Analysis plan frozen               :milestone, ap, 2027-09-01, 0d
     section Pilot
-    Cohort 1 six weeks                 :p1, 2027-01-25, 42d
-    Cohort 2 six weeks                 :p2, 2027-02-08, 42d
-    Exit interviews                    :p3, 2027-03-08, 42d
-    Cohort 1 delayed check             :p4, 2027-03-29, 7d
-    Cohort 2 delayed check             :p5, 2027-04-12, 7d
-    Analysis and decision review       :p6, 2027-04-19, 10d
-    Pilot decision                     :milestone, pd, 2027-04-30, 0d
+    Cohort 1 six weeks                 :p1, 2027-09-06, 42d
+    Cohort 2 six weeks                 :p2, 2027-09-20, 42d
+    Exit interviews to day 70          :p3, 2027-10-19, 42d
+    Cohort 1 delayed check             :p4, 2027-11-04, 9d
+    Cohort 2 delayed check             :p5, 2027-11-18, 9d
+    Analysis and decision review       :p6, 2027-11-30, 10d
+    Pilot decision                     :milestone, pd, 2027-12-10, 0d
 ```
 
 ## 11. Business-hypothesis signals (PRD §15)
@@ -985,7 +1039,7 @@ cost, as long as those signals are labelled honestly.
 | A finite path fits a one-time purchase | Roadmap completion by elapsed time. How often S8 ("learned enough") appears. | Interviews, pilot (§4.5) | Codes and SQL | That people would buy it |
 | Ongoing practice has value (subscription) | Return for maintenance after completion. Review activity after week 6 among completers. Interest in a second path, asked as "Which would you do next, if any?" from a list with "none". | Pilot and the delayed-check period | SQL and exit interview | That people would pay for it. Free usage overstates demand. |
 | Which skill is worth paying for | Named skills, and how people say they would show them | Interviews, exit interviews | Snapshot field | A price |
-| The public sample scenario brings people in | Completion of the guest sample, then conversion to an account (`account_created.was_guest`) | Pilot and the public sample | SQL | Paid intent |
+| The public sample scenario brings people in | Guest funnel: `sample_started`, the first sample answer, then `guest_progress_claimed` and `account_created.was_guest`. During the invite-only pilot, uninvited finishers are pointed to the recruitment form (§8.1), whose applications are counted. | Pilot and the public sample | SQL, recruitment form | Paid intent |
 | Path versus subscription preference | Stated choice after a neutral, price-free description of both models | Exit interviews (last 2 minutes) | Recorded and labelled "stated" | Willingness to pay |
 
 Rules (Proposal):
@@ -1002,15 +1056,12 @@ Rules (Proposal):
 | # | Question | Recommended default |
 | --- | --- | --- |
 | 1 | Does self-assessed evidence count towards the north star? | No. Report it as a separate line, since PRD §9 labels it self-assessed. |
-| 2 | What anchors activation's 24-hour window: the first visit, or the invitation being sent? | The first visit. Report the invitation-anchored variant and the never-visited count beside it. |
-| 3 | Which checklist comparison design? | Option A: randomised arms within two staggered cohorts. Fall back to Option B if fewer than 30 people have consented by the recruitment deadline. |
+| 2 | What anchors activation's 24-hour window: the first visit, or the invitation being sent? | The first visit. Report the invitation-anchored variant and the never-signed-up count beside it. |
+| 3 | What if fewer than 30 people have consented by the recruitment deadline? | Fall back from randomised arms (Option A) to alternating cohorts (Option B), and record the switch in the analysis plan. |
 | 4 | Incentives? | No payment for practice. Give an equal thank-you, not tied to outcomes, for interviews and for completing the pilot assessments and exit interview. The founder sets the amount; this document proposes no figure. |
-| 5 | What happens to analytics events when an account is deleted? | Delete them within the standard deletion window. At n = 30–50, merely unlinking them gives no meaningful anonymity. |
-| 6 | Does a hint-assisted success count as "unassisted"? | No. The north star uses `assistance = none` only, and hint-assisted successes are reported separately. Evidence-level rules stay in `05-learning-engine.md`. |
-| 7 | When is the pilot's delayed check? | At least 21 days after the final transfer task (around day 63). In-product delayed checks run from day 7 regardless. |
-| 8 | Should inactive learners get the weekly burden check by email? | No, because it adds burden for the people most under strain. Cover them through exit interviews, and say so whenever burden is reported. |
-| 9 | May concierge participants join the pilot? | Yes, flagged `prior_exposure` and excluded from the headline transfer gain. |
-| 10 | Should the concierge trial include a lab? | Yes, one optional lab (Lab 2), so setup friction surfaces before anything is built. |
+| 5 | Should DevStep later be compared with the "checklist + AI study mode + calendar" substitute (`11-market-and-positioning.md`)? | Not as a pilot arm. Probe it in every discovery interview, ask about it in pilot exit interviews, and decide after the pilot decision whether a separate test is worth running. |
+| 6 | Should inactive learners get the weekly burden check by email? | No, because it adds burden for the people most under strain. Cover them through exit interviews, and say so whenever burden is reported. |
+| 7 | May concierge participants join the pilot? | Yes, flagged `prior_exposure` and excluded from the headline transfer gain. |
 
 ## PRD traceability
 
@@ -1018,7 +1069,7 @@ Rules (Proposal):
 | --- | --- |
 | §1 Success means demonstrated capability and return, not time or streaks | §2, §4.2 |
 | §4 Persona, exclusions | §6.1, §6.2 |
-| §5 Default schedule, guest first value | §6.9, §7.1, §8.1. `account_created` and `invitation_redeemed` in §3.6. |
+| §5 Default schedule, guest first value | §6.9, §7.1, §8.1. `sample_started`, `guest_progress_claimed`, `account_created` and `invitation_redeemed` in §3.6. |
 | §6 Reminders limited and opt-in, no guilt | §3.6 reminder events, §4.6, §7.4, §8.6 |
 | §8 Content inventory, baseline and final transfer assessments | §8.3 |
 | §8A Roadmap metrics (enrolment-to-first-topic, topic completion, module drop-off, completion by cohort and elapsed time, maintenance return) | §3.6, §4.5, V5 |
@@ -1030,4 +1081,5 @@ Rules (Proposal):
 | §16 Open discovery questions, differentiation test against a checklist, setup risk, rest over reminders | §6.9, §8.4, §3.6 `lab_setup_reported`, §4.6 |
 | F12 Evaluation instrumentation | §3, §4 |
 | F10 Optional email reminders (suppression, unsubscribe) | §3.6, §4.6 |
+| F09 Export and account deletion | §3.2, §3.6, §5.2, §8.5 |
 | R02, R04 Exactly-once completion, completion milestone | §3.6 `topic_completed` and `roadmap_completed`, §3.7 |

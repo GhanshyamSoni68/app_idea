@@ -203,12 +203,24 @@ erDiagram
         text objective_key
         smallint objective_major
     }
+    topic_dependencies {
+        uuid topic_id PK
+        uuid depends_on_topic_id PK
+        bool strict
+    }
     content_versions {
         uuid id PK
         text content_key
         smallint version_major
         smallint version_minor
+        smallint version_patch
+        bool defect_fix
         text status
+    }
+    assessment_items {
+        uuid content_version_id PK "also FK"
+        text alternate_group_key
+        bool retention_reserved
     }
     skills {
         uuid id PK
@@ -225,6 +237,7 @@ erDiagram
     roadmap_enrolments ||--|{ topic_progress : "tracks"
     roadmap_topics ||--o{ topic_progress : "state of"
     roadmap_enrolments |o--o| roadmap_enrolments : "migrated from"
+    roadmap_versions |o--o{ roadmap_enrolments : "migration declined"
     topic_progress |o--o| topic_progress : "carried from"
     attempts |o--o{ topic_progress : "completion evidence"
     roadmap_enrolments {
@@ -233,6 +246,7 @@ erDiagram
         uuid roadmap_version_id FK "pinned"
         text status
         timestamptz completed_at "milestone, set once"
+        uuid declined_version_id FK
     }
     topic_progress {
         uuid id PK
@@ -241,6 +255,7 @@ erDiagram
         uuid topic_id FK
         text state
         text completion_path
+        timestamptz refresh_suggested_at
     }
 ```
 
@@ -260,12 +275,21 @@ erDiagram
     skills ||--o{ review_schedule : "reviewed via"
     users ||--o{ review_schedule : "owns"
     content_versions ||--o{ artifacts : "lab version"
+    users ||--o{ content_reports : "reports"
+    content_versions ||--o{ content_reports : "reported version"
     learning_sessions {
         uuid id PK
         uuid user_id FK
         text status
         jsonb plan "frozen exact versions"
         date local_date
+        uuid recommendation_id "no FK"
+    }
+    session_drafts {
+        uuid session_id PK "also FK"
+        int revision
+        uuid last_save_id
+        text device_label
     }
     attempts {
         uuid id PK
@@ -273,11 +297,14 @@ erDiagram
         uuid session_id FK
         uuid content_version_id FK
         uuid client_attempt_id UK
+        text outcome
+        text origin
     }
     skill_evidence {
         uuid id PK
         uuid user_id FK
         uuid skill_id FK
+        uuid attempt_id UK
         text level
         text basis
     }
@@ -286,6 +313,13 @@ erDiagram
         uuid user_id FK
         text objective_key
         date due_on
+    }
+    content_reports {
+        uuid id PK
+        uuid user_id FK
+        uuid content_version_id FK
+        text category
+        text status
     }
 ```
 
@@ -299,14 +333,23 @@ erDiagram
     users ||--o{ export_requests : "requests"
     users |o..o{ deletion_requests : "user_ref, no FK"
     users |o..o{ analytics_events : "subject id, no FK"
+    consent_records |o--o{ notification_preferences : "current reminder consent"
+    users |o..o| email_suppressions : "keyed email hash, no FK"
     notification_preferences {
         uuid user_id PK "also FK"
-        timestamptz next_reminder_at
+        uuid consent_record_id FK
+        timestamptz next_reminder_at "derived index"
     }
     notification_deliveries {
         uuid id PK
         uuid user_id FK
         date local_date "UK with user and kind"
+        text status
+    }
+    email_suppressions {
+        uuid id PK
+        text email_hash UK
+        text reason
     }
     idempotency_keys {
         uuid id PK
@@ -315,9 +358,12 @@ erDiagram
         text key
     }
     analytics_events {
-        bigint id PK
+        uuid event_id PK
         uuid subject_id
         text event_name
+        text actor
+        text source
+        date local_date
     }
 ```
 
@@ -329,9 +375,12 @@ Retention and deletion behaviour per table: §8.1.
 
 | Table | Module | Purpose | Owner scope | PII |
 | --- | --- | --- | --- | --- |
-| `users` | `identity` | Account or guest identity, plus the analytics subject ID | `id` | ID |
+| `users` | `identity` | Account identity (no guest rows), plus the analytics subject ID | `id` | ID |
 | `auth_sessions` | `identity` | Server-side login sessions, only if `02` chooses them | `user_id` | ID |
-| `auth_tokens` (added) | `identity` | Hashes of one-time tokens (verification, reset, login link) | `user_id` | ID |
+| `auth_tokens` (added) | `identity` | Hashes of one-time tokens (verification, reset, email change) | `user_id` | ID |
+| `invites` (added) | `identity` | Single-use pilot invite bound to an email, cohort and arm | `redeemed_by` | ID |
+| `pilot_participants` (added) | `identity` | Pilot cohort, arm and research code per account (`10`) | `user_id` (PK) | PS, LA |
+| `consent_records` (added) | `identity` | Append-only consent grants and withdrawals; the only place consent is stored | `user_id` | LA |
 | `learning_preferences` | `profile` | Zone, days, mode, targets, stack tags, diagnostic status (F01) | `user_id` (PK) | LA |
 | `goals` | `profile` | One active desired outcome; history kept (F01) | `user_id` | LA, LC |
 | `content_releases` (added) | `catalogue` | One row per publish run; links to the content repository revision | — | — |
@@ -354,12 +403,14 @@ Retention and deletion behaviour per table: §8.1.
 | `skill_evidence` | `assessment` | Append-only evidence events (F08) | `user_id` | LA |
 | `review_schedule` | `scheduling` | One review track per objective version (F05) | `user_id` | LA |
 | `artifacts` | `learning` | Learner lab evidence (F07) | `user_id` | LC |
-| `notification_preferences` | `notifications` | Consent, time, quiet hours, pause, next send instant (F10) | `user_id` (PK) | LA |
+| `content_reports` (added) | `learning` | Learner-reported content problems (PRD §16; workflow in `06`) | `user_id` | LC, LA |
+| `notification_preferences` | `notifications` | Time, quiet hours, pause, skip, consent reference, next send instant (F10) | `user_id` (PK) | LA |
 | `notification_deliveries` | `notifications` | One row per learner per local day on which a reminder was considered | `user_id` | LA |
+| `email_suppressions` (added) | `notifications` | Keyed hashes of addresses that hard-bounced or complained (`09`) | none (no FK) | PS |
 | `analytics_events` | `analytics` | Pseudonymous funnel and outcome events (F12) | `subject_id` (no FK) | PS |
 | `idempotency_keys` | cross-cutting; each scope is written by its module | Replay store for unsafe requests (F09) | `user_id` | LA |
 | `export_requests` | `identity` | Async export jobs and file references (F09) | `user_id` | ID |
-| `deletion_requests` | `identity` | Deletion workflow, plus a tombstone for replay after a backup restore | `user_ref` (no FK) | opaque ID only |
+| `deletion_requests` | `identity` | Deletion workflow; after the purge, an anonymous record for pilot exclusion counts. Restore replay uses the external ledger (§8.2) | `user_ref` (no FK) | opaque ID only |
 
 ### 3.1 Identity and profile
 
@@ -368,25 +419,26 @@ Retention and deletion behaviour per table: §8.1.
 | Column | Type | Null | Notes |
 | --- | --- | --- | --- |
 | `id` | uuid | no | PK |
-| `kind` | text | no | CHECK `guest`, `learner` |
-| `status` | text | no | CHECK `active`, `pending_deletion` |
-| `email`, `email_normalised` | text | yes | NULL only for guests. The normalised form (lower-cased, trimmed) is unique |
-| `email_verified_at`, `claimed_at` | timestamptz | yes | `claimed_at`: when a guest became a learner |
-| `password_hash` | text | yes | Only if `02`/`09` choose passwords; never exported |
-| `guest_token_hash` | text | yes | Hash of the guest cookie secret; cleared on claim |
-| `analytics_subject_id` | uuid | no | Random and unique; the only link to `analytics_events` |
+| `status` | text | no | CHECK `active`, `pending_deletion` (sign-in limited to cancel and export) |
+| `email`, `email_normalised` | text | no | The normalised form (lower-cased, trimmed) is unique |
+| `email_verified_at` | timestamptz | yes | |
+| `password_hash` | text | yes | Email + password login (`01`); NULL for a GitHub-only account; never exported |
+| `github_user_id` | text | yes | Set when GitHub OAuth is linked; unique |
+| `analytics_subject_id` | uuid | no | Unique; the only link to `analytics_events`. At sign-up it adopts the guest bundle's client-generated `subject_id` when one is presented and not already taken, otherwise the server generates one (§7) |
 | `last_seen_at` | timestamptz | no | Written at most hourly |
 
-Constraints: `CHECK ((kind = 'guest') = (email IS NULL))`;
-`CHECK (kind <> 'guest' OR guest_token_hash IS NOT NULL)`. Indexes:
-`uq_users_email (email_normalised) WHERE email_normalised IS NOT NULL`,
-`uq_users_guest_token`, `uq_users_subject`,
-`ix_users_guest_seen (last_seen_at) WHERE kind = 'guest'` (for the purge).
+Constraints: `CHECK (password_hash IS NOT NULL OR github_user_id IS NOT NULL)`.
+Indexes: `uq_users_email (email_normalised)`,
+`uq_users_github (github_user_id) WHERE github_user_id IS NOT NULL`,
+`uq_users_subject`. There is no guest kind: guests have no server rows (§7).
 
 | Table | Key columns, constraints and indexes |
 | --- | --- |
 | `auth_sessions` | `id`; `user_id` FK cascade; `token_hash` UK; `expires_at`, `revoked_at`, `last_seen_at`; `client_label` (coarse browser family only; no IP address stored). Indexes `(user_id)`, `(expires_at)` |
-| `auth_tokens` | `id`; `user_id` FK cascade; `purpose` CHECK `email_verification`, `password_reset`, `login_link`, `email_change`; `token_hash` UK; `expires_at`; `used_at` |
+| `auth_tokens` | `id`; `user_id` FK cascade; `purpose` CHECK `email_verification`, `password_reset`, `email_change` (no login-link tokens: there is no email-only login); `token_hash` UK; `expires_at`; `used_at` |
+| `invites` | `id`; `code_hash` UK (only the hash of the single-use code is stored); `email_normalised` (the invited address; sign-up must match it); `cohort_id`; `arm` CHECK `devstep`, `checklist`; `expires_at`; `redeemed_by` FK `users` cascade, UK; `redeemed_at`. CHECK `(redeemed_by IS NULL) = (redeemed_at IS NULL)`. Redemption is `UPDATE … WHERE code_hash = :h AND redeemed_at IS NULL AND expires_at > :now AND email_normalised = :email`, so a code works once. No waitlist table (`02`) |
+| `pilot_participants` | `user_id` PK and FK cascade; `subject_id` UK (copy of `users.analytics_subject_id`, so `10` joins events without reading `users`); `invite_id` FK `invites`; `participant_code` UK (`P-001` style, `10`); `cohort_id`, `cohort_start_date`, `arm` (copied from the invite); `research_consent_id` FK `(research_consent_id, user_id)` → `consent_records`; `recruitment_source` (a code); `is_internal bool`; `joined_at`, `withdrawn_at` |
+| `consent_records` | `id`; `user_id` FK cascade; UK `(id, user_id)`; `purpose` CHECK `reminder_email`, `pilot_research` (F13 would add `ai_assist`); `action` CHECK `granted`, `withdrawn`; `text_version` (the wording shown); `method` CHECK `settings`, `onboarding`, `unsubscribe_link`, `operator`; `recorded_at`. Insert-only; the current state is the latest row per `(user_id, purpose)`. Index `(user_id, purpose, recorded_at DESC)` |
 | `learning_preferences` | `user_id` PK and FK; `time_zone text NOT NULL` (IANA, validated by the app); `available_days smallint` (weekday bitmask, CHECK `0..127`; these are the "scheduled learning days"); `preferred_mode` CHECK session mode; `weekly_session_target` default 3 and `weekly_lab_target` default 1 (PRD §5); `stack_tags jsonb` (codes only); `diagnostic_status` CHECK `not_offered`, `skipped`, `partial`, `completed`. Skipped skills have no evidence rows, so they stay unknown (F01); `revision int` |
 | `goals` | `id`; `user_id`; `outcome_key text` (an authored option); `note text NULL`, CHECK length ≤ 280; `suggested_roadmap_id` FK `roadmaps`; `status` CHECK `active`, `replaced`; `replaced_at`. `uq_goals_one_active (user_id) WHERE status = 'active'` enforces one goal (F01) |
 
@@ -402,12 +454,12 @@ runtime reads them (§4).
 | `roadmap_versions` | `id`, `roadmap_id`, `version int`, `status` CHECK `published`/`retired`, `release_id`, `previous_version_id`, `title`, `outcome`, `estimated_effort_hours` (R01), `required_topic_count` (denominator, set at publish), `changelog jsonb` (per-`topic_key` notes for R06), `published_at`, `retired_at` | UK `(roadmap_id, version)`; UK `(id, roadmap_id)`; CHECK `required_topic_count > 0` |
 | `roadmap_modules` | `id`, `roadmap_version_id`, `module_key`, `position`, `title` | UK `(roadmap_version_id, module_key)`; UK `(id, roadmap_version_id)` |
 | `roadmap_topics` | `id`, `roadmap_version_id`, `module_id`, `topic_key` (stable across versions), `position`, `kind` CHECK topic kind, `objective_key`, `objective_major`, `estimated_minutes`, `replaces_topic_keys jsonb` (renames, for migration) | UK `(roadmap_version_id, topic_key)`; UK `(id, roadmap_version_id)`; composite FK `(module_id, roadmap_version_id)` |
-| `topic_dependencies` | `roadmap_version_id`, `topic_id`, `depends_on_topic_id` | PK `(topic_id, depends_on_topic_id)`; both ends use a composite FK with the same `roadmap_version_id`; CHECK no self-edge. Cycles are rejected at publish (§8A); a CHECK constraint cannot express acyclicity |
-| `topic_activities` | `id`, `roadmap_version_id`, `topic_id`, `position`, `ref_kind` CHECK `mission`/`lab`/`item_group`, `ref_key`, `ref_major`, `role` CHECK `core`/`enrichment`/`topic_check`/`challenge`, `is_required` (pilot labs: `false`) | UK `(topic_id, position)`. No FK to content: resolved at run time to the latest published minor of `(ref_key, ref_major)`; publish validates that it exists |
+| `topic_dependencies` | `roadmap_version_id`, `topic_id`, `depends_on_topic_id`, `strict bool NOT NULL DEFAULT false` (prerequisites are soft unless the author marks the edge strict; `05` applies it) | PK `(topic_id, depends_on_topic_id)`; both ends use a composite FK with the same `roadmap_version_id`; CHECK no self-edge. Cycles are rejected at publish (§8A); a CHECK constraint cannot express acyclicity |
+| `topic_activities` | `id`, `roadmap_version_id`, `topic_id`, `position`, `ref_kind` CHECK `mission`/`lab`/`item_group`, `ref_key`, `ref_major`, `role` CHECK `core`/`enrichment`/`topic_check`/`challenge`, `is_required` (pilot labs: `false`) | UK `(topic_id, position)`. No FK to content: resolved at run time to the latest published minor and patch of `(ref_key, ref_major)`; publish validates that it exists |
 | `topic_completion_rules` | `id`, `roadmap_version_id`, `topic_id`, `path` CHECK `standard`/`challenge_out`, `objective_key`, `objective_major`, `requirements jsonb` (schema-validated at publish, evaluated by `05`) | UK `(topic_id, path)` |
-| `content_versions` | `id`, `content_kind` CHECK `mission`/`assessment_item`/`lab`, `content_key`, `version_major`, `version_minor`, `status` CHECK `published`/`retired`, `body jsonb` (including answer keys; the server reads it before submission), `content_hash`, `source_urls`, `stack_scope`, `reviewed_by` (a handle, not an FK), `last_reviewed_on date`, `release_id`, `published_at`, `retired_at`, `retire_reason` | UK `(content_kind, content_key, version_major, version_minor)`; CHECK `(status = 'retired') = (retired_at IS NOT NULL)`; `ix_content_latest (content_kind, content_key, version_major, version_minor DESC) WHERE status = 'published'` |
+| `content_versions` | `id`, `content_kind` CHECK `mission`/`assessment_item`/`lab`, `content_key`, `version_major`, `version_minor`, `version_patch` (`06`'s `X.Y.Z`), `defect_fix bool` (this version corrects a defect in earlier versions of the same major, `06`), `status` CHECK `published`/`retired`, `body jsonb` (including answer keys; the server reads it before submission), `content_hash`, `source_urls`, `stack_scope`, `reviewed_by` (a handle, not an FK), `last_reviewed_on date`, `release_id`, `published_at`, `retired_at`, `retire_reason` | UK `(content_kind, content_key, version_major, version_minor, version_patch)`; CHECK `(status = 'retired') = (retired_at IS NOT NULL)`; `ix_content_latest (content_kind, content_key, version_major, version_minor DESC, version_patch DESC) WHERE status = 'published'` |
 | `missions` | `content_version_id` PK/FK, `mode` CHECK `small`/`practise`, `small_equivalent_key` (curated smaller version, PRD §9), `primary_skill_id`, `objective_key`, `objective_major`, `estimated_minutes` | |
-| `assessment_items` | `content_version_id` PK/FK, `mission_key` (NULL for standalone items), `skill_id` (one per item), `objective_key`, `objective_major`, `alternate_group_key` (interchangeable prompts), `eligible_purposes jsonb`, `response_kind`, `scoring` CHECK `auto`/`self_check`/`human` | Indexes `(alternate_group_key)`, `(skill_id)` |
+| `assessment_items` | `content_version_id` PK/FK, `mission_key` (NULL for standalone items), `skill_id` (one per item), `objective_key`, `objective_major`, `alternate_group_key` (interchangeable prompts), `eligible_purposes jsonb`, `retention_reserved bool` (Alt B: served only for the delayed retention check, purpose `delayed_check`, never for practice or ordinary review), `response_kind`, `scoring` CHECK `auto`/`self_check`/`human` | Indexes `(alternate_group_key)`, `(skill_id)`. Publish checks that each mission's group has a retention-reserved alternate (`06`) |
 | `labs` | `content_version_id` PK/FK, `primary_skill_id`, `kit_ref`, `kit_sha256`, `has_no_setup_fallback` (PRD §16) | |
 | `skills` | `id`, `skill_key` (immutable), `title`, `status` CHECK `active`/`retired` | UK `skill_key` |
 | `skill_prerequisites` | `skill_id`, `prerequisite_skill_id` | Composite PK; CHECK no self-edge; cycles rejected at publish |
@@ -423,7 +475,8 @@ runtime reads them (§4).
 | `status` | text | no | CHECK `active`, `paused`, `ended`, `migrated` |
 | `enrolled_at`, `paused_at`, `ended_at` | timestamptz | no / yes / yes | CHECK `(status = 'paused') = (paused_at IS NOT NULL)` (R05) |
 | `completed_at`, `completion_summary` | timestamptz, jsonb | yes | Milestone, set together once and never cleared (R04). The summary is a frozen snapshot: skills covered, evidence by basis, optional labs, remaining reviews |
-| `migrated_from_enrolment_id`, `migration_summary` | uuid, jsonb | yes | Set together. The FK is unique, so a source can be migrated once; the summary is the diff the learner accepted (R06) |
+| `migrated_from_enrolment_id`, `migration_summary` | uuid, jsonb | yes | Set together on the new enrolment row. The FK is unique, so a source can be migrated once; the summary is the diff the learner accepted (R06) |
+| `declined_version_id`, `declined_at` | uuid, timestamptz | yes | Set together when the learner declines a migration offer. FK to `roadmap_versions`. The offer is not shown again until a version newer than this one is published |
 | `reviews_on_exit` | text | yes | CHECK `continue`, `pause`: the answer when switching roadmap (§8A) |
 
 Indexes: `uq_enrolments_current (user_id) WHERE status IN ('active', 'paused')`
@@ -440,6 +493,7 @@ gives one active roadmap at a time (§8A); `(user_id, enrolled_at)`.
 | `completion_path` | text | yes | CHECK `standard`, `challenge_out`, `carried_over`, `reused_evidence`. There is no defer value (R03) |
 | `completion_attempt_id`, `carried_from_progress_id` | uuid | yes | Composite FKs to `attempts` and to self |
 | `started_at`, `completed_at`, `deferred_at` | timestamptz | yes | |
+| `refresh_suggested_at`, `refresh_reason` | timestamptz, text | yes | Set together. Reason is CHECK `objective_changed`: a carried completion whose objective changed in the new version keeps its credit and shows "Refresh suggested" (§4.3). Cleared when a later check on the new objective is met |
 
 Constraints: UK `(enrolment_id, topic_id)`;
 `CHECK ((state = 'completed') = (completed_at IS NOT NULL AND completion_path IS NOT NULL))`;
@@ -459,7 +513,8 @@ requires `carried_from_progress_id`; the other paths require
 | `enrolment_id`, `topic_id` | uuid | yes | Composite FK with `user_id`; FK to `roadmap_topics` |
 | `content_version_id` | uuid | yes | The mission or lab version served (RESTRICT) |
 | `plan` | jsonb | no | Ordered steps fixed at start, with the exact item `content_version_id`s, including review items chosen under the cap |
-| `local_date` | date | no | The learner's local date at start; used for reminder suppression and weekly progress |
+| `recommendation_id` | uuid | yes | The opaque Today recommendation that led to this session, echoed by `POST /v1/sessions` (`02`). No FK: recommendations are not stored. Lets `10` join `recommendation_seen` to `session_started` |
+| `local_date` | date | no | The learner's local learning day at start (04:00 boundary, `05`); used for reminder suppression and weekly progress |
 | `started_at`, `last_activity_at`, `completed_at` | timestamptz | no / no / yes | CHECK `(status = 'completed') = (completed_at IS NOT NULL)` |
 
 Indexes: `uq_sessions_one_open (user_id) WHERE status = 'open'`;
@@ -478,8 +533,9 @@ version, moves a session to `abandoned`.
 | `step_key`, `attempt_no` | text, smallint | no | UK `(session_id, step_key, attempt_no)` |
 | `client_attempt_id` | uuid | no | The request's `Idempotency-Key`; UK `(user_id, client_attempt_id)` |
 | `purpose` | text | no | CHECK assessment purpose (§6.1) |
-| `response` | jsonb | no | Learner answer (LC) |
-| `outcome`, `score`, `evaluated_at` | text, numeric, timestamptz | yes | Outcome is CHECK `correct`, `partially_correct`, `incorrect`, `self_met`, `self_not_met`. NULL until evaluated: `CHECK ((outcome IS NULL) = (evaluated_at IS NULL))` |
+| `origin` | text | no | CHECK `session`, `guest_claim`. `guest_claim` rows were re-evaluated from an uploaded guest bundle (§7) |
+| `response` | jsonb | no | Learner answer (LC). CHECK ≤ 64 KB per attempt; the app caps each free-text answer at 32 KB |
+| `outcome`, `score`, `evaluated_at` | text, numeric, timestamptz | yes | Outcome is CHECK `correct`, `partially_correct`, `incorrect`, `self_met`, `self_not_met` (`05` defines them). NULL until evaluated: `CHECK ((outcome IS NULL) = (evaluated_at IS NULL))` |
 | `evidence_basis` | text | no | CHECK `auto_scored`, `self_assessed`, `human_reviewed`. `self_met` and `self_not_met` require `self_assessed` |
 | `assistance`, `hint_count` | text, smallint | no | Copied from `session_assistance` at submit. CHECK `none` ⇒ 0 hints; `hint` ⇒ at least 1 |
 | `submitted_at`, `feedback_viewed_at` | timestamptz | no / yes | `feedback_viewed_at` supports the "practised" rule (PRD §9) |
@@ -494,20 +550,22 @@ and evaluation is set by `UPDATE … WHERE outcome IS NULL`. Indexes:
 | --- | --- | --- | --- |
 | `id`, `user_id`, `skill_id` | uuid | no | `skill_id` RESTRICT |
 | `level`, `basis`, `assistance` | text | no | CHECK canonical enums. Basis is always present, so self-assessed evidence stays labelled (§8A) |
-| `source` | text | no | CHECK `attempt`, `artifact`, `reading`, `human_review` |
-| `attempt_id`, `artifact_id` | uuid | yes | Composite FKs with `user_id` |
+| `source` | text | no | CHECK `attempt`, `artifact`, `reading`, `human_review`, `guest_claim` |
+| `attempt_id`, `artifact_id` | uuid | yes | Composite FKs with `user_id`. **UK `(attempt_id)`**: one evidence row per attempt. UK `(artifact_id, skill_id)`: an artifact may support several skills, once each |
 | `content_version_id` | uuid | yes | Exact version (RESTRICT) |
 | `objective_key`, `objective_major` | text, smallint | no | Copied at write time; used for reuse (§4.4) |
 | `limitations` | jsonb | no | Limitation codes (§6.2) |
 | `observed_at` | timestamptz | no | |
-| `voided_at`, `void_reason` | timestamptz, text | yes | Set together, once. Reason is CHECK `content_error`, `artifact_deleted`, `duplicate` |
+| `voided_at`, `void_reason` | timestamptz, text | yes | Set together, once. Reason is CHECK `artifact_deleted`, `duplicate`. Evidence from defective content is never voided: it is kept and annotated (§4.2) |
 
 PRD rules as CHECKs:
 `NOT (level IN ('demonstrated', 'retained') AND assistance = 'solution_revealed')`
 (PRD §9);
 `level = 'introduced' OR attempt_id IS NOT NULL OR artifact_id IS NOT NULL OR voided_at IS NOT NULL`
 (reading alone never raises a level above introduced, F04); artifact-sourced
-evidence never has basis `auto_scored` (PRD §9). "Retained at least 7 days
+evidence never has basis `auto_scored` (PRD §9);
+`source <> 'guest_claim' OR level IN ('introduced', 'practised')` (claimed
+guest work is capped at `practised`, §7). "Retained at least 7 days
 after demonstration" spans rows, so `assessment` enforces it and a nightly
 invariant query reports violations. Index:
 `ix_evidence_user_skill_time (user_id, skill_id, observed_at)`.
@@ -518,10 +576,10 @@ invariant query reports violations. Index:
 | --- | --- | --- | --- |
 | `id`, `user_id`, `skill_id` | uuid | no | UK `(user_id, objective_key, objective_major)` |
 | `objective_key`, `objective_major`, `alternate_group_key` | text, smallint, text | no | What is reviewed, using rotating alternate prompts |
-| `status` | text | no | CHECK `active`, `suspended` (learner paused reviews after a switch), `retired` (no alternates left) |
+| `status` | text | no | CHECK `active`, `suspended` (enrolment paused, or the learner paused reviews after a switch). A track is never retired because alternates run out: `05` reuses or postpones the item instead |
 | `interval_step` | smallint | no | CHECK `0..10`; the interval values live in config (`05`) |
 | `due_on` | date | no | Learner-local. **The cap never changes it** (§5.6) |
-| `last_item_version_id`, `last_attempt_id`, `last_outcome` | uuid, uuid, text | yes | Used to rotate alternates and adjust the interval |
+| `last_item_version_id`, `last_attempt_id`, `last_outcome` | uuid, uuid, text | yes | Used to rotate alternates and adjust the interval. Retention-reserved items are served only for the delayed check |
 | `demonstrated_at`, `retained_at` | timestamptz | yes | Inputs to the delayed retained check |
 | `source_enrolment_id` | uuid | yes | Supports "continue reviews from the previous roadmap?" |
 
@@ -529,9 +587,10 @@ Index: `ix_review_due (user_id, due_on) WHERE status = 'active'`.
 
 | Table | Key columns, constraints and indexes |
 | --- | --- |
-| `session_drafts` | `session_id` PK with FK `(session_id, user_id)`, cascade; `user_id`; `revision int` CHECK ≥ 1 (§5.5); `step_key`; `payload jsonb` (LC); `updated_by_client` (a random ID per device, used on the conflict screen) |
+| `session_drafts` | One draft per session. `session_id` PK with FK `(session_id, user_id)`, cascade; `user_id`; `revision int` CHECK ≥ 1 (the first server save creates revision 1; no row exists before it, §5.5); `step_key`; `payload jsonb` (LC), CHECK ≤ 64 KB; `last_save_id uuid` (the client `save_id` of the latest accepted save, so a retry is replayed, not a conflict); `device_label` (≤ 60 characters, shown on the conflict screen) |
 | `session_assistance` | `id`; `user_id`; `session_id` (composite FK); `step_key`; `content_version_id`; `kind` CHECK `hint`, `worked_example`, `solution_revealed`; `hint_index` (≥ 1 for hints, otherwise 0); `used_at`. UK `(session_id, step_key, kind, hint_index)` makes retried calls harmless. The server records help *before* showing it, so a reload cannot turn assisted work into unassisted work (F04) |
-| `artifacts` | `id`; `user_id`; UK `(user_id, client_artifact_id)`; `lab_version_id` (RESTRICT); `session_id`; `kind` CHECK `decision_record`, `experiment_result`, `check_output`, `diagram`, `notes`; `body text` (LC); `storage_key`, `byte_size`, `sha256`, used only if uploads are introduced (PRD §11), with CHECK body or `storage_key` present; `rubric_self_check jsonb` (met or not met, no text); `evidence_basis` CHECK `learner_submitted`, `self_assessed`, `human_reviewed`. Index `(user_id, submitted_at)`. A learner may delete one; its evidence is voided (`artifact_deleted`) |
+| `artifacts` | `id`; `user_id`; UK `(user_id, client_artifact_id)`; `lab_version_id` (RESTRICT); `session_id`; `kind` CHECK `decision_record`, `experiment_result`, `check_output`, `diagram`, `notes`; `body text` (LC); `storage_key`, `byte_size`, `sha256`, used only if uploads are introduced (PRD §11), with CHECK body or `storage_key` present; `rubric_self_check jsonb` (met or not met, no text); `evidence_basis` CHECK `learner_submitted`, `self_assessed`, `human_reviewed`; `submitted_at timestamptz NOT NULL`. Index `(user_id, submitted_at)`. A learner may delete one; its evidence is voided (`artifact_deleted`) |
+| `content_reports` | `id`; `user_id` FK cascade; `content_version_id` (RESTRICT); `session_id` (composite FK, nullable); `step_key`; `category` CHECK `factual`, `wrong_answer`, `link`, `lab_setup`, `unclear`, `accessibility`, `outdated` (`06`); `note text NULL` (LC), CHECK length ≤ 1,000; `status` CHECK `open`, `triaged`, `fixed`, `declined`; `resolved_at`; `resolution_ref` (the fixing version or issue). Never copied to analytics (F12). Index `(status, created_at)` for triage |
 
 ### 3.5 Notifications, analytics, idempotency and lifecycle
 
@@ -540,22 +599,26 @@ Index: `ix_review_due (user_id, due_on) WHERE status = 'active'`.
 | Column | Type | Null | Notes |
 | --- | --- | --- | --- |
 | `user_id` | uuid | no | PK; FK cascade |
-| `email_enabled` | bool | no | Default `false`. When true, `consent_at`, `consent_text_version` and `reminder_local_time` must be set (CHECK) |
-| `reminder_local_time`, `quiet_start`, `quiet_end` | time | yes | Local wall-clock times. Days come from `learning_preferences.available_days` |
-| `paused_until`, `snoozed_until` | date, timestamptz | yes | Pause and snooze (F10) |
-| `unsubscribed_at`, `unsubscribe_token_version` | timestamptz, int | yes / no | Tokens are signed and stateless; bumping the version invalidates old links |
-| `next_reminder_at` | timestamptz | yes | Next candidate send in UTC, computed with IANA rules. CHECK `email_enabled OR next_reminder_at IS NULL` |
+| `email_enabled` | bool | no | Default `false`. When true, `consent_record_id` and `reminder_local_time` must be set (CHECK) |
+| `consent_record_id` | uuid | yes | Composite FK `(consent_record_id, user_id)` → `consent_records`: the `granted` row for purpose `reminder_email`. Consent itself is stored only there |
+| `reminder_local_time`, `quiet_start`, `quiet_end` | time | yes | Local wall-clock times; the reminder time is in 15-minute steps (CHECK). Quiet hours default to 21:00–08:00. Days come from `learning_preferences.available_days` |
+| `paused_until`, `skip_reminder_on` | date, date | yes | Pause (F10). "Snooze" and "Rest today" set `skip_reminder_on` to the local date of the next reminder, which is then skipped; there is no rest record |
+| `unsubscribed_at`, `unsubscribe_token_version` | timestamptz, int | yes / no | Tokens are signed, stateless and can only unsubscribe; bumping the version invalidates old links |
+| `next_reminder_at` | timestamptz | yes | Derived: the next candidate send in UTC, computed with IANA rules. Recomputed in the same transaction whenever the time zone, days, reminder time, quiet hours, pause or skip change, and after each claim. CHECK `email_enabled OR next_reminder_at IS NULL` |
 
 Index: `ix_notif_next (next_reminder_at) WHERE email_enabled`. Unsubscribing
-clears `email_enabled` and `next_reminder_at`; re-enabling needs fresh consent.
+inserts a `withdrawn` consent record and clears `email_enabled`,
+`consent_record_id` and `next_reminder_at`; re-enabling needs a fresh
+`granted` record.
 
 | Table | Key columns, constraints and indexes |
 | --- | --- |
-| `notification_deliveries` | `id`; `user_id`; `kind` CHECK `learning_reminder`; `channel` CHECK `email`; `local_date` (the learner's local learning day); **UK `(user_id, kind, local_date)`**; `status` CHECK `claimed`, `sent`, `suppressed`, `failed`; `suppression_reason` CHECK `session_completed`, `paused`, `snoozed`, `quiet_hours`, `unsubscribed`, `not_learning_day` (set ⇔ suppressed); `claimed_at`, `sent_at`; `provider_message_ref`, `error_code`. No email address or message body is stored. Index `(claimed_at) WHERE status = 'claimed'` |
-| `analytics_events` | `id bigint` identity; `client_event_id` UK (removes duplicate client retries); `subject_id uuid NOT NULL` (**no FK**); `event_name` (checked against the registry in `10`; CHECK length ≤ 64); `occurred_at`, `received_at`; `session_ref uuid` (no FK); `content_version_id`, `roadmap_version_id`, `topic_key`, `mode`; `properties jsonb` (allow-listed, CHECK ≤ 1 KB; §9); `schema_version`, `app_version`. Indexes `(event_name, occurred_at)`, `(subject_id, occurred_at)`. With no FKs, an analytics problem cannot block learning (PRD §12) |
-| `idempotency_keys` | `id`; `user_id` FK cascade; `scope` CHECK `attempt_submit`, `session_complete`, `artifact_submit`, `guest_claim`, `export_request`, `account_delete`, `enrolment_migrate`; `key` (client-supplied, 8–128 characters); **UK `(user_id, scope, key)`**; `request_hash`; `state` CHECK `in_progress`, `completed`; `response_status`, `response_body jsonb` (≤ 16 KB, no learner text); `resource_ref`; `expires_at` (+24 h, indexed for the purge) |
-| `export_requests` | `id`; `user_id` FK cascade; `status` CHECK `queued`, `running`, `ready`, `expired`, `failed`; `format_version`; `file_ref`, `byte_size`, `sha256`; `expires_at` (required when ready). `uq_export_inflight (user_id) WHERE status IN ('queued', 'running')` |
-| `deletion_requests` | `id`; `user_ref uuid` (copy of `users.id`, **no FK**, so it survives deletion); `origin` CHECK `learner_request`, `guest_expiry`, `operator`; `status` CHECK `pending`, `cancelled`, `processing`, `completed`; `requested_at`, `effective_at`, `completed_at`; `steps jsonb` (checklist, so a crashed job resumes); `ledger_cleared_at`. `uq_deletion_open (user_ref) WHERE status IN ('pending', 'processing')` |
+| `notification_deliveries` | `id`; `user_id`; `kind` CHECK `learning_reminder`; `channel` CHECK `email`; `local_date` (the learner's local learning day); **UK `(user_id, kind, local_date)`**; `status` CHECK `claimed`, `sent`, `suppressed`, `failed`; `suppression_reason` CHECK `practised_today`, `paused`, `skipped`, `quiet_hours`, `unsubscribed`, `not_learning_day`, `email_suppressed` (set ⇔ suppressed); `claimed_at`, `sent_at`; `provider_message_ref`, `error_code`. No email address or message body is stored. At-most-once: the unique row is the de-duplication key, and a `failed` row is never retried automatically (§5.7). Index `(claimed_at) WHERE status = 'claimed'` |
+| `email_suppressions` | `id`; `email_hash` UK (keyed hash of the normalised address; the key is held outside the database, `09`); `reason` CHECK `hard_bounce`, `complaint`; `provider_event_ref`; `suppressed_at`. **No FK to `users`**, so a suppression survives account deletion without keeping the address. Checked at send time |
+| `analytics_events` | `event_id uuid` PK, unique for every event: assigned by the server, and deterministic (event name plus entity ID) for events that must happen once, such as `session_completed`; `client_event_id uuid NULL` (client events only), UK `(subject_id, client_event_id)` drops client retries without letting one client collide with another's IDs; `subject_id uuid NOT NULL` (**no FK**); `event_name` (checked against the registry in `10`; CHECK length ≤ 64); `actor` CHECK `learner`, `system`, `operator`; `source` CHECK `client`, `server`; `occurred_at`, `received_at`; `local_date date` (the learner's local learning day); `device_class` CHECK `phone`, `tablet`, `desktop`, `unknown`; `session_ref uuid` (no FK); `content_version_id`, `roadmap_version_id`, `topic_key`, `mode`; `properties jsonb` (allow-listed, CHECK ≤ 1 KB; §9); `schema_version`, `app_version`. Indexes `(event_name, occurred_at)`, `(subject_id, occurred_at)`. Written after the learning transaction commits; with no FKs, an analytics problem cannot block learning (PRD §12) |
+| `idempotency_keys` | `id`; `user_id` FK cascade; `scope` CHECK `attempt_submit`, `session_complete`, `artifact_submit`, `guest_claim`, `export_request`, `account_delete`, `enrolment_migrate`; `key` (client-supplied, 8–128 characters); **UK `(user_id, scope, key)`**; `request_hash`; `state` CHECK `in_progress`, `completed`; `response_status`, `response_body jsonb` (≤ 16 KB, no learner text); `resource_ref`; `expires_at` (+7 days, indexed for the purge) |
+| `export_requests` | `id`; `user_id` FK cascade; `status` CHECK `queued`, `running`, `ready`, `expired`, `failed`; `format_version`; `file bytea` (the ZIP, stored in the database at pilot, no object storage; cleared at expiry), `byte_size`, `sha256`; `expires_at` (required when ready). `uq_export_inflight (user_id) WHERE status IN ('queued', 'running')` |
+| `deletion_requests` | `id`; `user_ref uuid` (copy of `users.id`, **no FK**; set to NULL when the purge completes); `origin` CHECK `learner_request`, `operator`; `status` CHECK `pending`, `cancelled`, `processing`, `completed`; `requested_at`, `effective_at` (`requested_at` + 7 days), `cancelled_at`, `completed_at`; `pilot_cohort_id`, `pilot_arm` (copied at request, so each deleted account counts as an exclusion per arm, `10`); `steps jsonb` (checklist, including both ledger writes, so a crashed job resumes). `uq_deletion_open (user_ref) WHERE status IN ('pending', 'processing')` |
 
 ## 4. Content immutability and versioning
 
@@ -564,7 +627,7 @@ clears `email_enabled` and `next_reminder_at`; re-enabling needs fresh consent.
 | Rule | PRD | Mechanism (**Proposal**) |
 | --- | --- | --- |
 | Published rows never change except lifecycle fields | §11, F11 | The runtime database role has `SELECT` only on catalogue tables. The publish role has `INSERT` plus `UPDATE (status, retired_at, retire_reason)`. A trigger rejects every other update, any transition except `published → retired`, and every `DELETE` |
-| A version cannot be republished with different content | F11 | UK on `(kind, key, major, minor)`; publish compares `content_hash` and aborts on a mismatch |
+| A version cannot be republished with different content | F11 | UK on `(kind, key, major, minor, patch)`; publish compares `content_hash` and aborts on a mismatch |
 | Learner rows reference exact versions | §11, F04 | FKs to `content_versions` with `RESTRICT` from `attempts`, `session_assistance`, `skill_evidence`, `artifacts` and `learning_sessions`. The session `plan` freezes item versions at start, so a mid-session publish changes nothing |
 | Retired content never erases evidence | §12 | Retirement only stops new serving. No learner row is updated; the evidence view shows "task version retired on …" by joining at read time |
 | Enrolments pin a version | R01 | `roadmap_enrolments.roadmap_version_id`; composite FKs keep every `topic_progress` row inside that version |
@@ -577,39 +640,46 @@ review (`06`).
 
 | Change | Recorded as | Effect on enrolled learners |
 | --- | --- | --- |
-| Typo, clearer wording, extra hint, source link | content minor + 1 | Served from the next session. No migration; credit unaffected |
+| Typo, clearer wording, equivalent link, re-certification | content patch + 1 | Served from the next session. No migration; credit unaffected |
+| Extra hint, new held-back item, better feedback | content minor + 1 | As for a patch |
 | New scenario, prompts or rubric for the same objective | content major + 1 | Reaches learners only through a new roadmap version. Old attempts still count if the rule lists the old major as accepted |
-| Objective materially changed | `objective_major` + 1 | New roadmap version. Old completions are not carried; challenge-out is offered. Evidence history is unchanged |
-| Content found wrong | Retire; void evidence with `content_error` | Rows stay. Voided evidence is excluded from levels and shown as voided |
+| Objective materially changed | `objective_major` + 1 | New roadmap version. Completed topics keep their credit and get "Refresh suggested" (§4.3). Evidence history is unchanged |
+| Content found wrong against an unchanged objective | Patch or minor with `defect_fix = true`, or retirement | Rows stay and still count. Evidence on an earlier version of that key and major is annotated at read time ("task corrected on …"); it is never voided. `05` schedules a fresh alternate check |
 
-`topic_activities` points to `(key, major)`, not a row ID. Minor fixes
-therefore reach everyone without new roadmap versions, and anything that could
-change credit forces a migration offer.
+`topic_activities` points to `(key, major)`, not a row ID. Minor and patch
+fixes therefore reach everyone without new roadmap versions, and anything that
+could change credit forces a migration offer.
 
 ### 4.3 Version migration with retained credit (R06)
 
-Migration happens only when the learner accepts it. It runs in one
-transaction, guarded by scope `enrolment_migrate` and the unique
-`migrated_from_enrolment_id`:
+Migration happens only when the learner accepts the preview. It applies
+after any open session ends, in one transaction, guarded by scope
+`enrolment_migrate` and the unique `migrated_from_enrolment_id`:
 
-1. Match old and new topics by `topic_key` or through `replaces_topic_keys`.
-2. A matched topic that was `completed`, with an equal `objective_key` and
-   `objective_major`, becomes a new row with `completion_path = 'carried_over'`
-   and `carried_from_progress_id` set.
-3. Other matched topics become `not_started`, or `in_progress` if attempts
-   exist, with challenge-out offered. Deferred topics stay deferred.
-4. The accepted diff is frozen into `migration_summary`. The old enrolment
+1. Create a new enrolment row on the new version.
+2. Match old and new topics by `topic_key` or through `replaces_topic_keys`.
+3. A matched topic that was `completed` becomes a new row with
+   `completion_path = 'carried_over'` and `carried_from_progress_id` set. If
+   its `objective_key` or `objective_major` changed, the row also gets
+   `refresh_suggested_at` with reason `objective_changed`; the credit stays.
+4. Other matched topics become `not_started`, or `in_progress` if attempts
+   exist. Deferred topics stay deferred.
+5. The accepted diff is frozen into `migration_summary`. The old enrolment
    becomes `migrated` and keeps its rows and any `completed_at` milestone.
+
+Declining sets `declined_version_id` and `declined_at` on the current
+enrolment, and nothing else changes.
 
 ```json
 { "from_version": 1, "to_version": 2,
-  "required_before": { "completed": 11, "total": 18 }, "required_after": { "completed": 10, "total": 19 },
+  "required_before": { "completed": 11, "total": 18 }, "required_after": { "completed": 11, "total": 19 },
   "topics": [ { "topic_key": "perf.query-plans", "change": "wording_only", "credit": "carried" },
-              { "topic_key": "caching.invalidation", "change": "objective_changed", "credit": "challenge_offered" } ] }
+              { "topic_key": "caching.invalidation", "change": "objective_changed", "credit": "carried", "refresh_suggested": true } ] }
 ```
 
-Learners stay on their pinned version until they accept, and the summary shows
-before and after counts, so progress never drops silently.
+Learners stay on their pinned version until they accept. The completed count
+never drops; the percentage can fall when required topics are added, and the
+preview shows the before and after counts.
 
 ### 4.4 Evidence reuse across roadmaps (§8A)
 
@@ -642,6 +712,8 @@ If nothing matches, the topic offers challenge-out. Credit is a reference
 | A session completes once; side effects run once | F09 | Conditional status update plus idempotency replay |
 | One open session; one current enrolment; one active goal; one in-flight export | F02, §8A, F01, F09 | Partial unique indexes |
 | One attempt per client submission | F09 | UK `(user_id, client_attempt_id)` |
+| One evidence row per attempt; claimed guest work never above `practised` | F04, PRD §5 | UK `(attempt_id)` on `skill_evidence`; CHECK on `source` |
+| A single-use invite is redeemed once | Pilot (`10`) | Conditional update on `invites` |
 | No silent draft overwrite | §12 | Revision compare-and-set |
 | At most one reminder per local learning day | F10 | UK on `notification_deliveries`, claimed before sending |
 | A reveal never demonstrates; reading never raises a level | §9, F04 | CHECKs on `skill_evidence` |
@@ -670,7 +742,7 @@ UPDATE topic_progress
  WHERE enrolment_id = :enrolment_id AND topic_id = :topic_id
    AND user_id = :uid AND state <> 'completed'
 RETURNING id;
--- 1 row: first completion, so emit events and re-check the milestone with the same pattern
+-- 1 row: first completion, so re-check the milestone with the same pattern (events go out after commit)
 --        (UPDATE roadmap_enrolments ... WHERE completed_at IS NULL AND
 --         completed required topics = required_topic_count)
 -- 0 rows: already completed (retry or second device), so do nothing
@@ -681,7 +753,7 @@ RETURNING id;
 ```sql
 BEGIN;
 INSERT INTO idempotency_keys (id, user_id, scope, key, request_hash, state, expires_at)
-VALUES (:id, :uid, 'session_complete', :key, :hash, 'in_progress', :now + interval '24 hours')
+VALUES (:id, :uid, 'session_complete', :key, :hash, 'in_progress', :now + interval '7 days')
 ON CONFLICT (user_id, scope, key) DO NOTHING RETURNING id;
 -- no row: same hash and completed means replay the stored response;
 --         same hash and in_progress means 409; a different hash means 422
@@ -689,13 +761,17 @@ UPDATE learning_sessions SET status = 'completed', completed_at = :now
  WHERE id = :sid AND user_id = :uid AND status IN ('open', 'suspended')
 RETURNING id;
 -- 0 rows: completed earlier by another key or device; return current state with no side effects
--- 1 row:  topic_progress (5.2), review_schedule, skill_evidence and analytics_events, all in this transaction
+-- 1 row:  topic_progress (5.2), review_schedule and skill_evidence, all in this transaction
 UPDATE idempotency_keys SET state = 'completed', response_status = 200, response_body = :resp
  WHERE id = :key_id;
 COMMIT;
+-- after commit: write analytics_events (session_completed, topic_completed) with
+-- deterministic event_ids, so a retried write cannot duplicate them
 ```
 
-If the transaction fails, the key rolls back with it. The unique index
+Analytics are written only after the commit, never inside the learning
+transaction, so an analytics failure cannot roll back learning. If the
+transaction fails, the key rolls back with it. The unique index
 serialises two devices sending the *same* key. With *different* keys, both race
 on the conditional update and exactly one wins.
 
@@ -707,25 +783,33 @@ on the conditional update and exactly one wins.
   replay.
 - **Stored response.** Status and body, so retries get identical answers. The
   learner's own text is never echoed (§9).
-- **Expiry.** 24 hours, then a daily purge. Correctness never depends on the
+- **Expiry.** 7 days, then a daily purge. Correctness never depends on the
   key still existing, because the invariant layer is permanent: UK
-  `client_attempt_id`, conditional status updates, one in-flight export, and
-  claim already applied.
-- **Email dispatch** uses the `notification_deliveries` row as its key (§5.7),
-  not this table. This deviates from the conventions list (Open question 9).
+  `client_attempt_id` (which also covers re-sent guest claims), conditional
+  status updates and one in-flight export.
+- **Email dispatch** is de-duplicated by the unique `notification_deliveries`
+  row (§5.7), not by this table.
 
 ### 5.5 Draft revisions (PRD §12)
 
-```sql
-INSERT INTO session_drafts (session_id, user_id, revision, step_key, payload, updated_by_client)
-VALUES (:sid, :uid, 1, :step, :payload, :client) ON CONFLICT (session_id) DO NOTHING;  -- base_revision 0
+Drafts are local-first; the server copy starts at the first save, which
+creates revision 1. There is no revision-0 row at session start.
 
+```sql
+-- first save (base_revision 0)
+INSERT INTO session_drafts (session_id, user_id, revision, step_key, payload, last_save_id, device_label)
+VALUES (:sid, :uid, 1, :step, :payload, :save_id, :device) ON CONFLICT (session_id) DO NOTHING;
+
+-- later saves
 UPDATE session_drafts
-   SET payload = :payload, step_key = :step, revision = revision + 1, updated_by_client = :client
+   SET payload = :payload, step_key = :step, revision = revision + 1,
+       last_save_id = :save_id, device_label = :device
  WHERE session_id = :sid AND user_id = :uid AND revision = :base_revision
 RETURNING revision;
--- 0 rows: 409 with the server copy (revision, payload, updated_at, client);
--- the client shows both versions and never overwrites silently
+-- 0 rows: read the row. If last_save_id = :save_id, this is a retry: return its
+-- revision (no 409). Otherwise 409 draft_conflict with the server copy (revision,
+-- payload, updated_at, device_label); the learner resolves the whole draft and
+-- nothing is overwritten silently
 ```
 
 ### 5.6 Review cap at read time; deferred items preserved (F05, F06)
@@ -744,19 +828,25 @@ spreads across future sessions (PRD §6). No overdue counter is stored.
 
 ### 5.7 One reminder per local learning day (F10)
 
+The scheduler ticks every 15 minutes. Each tick selects due candidates from
+`ix_notif_next` with `FOR UPDATE SKIP LOCKED`, so two workers never take the
+same learner, then claims the day:
+
 ```sql
 INSERT INTO notification_deliveries (id, user_id, kind, channel, local_date, status, claimed_at)
 VALUES (:id, :uid, 'learning_reminder', 'email', :local_date, 'claimed', :now)
 ON CONFLICT (user_id, kind, local_date) DO NOTHING RETURNING id;
 -- no row: this day is already handled
+-- either way: recompute next_reminder_at in the same transaction
 ```
 
-The worker that wins the claim then checks suppression: a session completed
-today (`ix_sessions_user_done_day`), a pause, a snooze or quiet hours. It
-either marks the row `suppressed` with a reason, or sends and marks it `sent`.
-If the worker crashes after claiming, a sweep marks the row `failed` and **does
-not resend**. Delivery is at-most-once by design, because a missed reminder
-costs less than a duplicate (PRD §6).
+The worker that wins the claim then checks suppression: meaningful practice
+already done that learning day (`05`'s definition; `ix_sessions_user_done_day`),
+a pause, a skip, quiet hours or an `email_suppressions` match. It either marks
+the row `suppressed` with a reason, or sends and marks it `sent`. A send that
+fails, times out ambiguously or is interrupted by a crash ends as `failed` and
+**is not retried**. Delivery is at-most-once by design, because a missed
+reminder costs less than a duplicate (PRD §6).
 
 ## 6. Enumerations and evidence history
 

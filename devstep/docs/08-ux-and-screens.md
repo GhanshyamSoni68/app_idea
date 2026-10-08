@@ -199,7 +199,7 @@ flowchart TD
 - There is one open session at a time. Starting a different one (for example a 10-minute session while a multi-day lab is open) suspends the open one with its draft, and Today offers it as **Continue**. *(05)*
 - **Check answer** is disabled while offline; the draft keeps saving on the device (§5).
 
-### 3d. "I'm tired": small mode or planned rest
+### 3d. "I'm tired": small mode or rest today
 
 ```mermaid
 flowchart TD
@@ -368,16 +368,18 @@ Phone frames are 40 characters wide; the lab is 80. Bracketed text is a control;
 | | [ Start ]                        | |
 | +----------------------------------+ |
 | [ Start small - about 3 min ]        |
-| Rest today                           |
+| Rest today (no reminder today)       |
 |                                      |
-| This week: 1 of 3 sessions           |
-| Any session counts.                  |
+| This week: 1 of 3 practice days      |
+| Any practice counts, even 3 min.     |
 +--------------------------------------+
 | [Today]    Roadmap    Evidence       |
 +--------------------------------------+
 ```
 
-Variants: **Continue** (card reads "Continue: Indexes and pagination · step 3 of 5 · your draft is saved"); **Done for today** ("Done for today. Next: Wed, about 10 min." plus a quiet "Practise anyway"); **Desktop** adds one line, "Optional lab ready: before/after experiment", below the card, never a second card. The roadmap, module, topic and purpose line is required. *(PRD §8A, F02)*
+The card is the one primary action. Below it sit at most three secondary actions, chosen by `05`: **Start small** (only when a small task exists), **Continue** (a suspended session), **Take the challenge**, or an optional lab. **Rest today** is a quiet link, not one of the three.
+
+Variants: **Continue** (card reads "Continue: Indexes and pagination · step 3 of 5 · your draft is saved"); **Suspended lab** (a secondary line "Continue lab: task 3 of 5 · saved"); **Done for today** (after practice: "Done for today. Next: Wed, about 10 min." plus a quiet "Practise anyway"); **New roadmap version** (one line, "Version 1.1 is available. See Roadmap.", never a card); **Desktop** adds one line, "Optional lab ready: before/after experiment", below the card, never a second card. The roadmap, module, topic and purpose line is required. *(PRD §8A, F02)*
 
 ### W02 · Player step: scenario and question
 
@@ -408,7 +410,7 @@ Variants: **Continue** (card reads "Continue: Indexes and pagination · step 3 o
 | ( ) Add more app servers             |
 | ( ) Cache the whole dashboard        |
 |                                      |
-| [ Need a hint? ]                     |
+| [ Need a hint? ]       Show solution |
 |                                      |
 | Draft saved                          |
 | [ Check answer ]                     |
@@ -429,7 +431,7 @@ Variants: **Continue** (card reads "Continue: Indexes and pagination · step 3 o
 | | Where does the trace say the     | |
 | | time goes? Start there.          | |
 | |                                  | |
-| | [ Show hint 2 ]                  | |
+| | [ Show hint 2 ]    Show solution | |
 | +----------------------------------+ |
 | Hints are optional. Using one is     |
 | recorded and still counts as         |
@@ -441,21 +443,23 @@ Variants: **Continue** (card reads "Continue: Indexes and pagination · step 3 o
 | [ Check answer ]                     |
 +--------------------------------------+
 
-Reveal confirmation (dialog). "Show solution" appears only after the last
-hint or after an incorrect attempt (IR-04).
+Reveal confirmation (dialog). "Show solution" is available at any time
+before an answer is submitted, and always opens this dialog (IR-04).
 +--------------------------------------+
 | Show the solution?                   |
 |                                      |
 | You can keep learning after this.    |
-| This question won't count as         |
-| demonstrated, and a fresh question   |
-| on the same idea will come back      |
-| later.                               |
+| You haven't answered yet, so this    |
+| question won't count toward your     |
+| evidence. A fresh question on the    |
+| same idea will come back later.      |
 |                                      |
 | [ Keep trying ]                      |
 | [ Show solution ]                    |
 +--------------------------------------+
 ```
+
+After an answer is submitted, the model answer is part of the feedback (W04). That is not a reveal and needs no confirmation.
 
 ### W04 · Player feedback
 
@@ -484,7 +488,7 @@ hint or after an incorrect attempt (IR-04).
 
 Incorrect variant: "[!] Not quite" heading, an explanation of why the chosen option may not help under the stated assumptions, the worked example expanded, and "A similar question will come back sooner." Status is carried by the marker and the word, never by colour alone. *(PRD §5 step 5, §9)*
 
-Open-ended variant (written explanations, architecture choices): after submitting, the panel shows **Show example answer**, a three-item self-check ("Does yours name what the plan showed? Say what you would measure? State one limitation?") and the line "This is self-assessed. A person has not reviewed it." *(PRD §9)*
+Open-ended variant (written explanations, architecture choices): after submitting, the panel shows **Show example answer** (feedback, not a reveal), a three-item self-check ("Does yours name what the plan showed? Say what you would measure? State one limitation?") and the line "This is self-assessed. A person has not reviewed it." *(PRD §9)*
 
 ### W05 · Stopping point: session complete
 
@@ -492,8 +496,8 @@ Open-ended variant (written explanations, architecture choices): after submittin
 +--------------------------------------+
 | Session complete                     |
 +--------------------------------------+
-| You used a query plan to choose an   |
-| investigation.                       |
+| You worked through a slow query and  |
+| read its plan. That's practice.      |
 |                                      |
 | You can stop here.                   |
 |                                      |
@@ -519,7 +523,7 @@ Open-ended variant (written explanations, architecture choices): after submittin
 +--------------------------------------+
 ```
 
-The headline is the evidence-based reward from PRD §5. Effort recognition, if any, sits in "What you did", never in the evidence block. *(PRD §6)*
+This session recorded **Practised**, so the headline recognises the effort. The evidence-based reward from PRD §5 ("You used a query plan to choose an investigation.") is the headline only when the session raised a skill to **Demonstrated** or **Retained**. Effort recognition never appears in the evidence block. *(PRD §5, §6; triggers in `05`)*
 
 ### W06 · Guest: keep your progress
 
@@ -527,24 +531,28 @@ The headline is the evidence-based reward from PRD §5. Effort recognition, if a
 +--------------------------------------+
 | Sample complete                      |
 +--------------------------------------+
-| You used a trace to decide what to   |
-| investigate first.                   |
+| One real scenario, one decision and  |
+| its feedback. That's practice.       |
 |                                      |
 | Where this is saved                  |
-| Only in this browser on this device. |
-| It is lost if you clear browser      |
-| data, close a private window or      |
-| switch devices. Kept here for up to  |
-| 30 days.                             |
+| Only in this browser on this device  |
+| until you create an account. If you  |
+| don't, it is deleted from this       |
+| browser after 30 days. Clearing      |
+| browser data or closing a private    |
+| window loses it sooner.              |
 |                                      |
 | [ Create an account to keep it ]     |
-| Your answer and feedback move into   |
-| your account.                        |
+| Needs a pilot invite. Your answer    |
+| moves into your account as practice. |
 |                                      |
+| No invite? Ask to join the pilot     |
 | Not now                              |
 | Already have an account? Sign in     |
 +--------------------------------------+
 ```
+
+**Ask to join the pilot** opens the pilot recruitment form (`10-measurement-and-validation.md`); there is no waitlist, and the sample stays on this device. On sign-up the answer is checked again and recorded as **Practised** at most.
 
 ### W07 · Return screen
 
@@ -611,8 +619,8 @@ The headline is the evidence-based reward from PRD §5. Effort recognition, if a
 | From CRUD to Reliable Systems        |
 | Version 1.0 - enrolled 2 Sep         |
 |                                      |
-| 5 of 18 required topics - 28%        |
-| [######..............]               |
+| 5 of 18 required topics - 27%        |
+| [#####...............]               |
 | Completion shows coverage, not       |
 | mastery. Skills are in Evidence.     |
 |                                      |
@@ -638,9 +646,10 @@ The headline is the evidence-based reward from PRD §5. Effort recognition, if a
 +--------------------------------------+
 ```
 
-- Default disclosure: current module open, others collapsed; later modules say **Preview** and expand on request. *(PRD §10 "avoid exposing every future topic by default"; Open question 5)*
+- Default disclosure: current module open, others collapsed; later modules say **Preview** and expand on request. *(PRD §10 "avoid exposing every future topic by default"; Open question 3)*
 - Optional topics and labs carry the word **Optional** and are excluded from the count. *(PRD §8A)*
-- **Options** menu: Pause roadmap, Change pace (opens Preferences), Show all topics, Version details, Switch roadmap (shown once R07 adds roadmaps).
+- The percentage is rounded down and the count always sits beside it, so it never claims more than was done.
+- **Options** menu: Pause roadmap (also pauses reminders and reviews), Change pace (opens Preferences), Show all topics, Version details, Switch roadmap (shown once R07 adds roadmaps).
 
 ### W10 · Roadmap completion summary
 
@@ -648,21 +657,35 @@ The headline is the evidence-based reward from PRD §5. Effort recognition, if a
 +--------------------------------------+
 | Roadmap complete                     |
 +--------------------------------------+
-| From CRUD to Reliable Systems 1.0    |
+| From CRUD to Reliable Systems 1.1    |
 | 18 of 18 required topics - 100%      |
 | Completed 14 Nov 2026                |
 |                                      |
 | What this means                      |
 | You covered every required topic and |
-| passed a check on each. This shows   |
-| coverage and checked understanding,  |
-| not verified implementation skill.   |
+| passed a check or a challenge on     |
+| each. This shows coverage and        |
+| checked understanding, not verified  |
+| implementation skill.                |
 |                                      |
-| Skills by evidence level             |
-| (@) Retained          5              |
-| (#) Demonstrated      9              |
-|     3 of these self-assessed         |
-| (+) Practised         4              |
+| How topics were completed            |
+| 15 with practice and a topic check   |
+| 2 by challenge          [Show which] |
+| 1 carried over from 1.0 [Show which] |
+|                                      |
+| Skills: level, date and basis        |
+| Retained 5 - Demonstrated 9 -        |
+| Practised 4                          |
+| Request path                         |
+|   (@) Retained, 24 Sep               |
+|   Checked automatically              |
+| Latency evidence - by challenge      |
+|   (#) Demonstrated, 2 Oct            |
+|   Checked automatically              |
+| Cache invalidation - carried over    |
+|   (#) Demonstrated, 12 Oct (in 1.0)  |
+|   Self-assessed. Refresh suggested   |
+| [ Show all 18 skills ]               |
 |                                      |
 | Optional labs: 4 of 6 submitted      |
 | Submitted by you, not verified.      |
@@ -678,7 +701,7 @@ The headline is the evidence-based reward from PRD §5. Effort recognition, if a
 +--------------------------------------+
 ```
 
-No confetti or animation. **See other roadmaps** shows a "more coming" note until R07 ships; no automatic enrolment. *(PRD §8A, R04)*
+No confetti or animation. Every skill is listed with its level, the date it was reached and its basis; topics completed by challenge-out or carried over in a version move say so on their row. **See other roadmaps** shows a "more coming" note until R07 ships; no automatic enrolment. *(PRD §8A, R04)*
 
 ### W11 · Evidence
 
@@ -688,20 +711,26 @@ No confetti or animation. **See other roadmaps** shows a "more coming" note unti
 +--------------------------------------+
 | What you can show, with dates and    |
 | limits. Separate from roadmap        |
-| completion.                          |
+| completion. Levels never go down.    |
 | View: [By level]  By module          |
 |                                      |
 | (@) RETAINED - 1 skill               |
-|   Request path             24 Sep    |
-|   Different check, 10 days later.    |
-|   Checked automatically.             |
+|   Request path                       |
+|   New task, no hints or solution,    |
+|   10 days later. Checked             |
+|   automatically.                     |
+|   Last confirmed 24 Sep.             |
 |                                      |
 | (#) DEMONSTRATED - 2 skills          |
-|   Component boundaries     18 Sep    |
+|   Component boundaries               |
 |   Self-assessed against an example.  |
 |   Not reviewed by a person.          |
-|   Query plans              30 Sep    |
-|   Checked automatically. Retention   |
+|   Last confirmed 18 Sep.             |
+|   Latest check 2 Oct: not met.       |
+|   Refresh suggested                  |
+|   Query plans                        |
+|   Checked automatically.             |
+|   Last confirmed 30 Sep. Retention   |
 |   check from 7 Oct.                  |
 |                                      |
 | (+) PRACTISED - 3 skills     [Show]  |
@@ -721,7 +750,7 @@ No confetti or animation. **See other roadmaps** shows a "more coming" note unti
 +--------------------------------------+
 ```
 
-- Each skill appears once, under its highest current level. Skill detail (S16) lists every record with date, level, basis, help used, task version and a plain limitation. *(PRD F04, F08)*
+- Each skill appears once, under the highest level it has reached; a level never drops. Each skill shows its last-confirmed date and, when a later check was not met, that latest check and **Refresh suggested**. Demonstrated and retained always mean "on a new task without hints or the solution". Skill detail (S16) lists every record with date, level, basis, help used, task version and a plain limitation. *(PRD F04, F08; rules in `05`)*
 - Skills never attempted (including skipped diagnostic areas) appear under a collapsed **Not checked yet** group, not as zero. *(PRD F01)*
 
 ### W12 · Lab (desktop, 80 characters)
@@ -778,16 +807,17 @@ Phone variant: the left column becomes the whole screen, tasks are readable, and
 | Mon, Wed, Fri          [Change days] |
 |                                      |
 | Time           [ 18:30           ]   |
+|                15-minute steps       |
 | Time zone      [ Europe/London   v ] |
 |                Detected from device  |
 |                                      |
 | Quiet hours                          |
-| No email from [ 21:30 ] to [ 07:30 ] |
+| No email from [ 21:00 ] to [ 08:00 ] |
 |                                      |
 | Next reminder: Wed 7 Oct, 18:30      |
 | (Europe/London)                      |
 |                                      |
-| [ Skip the next one ]                |
+| [ Snooze: skip the next one ]        |
 | [ Pause until a date ]               |
 | Turn off reminders                   |
 |                                      |
@@ -795,7 +825,7 @@ Phone variant: the left column becomes the whole screen, tasks are readable, and
 +--------------------------------------+
 ```
 
-Reminder days are a subset of learning days, so "at most one per scheduled learning day" holds by construction. *(PRD §6, F10)*
+Reminder days are a subset of learning days, so "at most one per scheduled learning day" holds by construction. Times are set in 15-minute steps, quiet hours default to 21:00–08:00 local time, and a reminder that falls in quiet hours is skipped rather than sent later. **Snooze** skips the next reminder only. *(PRD §6, F10)*
 
 ## 5. Screen state catalogue
 
@@ -806,19 +836,22 @@ Every screen in §2.3 must define the states below where they apply. W14 and W15
 | Loading | Today, Roadmap, Evidence, Player | Layout-shaped placeholders with the real heading. After about 1 s: "Getting your next step…" *(Proposal)* | none | Blank screen; spinner covering a typed answer. |
 | Empty | Evidence, Roadmap (not enrolled) | "Nothing here yet. Evidence appears after your first answer with feedback." / "Choose a roadmap to get a daily next step." | Go to Today; See roadmap | Sample data dressed as real progress. |
 | Offline, unsynced draft | Player, Lab | Banner: "You're offline. Your answer is saved on this device and will sync when you reconnect." Indicator: "Saved on this device, not synced". **Check answer** disabled with the reason shown. | Keep writing; Save and exit | Discarding the local draft; showing "Saved" for a local-only draft. *(PRD §12)* |
-| Sync conflict | Player, Lab | W14: both versions with device and time; learner chooses. | Keep this device's; Keep the other | Silent overwrite or last-write-wins without asking. *(PRD §12)* |
+| Sync conflict | Player, Lab | W14: the whole draft from each device, with device and time, and the steps that differ shown. The learner keeps one whole draft. | Keep this device's; Keep the other | Silent overwrite or last-write-wins without asking; mixing steps from both; "Decide later". *(PRD §12)* |
 | Completed elsewhere | Player | "You finished this session on another device." Any unsynced local text is offered for copying. | Back to Today | Double credit (completion is idempotent, F09). |
 | Error | Any | "Couldn't load Today. Your progress is safe." / "Couldn't check your answer. It's saved; try again." | Try again | Losing the answer; error codes as the only message. |
 | Signed out mid-task | Player, Lab | "You've been signed out. Your answer is saved on this device. Sign in to continue." Returns to the same step. | Sign in | Expiring work (no timed answers). |
-| Content exhausted | Today | "You've done everything available right now. Next review: Fri." | Revisit a deferred topic; Optional lab; Rest | Filler tasks; unreviewed content. |
+| Done for today | Today | After practice: "Done for today. Next: Wed, about 10 min." | Practise anyway (quiet) | Pushing another session; streak or "keep going" pressure. |
+| Session suspended | Today | Secondary line: "Continue lab: task 3 of 5 · saved." Shown when a short session started while another (often a multi-day lab) was open. | Continue | Two open sessions at once; losing the suspended draft. |
+| Content exhausted | Today | "You've done everything available right now. Next review: Fri." | Revisit a deferred topic; Optional lab; Rest today | Filler tasks; unreviewed content. |
 | All prerequisites unmet | Today, Roadmap | "The next topics build on Query plans, which is deferred. Start it (about 10 min) or take its challenge." Rows read "Needs: Query plans (deferred)". | Start; Take the challenge; Preview | A dead end; a padlock with no explanation. |
-| Enrolment paused | Today, Roadmap | "Your roadmap is paused. Progress and drafts are kept." Roadmap header: "Paused since 3 Oct". | Resume; Three-minute refresher | "You're losing progress"; auto-resume countdown. *(R05)* |
+| Enrolment paused | Today, Roadmap | "Your roadmap is paused. Progress and drafts are kept. Reminders and reviews are paused too." Roadmap header: "Paused since 3 Oct". Weekly progress reads "Paused". | Resume | "You're losing progress"; auto-resume countdown; reviews or reminders while paused. *(R05)* |
 | Roadmap completed | Today | Maintenance card: "Maintenance: 1 short review, about 3 min." | Start; See other roadmaps; Take a break | Automatic enrolment. *(PRD §8A)* |
-| New roadmap version | Roadmap banner only | "Version 1.1 is available. You can stay on 1.0." → W15 | See changes; Not now | Silent migration; unexplained drop in percentage. *(R06)* |
-| Content updated mid-session | Player | "This task was updated after you started. Finish your version or start the updated one. Your history is kept." | Finish mine; Start updated | Losing the draft or past evidence. *(PRD §12)* |
+| New roadmap version | Roadmap banner; one line on Today | Roadmap: "Version 1.1 is available. You can stay on 1.0." → W15. Today: "Version 1.1 is available. See Roadmap." | See changes; Not now | Silent migration; unexplained drop in percentage; a Today card. *(R06)* |
+| Content revised mid-session | Player | "This task was updated after you started. You'll finish the version you started; your next one uses the update." | Continue | Asking the learner to choose; losing the draft or past evidence. *(PRD §12)* |
+| Content withdrawn mid-session | Player | "This task was withdrawn because it had a mistake. It restarts on the corrected version. Your earlier draft is kept read-only to copy from." | Start the corrected task | Losing the draft or past evidence; continuing on withdrawn content. *(PRD §12)* |
 | Guest storage unavailable | Sample | "This browser isn't saving. Your answers will be lost when you close this tab." | Create an account; Continue anyway | Implying the work is saved. |
 | Lab setup fails | Lab | "The setup check didn't pass." Troubleshooting list, then "Still stuck? Try the no-setup version. It is recorded as different evidence." | Retry check; No-setup version | Blocking the roadmap on lab setup (labs are optional). *(PRD §16)* |
-| Missed planned session | Today | Normal recommendation; at most "Your plan moved on. Nothing to catch up." | Start; Start small | "You missed…", doubled load. *(PRD §6)* |
+| Missed planned session | Today | Normal recommendation; at most "Your plan moved on. Nothing to catch up." | Start; Start small (when a small task exists) | "You missed…", doubled load. *(PRD §6)* |
 
 ### W14 · Sync conflict
 
@@ -826,26 +859,33 @@ Every screen in §2.3 must define the states below where they apply. W14 and W15
 +--------------------------------------+
 | [!] Changed on another device        |
 +--------------------------------------+
-| This answer was edited on two        |
-| devices. Choose which to keep.       |
+| This draft was edited on two         |
+| devices. Choose which whole draft to |
+| keep. Steps that differ: 2 and 4.    |
 |                                      |
 | This device - edited 14:02           |
+| Step 2                               |
 | +----------------------------------+ |
 | | Check the plan for a sequential  | |
-| | scan on work_orders, then...     | |
+| | scan on work_orders...    [Copy] | |
 | +----------------------------------+ |
-| Another device - edited 13:55        |
-| +----------------------------------+ |
-| | Look at the trace first...       | |
-| +----------------------------------+ |
+| Step 4: (X) Add a composite index    |
 |                                      |
-| [ Keep this device's ]               |
-| [ Keep the other one ]               |
-| The one you don't keep stays below   |
-| your answer to copy from until you   |
-| submit.                              |
+| Laptop - edited 13:55                |
+| Step 2                               |
+| +----------------------------------+ |
+| | Look at the trace...      [Copy] | |
+| +----------------------------------+ |
+| Step 4: (X) Add a read replica       |
+|                                      |
+| [ Keep this device's draft ]         |
+| [ Keep the laptop's draft ]          |
+| Copy any text you need first. The    |
+| draft you don't keep is removed.     |
 +--------------------------------------+
 ```
+
+Steps that match are not shown. The choice covers the whole draft; there is no step-by-step merge and no "decide later". *(Proposal; draft rules in `02` and `04`)*
 
 ### W15 · New roadmap version: migration offer
 
@@ -857,16 +897,20 @@ Every screen in §2.3 must define the states below where they apply. W14 and W15
 |                                      |
 | What changes (illustrative)          |
 | + New required topic: Read replicas  |
-| ~ Updated: Cache invalidation        |
-|   Your completion is kept.           |
+|   About 20 min plus a topic check.   |
+| ~ Changed: Cache invalidation        |
+|   Credit kept. Refresh suggested.    |
 | - Retired: none                      |
 |                                      |
 | Your credit                          |
 | Kept: all 12 completed topics        |
-| Now:   12 of 18 required - 67%       |
+| Now:   12 of 18 required - 66%       |
 | After: 12 of 19 required - 63%       |
 | The percentage changes only because  |
 | a required topic was added.          |
+|                                      |
+| You have a session open. The move    |
+| happens when it ends.                |
 |                                      |
 | [ Move to 1.1 ]                      |
 | [ Stay on 1.0 ]                      |
@@ -874,7 +918,7 @@ Every screen in §2.3 must define the states below where they apply. W14 and W15
 +--------------------------------------+
 ```
 
-Which credit carries over is decided by `05-learning-engine.md` and `06-content-system.md`; this screen only has to show it before the learner decides. *(PRD R06)*
+The offer lives on Roadmap; Today shows only a one-line notice. A changed topic keeps its credit and shows **Refresh suggested**; each new required topic shows its effort. If a session is open, the move applies when it ends. Which credit carries over is decided by `05-learning-engine.md` and `06-content-system.md`; this screen only has to show it before the learner decides. *(PRD R06)*
 
 ## 6. Interaction rules
 
@@ -883,18 +927,19 @@ Which credit carries over is decided by `05-learning-engine.md` and `06-content-
 | IR-01 | One step at a time | The player shows one step: scenario, explanation, question or feedback. Earlier steps are available read-only under **Earlier steps**. Position is text ("Step 2 of 5"), not only a bar. | PRD F03, §10 |
 | IR-02 | Draft autosave with visible status | Saves while typing (debounced) and always before a step change. Indicator states: **Saving…**, **Saved**, **Saved on this device, not synced**, **Couldn't save, retrying**. Only the last two are announced to screen readers. | PRD §12, F03 |
 | IR-03 | Hints optional and graduated | Never shown automatically. Each level needs a deliberate tap: a nudge, then a narrower pointer, then a worked example (the number per item is authored, see 06). Hints never block **Check answer**. The count is recorded as assistance. | PRD §6, §9 |
-| IR-04 | Reveal needs confirmation | **Show solution** appears after the last hint or after an incorrect attempt *(Open question 4)*. The dialog (W03) says the question won't count as demonstrated and a fresh one will come back. Learning continues afterwards. | PRD §9 |
+| IR-04 | Reveal needs confirmation | **Show solution** is available at any time before an answer is submitted, always behind the W03 confirmation *(placement: Open question 2)*. The dialog says the question won't count toward evidence and a fresh one will come back. After submitting, the model answer is feedback, not a reveal. Learning continues afterwards. | PRD §9; `05` |
 | IR-05 | No countdown timers | Time appears only as estimates ("about 10 min"). No visible timer, no auto-submit, no session expiry that discards work. | PRD §5, §10 |
 | IR-06 | Capped reviews, no overdue counter | At most 2 review items in `practise`, 1 in `small`. Today says "Includes 1 short review"; no screen shows a backlog total, an overdue badge or red counts. | PRD §6, §9 |
 | IR-07 | Explicit stopping points | Every session ends on a screen that says "You can stop here." **One more task** is secondary and never starts by itself. | PRD §5, §10 |
 | IR-08 | Leave at any time | **Save and exit** is always visible in the player. No "are you sure?" when the draft is saved. | PRD R05 |
-| IR-09 | Limited choice on Today | One primary action, at most two secondary ones (Start small or Continue, Rest today). No browsing needed to start. | PRD F02 |
+| IR-09 | Limited choice on Today | Exactly one primary action and at most three secondary ones, drawn from Continue, Start small (only when a small task exists), Take the challenge and an optional lab; `05` decides which. **Rest today** is a quiet link, not a secondary action. After practice, Today shows a "done for today" state. No browsing needed to start. | PRD F02; `05` |
 | IR-10 | Feedback before moving on | **Next** sits inside the feedback panel, so feedback is seen before the next step. Practised evidence depends on engaging with feedback. | PRD §9 |
 | IR-11 | Open-ended answers | After submitting, show an example answer and a short self-check (open-ended variant under W04). The record is labelled **Self-assessed**. | PRD §9 |
 | IR-12 | Safe repeat taps | **Check answer** and **Finish** disable on press and show "Checking…"; repeat taps cannot create duplicate attempts or completions. | PRD F09, R02 |
 | IR-13 | No surprise navigation | Nothing auto-advances to a new session, step or roadmap. Every transition follows a learner action. | Proposal |
 | IR-14 | Context on every task | Today and the player header show roadmap, module, topic and practical purpose. | PRD §8A |
 | IR-15 | No free text to analytics | Interaction events carry IDs, mode, content version and timestamps only (event list in 10). | PRD F12, §12 |
+| IR-16 | One open session at a time | Starting a different session suspends the open one with its draft (for example a multi-day lab when a short session starts). Today offers it as **Continue**. | PRD R05; `05` |
 
 ## 7. Microcopy guide
 
@@ -910,21 +955,24 @@ Which credit carries over is decided by `05-learning-engine.md` and `06-content-
 
 | Situation | Do | Don't |
 | --- | --- | --- |
-| Session reward | "You used a query plan to choose an investigation." | "You mastered database scaling!" |
+| Session reward (a skill reached demonstrated) | "You used a query plan to choose an investigation." | "You mastered database scaling!" |
+| Session reward (practised) | "You worked through a slow query and read its plan. That's practice." | Evidence wording for work that only reached practised. |
 | Effort recognition | "You started after a busy week." (kept apart from evidence) | "+50 XP! Level up!" |
 | Corrected misconception | "You changed your answer after reading the plan. That is the skill." | "Finally got it right." |
 | Incorrect answer | "Not quite. The plan shows a full table scan, so a replica would copy the slow read." | "Wrong!" or a red cross with no explanation. |
 | Return after absence | "Welcome back. Continue your last task or try a three-minute refresher." | "You've been gone 23 days. Your streak is lost." |
 | Missed session | "Your plan moved on. Nothing to catch up." | "You missed 3 sessions. You're falling behind." |
-| Weekly progress | "1 of 3 sessions this week. Any session counts." | "Only 2 days left to hit your goal!" |
+| Weekly progress | "2 of 3 practice days this week. Any practice counts." | "Only 2 days left to hit your goal!" |
 | Tired | "Start small: one question, about 3 minutes. Or rest today." | "No excuses. Keep the chain going." |
 | Reminder subject | "Your 10-minute task: read a query plan" | "Don't lose your progress!" |
 | Technology relevance | "Optional: relevant if your app runs background jobs." | "Learn this or become obsolete." |
 | Comparison | (none: never compare learners) | "You're ahead of 70% of learners." |
 | Self-assessed evidence | "Self-assessed against an example answer. Not reviewed by a person." | "Verified." |
 | Learner-submitted evidence | "Submitted by you: local test results. Not verified by DevStep." | "Certified." |
-| Completion percentage | "5 of 18 required topics (28%). Completion shows coverage, not mastery." | "28% mastered." |
-| Revealed solution | "You saw the solution, so this one won't count as demonstrated. A fresh question will come back." | Silence, or "Cheating doesn't help." |
+| Completion percentage | "5 of 18 required topics (27%). Completion shows coverage, not mastery." | "27% mastered." |
+| Revealed solution | "You saw the solution before answering, so this one won't count toward your evidence. A fresh question will come back." | Silence, or "Cheating doesn't help." |
+| Missed later check | "Refresh suggested: your check on 2 Oct wasn't met. Demonstrated since 18 Sep still stands." | "You've lost this skill." |
+| Rest today | "No reminder today." | "Taking a day off? Don't break the chain." |
 | Defer | "Deferred, no credit. Come back or take the challenge any time." | "Skipped" with a tick. |
 | Pause | "Paused. Your progress and drafts are kept." | "Are you sure you want to give up?" |
 | Unsubscribe | "You won't get reminder emails. Your progress is unchanged." | "We're sad to see you go." |
@@ -940,18 +988,20 @@ Icons and markers (see §9.3) are always paired with the label; the stand-in is 
 | Session mode `small` / `practise` / `build` | Start small / Practise / Build | none | About 3 min / about 10 min / 30–45 min on a computer |
 | Topic `not_started` | Not started | Empty square `[ ]` | — |
 | Topic `in_progress` | In progress | Part-filled square `[~]` | — |
-| Topic `completed` | Completed (or "Completed by challenge") | Square with tick `[x]` | Activities and topic check done, or challenge passed. |
+| Topic `completed` | Completed (or "Completed by challenge", "Carried over") | Square with tick `[x]` | Activities and topic check done, challenge passed, or credit carried over in a version move. |
 | Topic `deferred` | Deferred, no credit | Square with dash `[-]` | Moved aside; the roadmap can't complete until it's done. |
 | Topic kind `optional` | Optional | Text tag only | Not counted in progress. |
 | Evidence `introduced` | Introduced | Outline circle `(.)` | You've met the concept. |
 | Evidence `practised` | Practised | Half-filled circle `(+)` | You attempted it and reviewed feedback. |
-| Evidence `demonstrated` | Demonstrated | Filled circle `(#)` | You met the rubric on a different scenario without the solution. |
-| Evidence `retained` | Retained | Filled circle with outer ring `(@)` | You passed a different check at least 7 days later. |
+| Evidence `demonstrated` | Demonstrated | Filled circle `(#)` | You met the rubric on a new task without hints or the solution. |
+| Evidence `retained` | Retained | Filled circle with outer ring `(@)` | You met the rubric again on a new task, without hints or the solution, at least 7 days later. |
+| Refresh note (not a level) | Refresh suggested | Text tag only | A later check wasn't met. The level stays; the latest check and last-confirmed date are shown. |
 | Basis `auto_scored` | Checked automatically | Text tag only | Scored against an authored answer key. |
 | Basis `self_assessed` | Self-assessed | Text tag only | You compared your answer with an example. |
 | Basis `learner_submitted` | Submitted by you | Text tag only | Results from your machine; not verified by DevStep. |
 | Basis `human_reviewed` | Reviewed by a person | Text tag only | A reviewer checked it against the rubric. |
-| Assistance `none` / `hint` / `worked_example` / `solution_revealed` | No help / Used N hints / Used a worked example / Solution shown | Text only | Shown on every evidence record. |
+| Assistance `none` / `hint` / `worked_example` | No help / Used N hints / Used a worked example | Text only | Shown on every evidence record. |
+| Assistance `solution_revealed` | Solution seen before answering | Text only | Attempt history only. It never labels an evidence record, because a reveal before answering earns nothing above Introduced, and the answer shown after submitting is feedback. |
 
 ## 8. Accessibility acceptance checklist
 
@@ -1019,7 +1069,7 @@ Kept to sixteen. A new component needs a reason that an existing one cannot meet
 | Dialog | Reveal, defer, delete | Confirmations only; never for promotion. |
 | Disclosure row | Roadmap, Evidence, Feedback | Expand and collapse with state announced. |
 | Status marker | Roadmap, Evidence, Feedback | Icon shape plus text label (§9.3). |
-| Progress count | Roadmap, Today, Summary | "N of M" first, percentage second, optional bar. |
+| Progress count | Roadmap, Today, Summary | "N of M" first, percentage second (rounded down), optional bar. |
 | Banner | Offline, conflict, paused, version | Inline and persistent until resolved; no toasts. |
 | Form controls | Onboarding, Settings | Day chips, toggle, select, time input. |
 | Placeholder and empty block | All | Layout-shaped loading; empty state with one action. |
@@ -1056,9 +1106,9 @@ The companion is F15, P1. The MVP needs only a simple progress illustration, and
 
 **What the MVP shows instead** *(Proposal)*
 
-- Roadmap progress as text ("5 of 18 required topics · 28%"), the main measure.
-- Weekly practice on Today ("1 of 3 sessions this week. Any session counts."), reset each week with no carry-over.
-- Optionally, if cheap to produce: a static **workshop** illustration on the Roadmap screen showing the fictional work-order app, which gains one labelled part per completed module (request path, query plan, cache, queue, metrics, decision record). It has a text alternative that repeats the count, and no animation *(Open question 10)*.
+- Roadmap progress as text ("5 of 18 required topics · 27%"), the main measure.
+- Weekly practice on Today ("1 of 3 practice days this week. Any practice counts."), reset each week with no carry-over.
+- Optionally, if cheap to produce: a static **workshop** illustration on the Roadmap screen showing the fictional work-order app, which gains one labelled part per completed module (request path, query plan, cache, queue, metrics, decision record). It has a text alternative that repeats the count, and no animation *(Open question 5)*.
 
 **Rules for any illustration or later companion**
 
@@ -1074,18 +1124,13 @@ Hypothesis: a companion improves return visits. The PRD says the research does n
 
 ## 12. Open questions for discussion
 
-1. **How is guest work stored, and for how long?** *Recommended default:* in this browser only, labelled on screen, kept for 30 days, moved into the account on sign-up; nothing stored server-side for guests beyond pseudonymous analytics (`09`, `10`).
-2. **What does an uninvited guest see after the sample during the pilot?** *Recommended default:* a **Join the waitlist** option with explicit consent to be contacted; the sample stays on the device; full sign-up needs an invite.
-3. **Code blocks on phones: wrap or scroll by default?** *Recommended default:* no wrap and horizontal scroll inside the block, with a remembered **Wrap** toggle; authors keep key lines to about 60 characters (`06`).
-4. **When does Show solution appear?** *Recommended default:* after the last hint or after one incorrect attempt, always behind the W03 confirmation.
-5. **How much of the future roadmap is visible by default?** *Recommended default:* current module open, completed modules collapsed with counts, later modules collapsed and labelled **Preview**, one tap to expand.
-6. **Can answers be checked offline?** *Recommended default:* no in the MVP. Drafts are kept locally and sync later; checking needs a connection.
-7. **Does Rest today suppress that day's reminder?** *Recommended default:* yes; no reason asked; undoable the same day. `05` confirms the scheduling effect.
-8. **Does pausing a roadmap pause reminders?** *Recommended default:* the pause dialog asks "Also pause reminders?" with **Yes** preselected.
-9. **Should Today show weekly progress at all?** *Recommended default:* yes, as "N of M sessions this week" with no streak; learners can hide it in Preferences.
-10. **Is a progress illustration in the MVP?** *Recommended default:* text-only progress for the alpha; add the static workshop illustration before the pilot only if it does not delay core work.
-11. **Can Practise now on Evidence override Today's recommendation?** *Recommended default:* yes, it starts a session on that skill and Today recalculates afterwards; `05` confirms selection rules.
-12. **How are sync conflicts resolved?** *Recommended default:* W14: show both versions with device and time, the learner chooses, and the other version stays visible for copying until the step is submitted.
+1. **Code blocks on phones: wrap or scroll by default?** *Recommended default:* no wrap and horizontal scroll inside the block, with a remembered **Wrap** toggle; authors keep key lines to about 60 characters (`06`).
+2. **Should Show solution sit only inside the hint panel, so learners meet the hints first?** *Recommended default:* no. Keep it available at any time as a quiet link beside **Need a hint?** and in the hint panel, always behind the W03 confirmation. Revisit if pilot data show early reveals replacing attempts.
+3. **How much of the future roadmap is visible by default?** *Recommended default:* current module open, completed modules collapsed with counts, later modules collapsed and labelled **Preview**, one tap to expand.
+4. **Should Today show weekly progress at all?** *Recommended default:* yes, as "N of M practice days this week" with no streak; learners can hide it in Preferences.
+5. **Is a progress illustration in the MVP?** *Recommended default:* text-only progress for the alpha; add the static workshop illustration before the pilot only if it does not delay core work.
+6. **Can Practise now on Evidence override Today's recommendation?** *Recommended default:* yes, it starts a session on that skill (suspending any open session, which stays resumable from Today) and Today recalculates afterwards; `05` confirms selection rules.
+7. **Should Rest today show when no reminder is scheduled for today?** *Recommended default:* no. It only skips today's reminder, so it is hidden when there is nothing to skip.
 
 ## PRD traceability
 
@@ -1102,7 +1147,7 @@ Hypothesis: a companion improves return visits. The PRD says the research does n
 | §8A Version stability | R06 | §5, W15 |
 | §9 Evidence states, labels, revealed solution, review cap | F04, F08 | §3h, W03, W05, W11, IR-04, IR-06, §7.3 |
 | §10 Navigation and screens; accessibility requirements | — | §2, W01–W15, §8 |
-| §11–12 Continuity, drafts, offline, conflicts, export and delete, labs local | F07, F09 | §3a, §3f, §3j, W12, W14, §5, IR-02, IR-12 |
+| §11–12 Continuity, drafts, offline, conflicts, export and delete, labs local | F07, F09 | §3a, §3c, §3f, §3j, W12, W14, §5, IR-02, IR-12, IR-16 |
 | §13 Instrumentation without free text | F12 | IR-15 |
 
 Not covered here: F11 (content operations, `06`), F13 (AI tutor, P1; the hint panel is its likely home), F14 (relevance briefing, P1), R08 (custom roadmap, later).

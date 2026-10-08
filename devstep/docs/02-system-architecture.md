@@ -185,18 +185,18 @@ flowchart TB
 
 | Module | Responsibilities | Owned tables | Public operations (sketch) | PRD |
 | --- | --- | --- | --- | --- |
-| `identity` | Accounts, sign-in, guests and claim, export, deletion orchestration. | `users`, `auth_sessions`, `export_requests`, `deletion_requests` | `signUp`, `signIn`, `signOut`, `currentPrincipal`, `createGuest`, `claimGuest`, `contactFor(user)`, `requestExport`, `requestDeletion`; port `UserDataProvider` | F09, §12 |
-| `profile` | Goal, stack context, availability, session length, time zone, diagnostic status. | `learning_preferences`, `goals` | `preferencesOf`, `updatePreferences`, `setGoal`, `timeZoneOf`, `availabilityOf` | F01 |
-| `catalogue` | Published roadmaps and content; release import. | `skills`, `skill_prerequisites`, `content_versions`, `missions`, `assessment_items`, `labs`, `roadmaps`, `roadmap_versions`, `roadmap_modules`, `roadmap_topics`, `topic_dependencies`, `topic_completion_rules`, `content_releases` (added) | `listRoadmaps`, `roadmapVersion`, `mission`, `assessmentItem`, `alternatesFor(skill)`, `importRelease` (job only) | F11, R01, R06 |
-| `roadmap` | Enrolment, topic progress, completion rules, version migration. | `roadmap_enrolments`, `topic_progress` | `enrol`, `pause`, `resume`, `previewMigration`, `migrate`, `deferTopic`, `progressOf`, `readyTopics`, `enrolmentContext` | R01–R06 |
-| `learning` | Sessions, steps, drafts, attempts, hint and reveal usage, lab artifacts, content reports. | `learning_sessions`, `session_drafts`, `attempts`, `artifacts`, `content_reports` (added) | `startOrResume`, `session`, `saveDraft`, `useHint`, `reveal`, `submitAttempt`, `complete`, `startChallenge`, `startDiagnostic`, `submitLabArtifact`, `openSessionOf`, `practisedOn(localDate)`; ports `SessionPlanner`, `HintProvider` | F03, F04, F07 |
-| `assessment` | Evaluate attempts against rubrics; write skill evidence. | `skill_evidence` | `evaluate(attempt)`, `recordSubmittedEvidence`, `evidenceOf(user)`, `levelFor(user, skill)` | F04, F08, §9 |
+| `identity` | Accounts, invites, sign-in (password and GitHub OAuth), consent, pilot cohort and arm, guest claim, export, deletion orchestration. | `users`, `auth_sessions`, `auth_tokens`, `invites`, `consent_records`, `pilot_participants`, `export_requests`, `deletion_requests` | `signUp` (invite required), `signIn`, `signInWithGitHub`, `signOut`, `verifyEmail`, `currentPrincipal`, `claimGuest`, `contactFor(user)`, `requestExport`, `requestDeletion`, `cancelDeletion`; ports `UserDataProvider`, `GuestBundleImporter` | F09, §12 |
+| `profile` | Goal, stack context, availability, session length, time zone, diagnostic status. | `learning_preferences`, `goals` | `preferencesOf`, `updatePreferences`, `setGoal`, `timeZoneOf`, `availabilityOf`, `importOnboarding` (claim) | F01 |
+| `catalogue` | Published roadmaps and content; release import. | `skills`, `skill_prerequisites`, `content_versions`, `missions`, `assessment_items`, `labs`, `roadmaps`, `roadmap_versions`, `roadmap_modules`, `roadmap_topics`, `topic_dependencies`, `topic_activities`, `topic_completion_rules`, `content_releases` | `listRoadmaps`, `roadmapVersion`, `mission`, `assessmentItem`, `lab`, `guestSample`, `alternatesFor(skill)`, `importRelease` (`content:publish` command only) | F11, R01, R06 |
+| `roadmap` | Enrolment, topic progress, completion rules, version migration. | `roadmap_enrolments`, `topic_progress` | `enrol`, `pause`, `resume`, `previewMigration`, `migrate`, `declineMigration`, `deferTopic`, `progressOf`, `readyTopics`, `enrolmentContext` | R01–R06 |
+| `learning` | Sessions, steps, drafts, attempts, hint, worked-example and reveal usage, lab artifacts, content reports. | `learning_sessions`, `session_drafts`, `session_assistance`, `attempts`, `artifacts`, `content_reports` | `startOrResume`, `session`, `saveDraft`, `useHint`, `reveal`, `submitAttempt`, `complete`, `startChallenge`, `startDiagnostic`, `submitLabArtifact`, `openSessionOf`, `practisedOn(localDate)`, `importGuestSample` (claim); ports `SessionPlanner`, `HintProvider` | F03, F04, F07 |
+| `assessment` | Evaluate attempts against rubrics; write skill evidence. | `skill_evidence` | `evaluate(attempt)`, `evaluateGuest(item, answer)` (writes nothing), `recordSubmittedEvidence`, `evidenceOf(user)`, `levelFor(user, skill)` | F04, F08, §9 |
 | `scheduling` | Today, session plans, review queue and intervals, recovery after absence. | `review_schedule` | `today(user, now)`, `planSession` (implements `SessionPlanner`), `dueReviews(user, localDate, cap)`, `isLearningDay(user, localDate)` | F02, F05, F06 |
-| `notifications` | Reminder settings, dispatch, suppression, unsubscribe. | `notification_preferences`, `notification_deliveries` | `settingsOf`, `updateSettings`, `unsubscribe(token)`, `dispatchDue(now)` (job only) | F10 |
+| `notifications` | Reminder settings, dispatch, suppression, unsubscribe, bounce and complaint suppression. | `notification_preferences`, `notification_deliveries`, `email_suppressions` | `settingsOf`, `updateSettings`, `unsubscribe(token)`, `dispatchDue(now)` (job only) | F10 |
 | `analytics` | Ingest allow-listed pseudonymous events; metric queries. | `analytics_events` | `record(event)` (job only), `ingestClientBatch`, operator metric queries | F12, §13 |
-| platform (not a module) | HTTP, principal, validation, idempotency, event bus, job queue, config, flags, logging. | `idempotency_keys`, `background_jobs` (added), `feature_flags` (added) | — | §11, §12 |
+| platform (not a module) | HTTP, principal, validation, idempotency, event bus, job queue, config and flags, logging. | `idempotency_keys`; the framework's database-queue tables (named in `04`) | — | §11, §12 |
 
-Column-level definitions for every table, including the three added here, belong to `04-data-model.md`. Evaluation, scheduling and completion algorithms belong to `05-learning-engine.md`.
+Feature flags are configuration (§6.5), not a table. Column-level definitions for every table, including those added during design, belong to `04-data-model.md`. Evaluation, scheduling and completion algorithms belong to `05-learning-engine.md`.
 
 ### 4.4 Domain events
 
@@ -204,22 +204,28 @@ Envelope (all events): `event_id`, `name`, `schema_version`, `occurred_at` (UTC)
 
 | Event | Emitted by | In-transaction subscribers | After-commit subscribers |
 | --- | --- | --- | --- |
+| `AccountCreated` | `identity` | — | `analytics` |
+| `GuestProgressClaimed` | `identity` | — | `analytics` |
 | `OnboardingCompleted` | `profile` | — | `analytics` |
 | `SessionStarted`, `SessionResumed` | `learning` | — | `analytics` |
 | `HintUsed` | `learning` | — | `analytics` |
-| `SolutionRevealed` | `learning` | `scheduling` (schedule a fresh attempt, PRD §9) | `analytics` |
+| `SolutionRevealed` | `learning` | `scheduling` (schedule a fresh alternate attempt, PRD §9) | `analytics` |
 | `AttemptEvaluated` | `assessment` | `scheduling` (review interval), `roadmap` (topic check, challenge-out) | `analytics` |
 | `DiagnosticFinished` | `learning` | `profile` (diagnostic status; skipped areas stay unknown) | `analytics` |
 | `LabEvidenceSubmitted` | `learning` | — | `analytics` |
 | `SessionCompleted` | `learning` | `roadmap` (activity rules) | `notifications` (suppress today's reminder), `analytics` |
 | `TopicCompleted` | `roadmap` | — | `analytics` |
+| `TopicDeferred` | `roadmap` | — | `analytics` |
 | `RoadmapCompleted` | `roadmap` | — | `analytics` |
-| `EnrolmentChanged` (enrol, pause, resume, migrate) | `roadmap` | `scheduling` (remap reviews for retired items) | `analytics` |
+| `EnrolmentChanged` (enrol, pause, resume) | `roadmap` | `scheduling` (pause or resume reviews) | `analytics` |
+| `MigrationOffered` (first preview for a target version), `MigrationDeclined` | `roadmap` | — | `analytics` |
+| `MigrationAccepted` | `roadmap` | `scheduling` (remap reviews for retired items) | `analytics` |
 | `ReminderSent`, `ReminderFailed`, `ReminderSettingsChanged` | `notifications` | — | `analytics` |
-| `AccountDeletionRequested` | `identity` | — | `analytics` (drop pseudonym link), deletion purge job |
+| `ExportRequested` | `identity` | — | `analytics`, export generation job |
+| `AccountDeletionRequested` | `identity` | — | `analytics` (the event is recorded, then purged with the learner's other events on day 7) |
 | `ContentReleasePublished` | `catalogue` | — | `analytics` |
 
-`learning` writes the attempt; `assessment.evaluate` is called synchronously inside the same transaction and emits `AttemptEvaluated`. Mapping to the PRD §13 event names (`attempt_evaluated`, `review_completed`, …) is owned by `10-measurement-and-validation.md`.
+`learning` writes the attempt; `assessment.evaluate` is called synchronously inside the same transaction and emits `AttemptEvaluated`. After-commit subscribers run only once the learning transaction has committed. Mapping to the analytics event names (`account_created`, `guest_progress_claimed`, `topic_deferred`, `migration_offered`, `migration_accepted`, `migration_declined`, `export_requested`, `account_deletion_requested`, `attempt_evaluated`, …) is owned by `10-measurement-and-validation.md`.
 
 ## 5. API catalogue
 
@@ -229,10 +235,10 @@ Envelope (all events): `event_id`, `name`, `schema_version`, `occurred_at` (UTC)
 - Additive changes stay in `/v1`; clients ignore unknown response fields. Breaking changes go to `/v2`.
 - Lists that grow use cursor pagination (`cursor`, `limit`).
 - Every response carries `X-Request-Id`. Replayed idempotent responses add `Idempotent-Replayed: true`.
-- Browser auth: HttpOnly, Secure, SameSite session cookie plus a CSRF token on unsafe methods. Operator auth: scoped bearer token, never a learner cookie.
+- Browser auth: HttpOnly, Secure, SameSite session cookie plus a CSRF token on unsafe methods. There is no operator HTTP API: operator work runs as console commands, and content is published by the deploy-time `content:publish` command (`06`).
 
-- **Auth values:** `public` (no login, rate-limited); `token` (no login, signed single-purpose token for unsubscribe or recovery); `guest` (guest or signed-in learner, owner = principal); `learner` (signed-in only, guests get `403 account_required`); `operator` (scoped bearer token held by CI or the operator).
-- **Idempotency values:** `key` (`Idempotency-Key` header required, replay returns the stored response, §6.2); `natural` (same input yields the same state: full replace, target state or unique constraint); `revision` (optimistic concurrency on `base_revision`, §5.5); `safe` (read only).
+- **Auth values:** `public` (no login, rate-limited; guests use only these); `token` (no login, signed single-purpose token for unsubscribe, recovery or email verification); `learner` (signed-in account, owner = principal). There is no `guest` auth type: guests have no server identity.
+- **Idempotency values:** `key` (`Idempotency-Key` header required, replay returns the stored status code and body, §6.2); `natural` (same input yields the same state: full replace, target state or unique constraint); `revision` (optimistic concurrency on `base_revision`, §5.5); `safe` (read only); `none` (a duplicate is harmless).
 
 ### 5.2 Endpoints
 
@@ -240,49 +246,53 @@ Envelope (all events): `event_id`, `name`, `schema_version`, `occurred_at` (UTC)
 
 | Method | Path | Purpose | Module | Auth | Idempotency | PRD |
 | --- | --- | --- | --- | --- | --- | --- |
-| GET | `/healthz` (added) | Liveness and database reachability; outside `/v1`. | platform | public | safe | §12 |
-| POST | `/v1/auth/sign-up` (added) | Create account; upgrades the current guest in place. | identity | public | natural (unique email) | F09, §5 |
-| POST | `/v1/auth/sign-in` (added) | Start an authenticated session. | identity | public | natural | F09 |
-| POST | `/v1/auth/sign-out` (added) | End session; client clears its local store. | identity | guest | natural | F09, §12 |
-| POST | `/v1/auth/recovery` (added) | Send recovery email; same response whether or not the email exists. | identity | public | natural | F09 |
-| POST | `/v1/auth/recovery/confirm` (added) | Complete recovery with a single-use token. | identity | token | natural | F09 |
-| GET | `/v1/me` (added) | Principal kind, time zone, onboarding status, client-relevant flags. | identity | guest | safe | F09 |
-| POST | `/v1/guest` (added) | Create guest and device cookie; returns the existing guest if valid. | identity | public | natural | §5 |
-| POST | `/v1/guest/claim` | Merge this device's guest progress into the signed-in account. | identity | learner + guest cookie | natural | F09, §5 |
-| GET | `/v1/me/preferences` | Stack, availability, session length, time zone, goal. | profile | guest | safe | F01 |
-| PUT | `/v1/me/preferences` | Replace preferences. | profile | guest | natural | F01, R05 |
-| PUT | `/v1/me/goal` | Set the one active goal. | profile | guest | natural | F01 |
-| POST | `/v1/me/diagnostic` | Start (returns a diagnostic session) or skip areas of the baseline. | learning | guest | natural | F01 |
-| GET | `/v1/today` | Today recommendation (§5.3). | scheduling | guest | safe | F02, F05, F06, R02 |
-| POST | `/v1/sessions` | Start or resume a session (§5.3). | learning | guest | natural; key optional | F02, F03, F06 |
-| GET | `/v1/sessions/{id}` | Session, steps, latest draft. | learning | guest | safe | F03, R05 |
-| PUT | `/v1/sessions/{id}/draft` | Save draft (§5.3, §5.5). | learning | guest | revision | F03, §12 |
-| POST | `/v1/sessions/{id}/hints` | Reveal hint `hint_number` for the current item; recorded as assistance. | learning | guest | natural | F03, F04 |
-| POST | `/v1/sessions/{id}/reveal` | Reveal the worked solution; marks `solution_revealed`. | learning | guest | natural | F04, §9 |
-| POST | `/v1/sessions/{id}/attempts` | Submit attempt; synchronous evaluation and feedback. | learning, assessment | guest | key | F03, F04, F05 |
-| POST | `/v1/sessions/{id}/complete` | Complete session; topic progress updated exactly once. | learning | guest | key + state guard | F09, R02, R04 |
-| POST | `/v1/labs/{id}/artifacts` | Submit lab check output or decision record (`learner_submitted`). | learning | learner | key | F07, F08 |
-| POST | `/v1/content-reports` (added) | Report an error in a content step; text never enters analytics. | learning | guest | key | F11, §16 |
+| GET | `/up` | Framework health route extended with a database check; outside `/v1`. | platform | public | safe | §12 |
+| POST | `/v1/auth/sign-up` | Create an account with email, password and a single-use invite code bound to the invited email (required during the pilot); cohort and arm come from the invite; sends a verification email. | identity | public | natural (unique email, single-use invite) | F09, §5 |
+| POST | `/v1/auth/verification/confirm` (added) | Confirm the email address with the single-use token from the verification email. | identity | token | natural | F09 |
+| POST | `/v1/auth/sign-in` | Email and password sign-in. During a deletion grace period the session is limited to cancel and export (§6.1). | identity | public | natural | F09 |
+| GET | `/v1/auth/github/start` (added) | Browser redirect to GitHub with a signed, single-use `state`; an `invite_code` for a new account travels in the state. | identity | public | natural | F09 |
+| GET | `/v1/auth/github/callback` (added) | OAuth redirect target: checks `state`, signs in the linked account, or creates one when the invite matches a verified GitHub email; otherwise redirects back with `invite_required`. | identity | public | natural (single-use `state`) | F09 |
+| POST | `/v1/auth/sign-out` | End session; client clears its local store. | identity | learner | natural | F09, §12 |
+| POST | `/v1/auth/recovery` | Send recovery email; same response whether or not the email exists. | identity | public | natural | F09 |
+| POST | `/v1/auth/recovery/confirm` (added) | Set a new password with a single-use token. | identity | token | natural | F09 |
+| GET | `/v1/me` (added) | Account, time zone, onboarding status, deletion state, client-relevant flags. | identity | learner | safe | F09 |
+| GET | `/v1/guest/sample` | The one sample scenario: learner-facing content only, no answer keys. | catalogue | public | safe, CDN-cacheable | §5 |
+| POST | `/v1/guest/attempts` | Evaluate one sample answer and return feedback; stateless, stores nothing (§6.8). | assessment | public (rate-limited) | safe (writes nothing) | §5, F04 |
+| POST | `/v1/guest/claim` | Upload this browser's guest bundle after sign-up or sign-in; every answer is re-evaluated and evidence is capped at `practised` (§5.3). | identity | learner | key | F09, §5 |
+| GET | `/v1/me/preferences` | Stack, availability, session length, time zone, goal. | profile | learner | safe | F01 |
+| PUT | `/v1/me/preferences` | Replace preferences. | profile | learner | natural | F01, R05 |
+| PUT | `/v1/me/goal` | Set the one active goal. | profile | learner | natural | F01 |
+| POST | `/v1/me/diagnostic` | Start a diagnostic session (returned like `POST /v1/sessions`) or skip areas. Results are attempts with purpose `diagnostic`; there is no separate baseline table. | learning | learner | natural (returns the open diagnostic session) | F01 |
+| GET | `/v1/today` | Today recommendation (§5.3). | scheduling | learner | safe | F02, F05, F06, R02 |
+| POST | `/v1/sessions` | Start, resume or switch session (§5.3). | learning | learner | natural (one open session per learner) | F02, F03, F06 |
+| GET | `/v1/sessions/{id}` | Session, steps, latest draft. | learning | learner | safe | F03, R05 |
+| PUT | `/v1/sessions/{id}/draft` | Save draft (§5.3, §5.5). | learning | learner | revision; `save_id` replay | F03, §12 |
+| POST | `/v1/sessions/{id}/hints` | Show hint `hint_number`, or the worked example when `kind = worked_example`, for the current item; recorded in `session_assistance` before it is shown. | learning | learner | natural (unique per step, kind and hint number) | F03, F04 |
+| POST | `/v1/sessions/{id}/reveal` | Show the solution, available at any time behind a confirmation. Before an answer is submitted it records `solution_revealed`: no qualifying attempt (nothing above `introduced`) and a fresh alternate is scheduled. The model answer shown after submission is feedback, not a reveal. | learning | learner | natural | F04, §9 |
+| POST | `/v1/sessions/{id}/attempts` | Submit one attempt in a single request; synchronous evaluation and feedback. Not available offline. | learning, assessment | learner | key | F03, F04, F05 |
+| POST | `/v1/sessions/{id}/complete` | Complete session; carries `base_revision`; topic progress updated exactly once. | learning | learner | key + state guard | F09, R02, R04 |
+| GET | `/v1/labs/{id}` | Lab definition: brief, kit download link and checksum, setup checks, evidence format. No reference solutions. | catalogue | learner | safe | F07 |
+| POST | `/v1/labs/{id}/artifacts` | Submit lab check output or decision record (`learner_submitted`; the open-ended decision record is `self_assessed`). | learning | learner | key | F07, F08 |
+| POST | `/v1/content-reports` (added) | Report an error in a content step; text never enters analytics. | learning | learner | none | F11, §16 |
 | GET | `/v1/roadmaps` | Published roadmaps. | catalogue | public | safe, CDN-cacheable | R01, R07 |
 | GET | `/v1/roadmaps/{slug}` | Current version: modules, topics, prerequisites, effort, completion rules. | catalogue | public | safe, CDN-cacheable | R01, §8A |
-| GET | `/v1/enrolments` (added) | The learner's enrolments with status and counts. | roadmap | guest | safe | R02, R05 |
-| POST | `/v1/enrolments` | Enrol; pins the current published roadmap version. | roadmap | guest | natural (one active) | R01 |
-| GET | `/v1/enrolments/{id}` (added) | Topic states, progress count and percentage, pinned version, milestone. | roadmap | guest | safe | R02, R04 |
-| PATCH | `/v1/enrolments/{id}` | Pause or resume. | roadmap | guest | natural | R05 |
-| GET | `/v1/enrolments/{id}/migration` (added) | Preview migration: changes and retained credit. | roadmap | learner | safe | R06 |
-| POST | `/v1/enrolments/{id}/migrate` | Apply migration to `to_version_id`. | roadmap | learner | natural (target version) | R06 |
-| POST | `/v1/topics/{id}/defer` | Defer a topic; no completion credit. | roadmap | guest | natural | R03 |
-| POST | `/v1/topics/{id}/challenge` | Start a challenge-out session for a topic. | learning | guest | natural (one open per topic) | R03 |
-| GET | `/v1/evidence` | Evidence by skill: level, basis, dates, limitations. | assessment | guest | safe | F08 |
+| GET | `/v1/enrolments` (added) | The learner's enrolments with status and counts. | roadmap | learner | safe | R02, R05 |
+| POST | `/v1/enrolments` | Enrol; pins the current published roadmap version. | roadmap | learner | natural (one active) | R01 |
+| GET | `/v1/enrolments/{id}` (added) | Topic states, progress count and percentage, pinned version, milestone, migration offer if any. | roadmap | learner | safe | R02, R04, R06 |
+| PATCH | `/v1/enrolments/{id}` | Pause or resume; pausing also pauses reviews and reminders. | roadmap | learner | natural | R05 |
+| GET | `/v1/enrolments/{id}/migration` (added) | Preview migration to the newest version, with a `preview_hash` (§5.3). | roadmap | learner | safe | R06 |
+| POST | `/v1/enrolments/{id}/migrate` | Accept or decline the previewed migration; accepting returns the new enrolment ID (§5.3). | roadmap | learner | key + preview hash | R06 |
+| POST | `/v1/topics/{id}/defer` | Defer a topic; no completion credit. | roadmap | learner | natural | R03 |
+| POST | `/v1/topics/{id}/challenge` | Start a challenge-out session for a topic (same `if_open` rule as `POST /v1/sessions`). | learning | learner | natural (one open session per learner) | R03 |
+| GET | `/v1/evidence` | Evidence by skill: level, basis, dates, limitations. | assessment | learner | safe | F08 |
 | GET | `/v1/me/notifications` | Reminder settings. | notifications | learner | safe | F10 |
-| PUT | `/v1/me/notifications` | Opt in/out, days, time, quiet hours, pause, snooze. | notifications | learner | natural | F10 |
-| POST | `/v1/notifications/unsubscribe` | One-click unsubscribe from an email link. | notifications | token | natural | F10 |
-| POST | `/v1/me/export` | Request export. | identity | learner | key; one open request | F09 |
-| GET | `/v1/me/export/{id}` | Export status; short-lived download link when ready. | identity | learner | safe | F09 |
-| DELETE | `/v1/me` | Request deletion; disables sign-in and reminders at once. | identity | guest | natural (returns open request) | F09, §12 |
-| POST | `/v1/events` | Batch of allow-listed client analytics events. | analytics | guest | natural (dedupe on `event_id`) | F12, §13 |
-| POST | `/v1/admin/content-releases` (added) | CI registers a validated release; enqueues import. | catalogue | operator | natural (`release_id` + checksum) | F11, R06 |
-| GET | `/v1/admin/content-releases/{id}` (added) | Import status for CI. | catalogue | operator | safe | F11 |
+| PUT | `/v1/me/notifications` | Opt in/out, days, time (15-minute steps), quiet hours, snooze (skip the next reminder), rest today (skip today's reminder). | notifications | learner | natural | F10 |
+| POST | `/v1/notifications/unsubscribe` | One-click unsubscribe from an email link; the token can only unsubscribe. | notifications | token | natural | F10 |
+| POST | `/v1/me/export` | Request export (allowed during a deletion grace period). | identity | learner | key; one open request | F09 |
+| GET | `/v1/me/export/{id}` | Export status; short-lived authenticated download link when ready. | identity | learner | safe | F09 |
+| DELETE | `/v1/me` | Request deletion: starts a 7-day cancellable grace and turns reminders off at once; purge on day 7 (§7). | identity | learner | key; returns the open request | F09, §12 |
+| POST | `/v1/me/deletion/cancel` | Cancel a pending deletion during the grace period; reminders stay off until consent is given again. | identity | learner | natural (target state) | F09, §12 |
+| POST | `/v1/events` | Batch of allow-listed client analytics events. Signed in: stamped with the account's `subject_id`. No login: only the guest allow-list, with the client-generated `subject_id` (§6.8). | analytics | public (rate-limited) | natural (dedupe on `client_event_id`) | F12, §13 |
 
 ### 5.3 Shape sketches (fields, not code)
 
@@ -291,11 +301,12 @@ Envelope (all events): `event_id`, `name`, `schema_version`, `occurred_at` (UTC)
 | Field | Type | Notes |
 | --- | --- | --- |
 | `local_date`, `time_zone` | date, IANA name | Learner's current date (§6.3). |
-| `situation` | enum | Examples: `first_run`, `ready`, `resume`, `returning`, `rest_day`, `nothing_ready`, `roadmap_complete`. Final list in `05`. |
-| `primary_action` | object | `kind` (`resume`, `mission`, `review`, `lab`, `challenge`), `mode`, `estimated_minutes`, `title`, `rationale` (why it matters), `context` (roadmap, module, topic, practical purpose), `session_id` (when resuming), `recommendation_id` (opaque, echoed to `POST /v1/sessions`). |
-| `smaller_option` | object or null | Same shape with `mode = small`; a curated equivalent, never a truncated lesson (PRD §9). |
+| `situation` | enum | Examples: `first_run`, `ready`, `resume`, `returning`, `paused`, `nothing_ready`, `done_for_today`, `roadmap_complete`. `done_for_today` follows a meaningful practice activity on this learning day; its primary action is an optional "practise anyway". Final list in `05`. |
+| `primary_action` | object | Exactly one. `kind` (`resume`, `mission`, `review`, `lab`, `challenge`), `mode`, `estimated_minutes`, `title`, `rationale` (why it matters), `context` (roadmap, module, topic, practical purpose), `session_id` (when resuming), `recommendation_id` (signed hash of the recommendation inputs; echoed to `POST /v1/sessions` and stored on the learning session when it starts). |
+| `secondary_actions[]` | list, 0–3 | Same shape; `kind` is `resume`, `lab` or `challenge`. Never a list to browse. |
+| `smaller_option` | object or null | Same shape with `mode = small`; present only when a small plan exists. A curated variant, never a truncated lesson (PRD §9). |
 | `welcome_back` | object or null | `days_away`, `last_work` (title, topic, date). Only after an absence threshold (`05`). |
-| `weekly_progress` | object | `planned_sessions`, `completed_sessions`, `week_start`. Effort only, no skill claims. |
+| `weekly_progress` | object | `practice_days_target`, `practice_days_done` (distinct learning days with a meaningful practice activity), `week_start`. Effort only, no skill claims. |
 | `reviews_included` | int | Reviews folded into the action (≤ 2 `practise`, ≤ 1 `small`). No overdue count is returned (PRD §9). |
 | `enrolment` | object or null | `id`, `roadmap_slug`, `status`, `completed_required`, `total_required`. |
 
@@ -304,20 +315,21 @@ Envelope (all events): `event_id`, `name`, `schema_version`, `occurred_at` (UTC)
 | Field | Type | Notes |
 | --- | --- | --- |
 | `mode` | enum | `small`, `practise`, `build`. |
-| `recommendation_id` | string, optional | From Today; the server re-plans if it is stale. |
+| `recommendation_id` | string, optional | From Today. The server checks the signature and recomputes the hash from current state; if it no longer matches, the server re-plans. Stored on the new session. |
 | `mission_id` | ID, optional | Explicit choice from Roadmap; unready → `409 prerequisites_unmet` listing missing topics. |
-| `if_open` | enum, default `resume` | `resume` returns the open session; `park` sets it aside (draft kept) and starts a new one. |
+| `session_id` | ID, optional | Resume this `suspended` session (from Today's `resume` action). |
+| `if_open` | enum, default `resume` | `resume` returns the open session; `suspend` moves it to `suspended` (draft kept, resumable from Today) and starts or resumes the requested one. |
 
-Response `201` (new) or `200` (existing): `session` (`id`, `mode`, `purpose`, `status` `open`/`parked`/`completed`, `started_at`, `context`, `estimated_minutes`, `current_step`), `steps[]` (`index`, `kind`, `content_version_id`, `content_url` immutable CDN path, `state`), `draft` (`revision`, `step_index`, `data`, `saved_at`) or null, `resumed` (bool). At most one open session per learner (state guard).
+Response `201` (new) or `200` (existing): `session` (`id`, `mode`, `purpose`, `status` `open`/`suspended`/`completed`/`abandoned`, `started_at`, `context`, `estimated_minutes`, `current_step`), `steps[]` (`index`, `kind`, `content_version_id`, `content_url` immutable CDN path, `state`), `draft` (`revision`, `step_index`, `data`, `saved_at`) or null, `resumed` (bool). One open session per learner, whatever its mode (partial unique index, `04`); a multi-day lab is simply suspended when a short session starts. `abandoned` is used only for start-over or retired content.
 
 **`PUT /v1/sessions/{id}/draft`** (request)
 
 | Field | Type | Notes |
 | --- | --- | --- |
-| `base_revision` | int | Revision the client last received; 0 for the first save. |
-| `save_id` | UUID | Per save. A retry with the same `save_id` is a replay, not a conflict. |
+| `base_revision` | int | Revision the client last received; 0 when no server draft exists yet. The first server save creates revision 1 (no revision-0 row at session start). |
+| `save_id` | UUID | Per save. A retry with the same `save_id` (stored as `last_save_id`, `04`) is replayed, never a `409`. |
 | `step_index` | int | Advancing past a feedback step records "feedback reviewed" (`05`). |
-| `data` | object | Structured in-progress answers; ≤ 32 KB serialised. |
+| `data` | object | Structured in-progress answers; ≤ 64 KB serialised. |
 | `device_label` | string | Short label (≤ 60 chars) shown in the conflict UI. |
 
 Response `200`: `revision`, `saved_at`. Stale `base_revision`: `409 draft_conflict` (§5.5).
@@ -328,14 +340,35 @@ Response `200`: `revision`, `saved_at`. Stale `base_revision`: `409 draft_confli
 | --- | --- | --- |
 | `step_index`, `assessment_item_id` | int, ID | Item must belong to the step. |
 | `content_version_id` | ID | Version rendered; must equal the session's pin, else `409 content_version_mismatch`. |
-| `answer` | object | By item kind: option IDs, ordering, value, short text (≤ 4,000 chars), or self-check ratings against an exemplar. |
+| `answer` | object | By item kind: option IDs, ordering, value, free text (≤ 32 KB per answer, ≤ 64 KB per attempt), or self-check ratings against the exemplar shown in the step. One request per attempt: there is no separate self-check call. |
 | `confidence` | enum, optional | Recorded; never evidence of competence (PRD §9). |
 
-Response `201`: `attempt_id`; `outcome` (examples `correct`, `partly_correct`, `incorrect`, `self_assessed`; final list in `05`); `assistance` (server-recorded `none`, `hint` with count, `worked_example`, `solution_revealed`; the client cannot assert it); `feedback` (authored text, misconception note, exemplar and self-check prompts); `evidence_changes[]` (`skill_id`, `from_level`, `to_level`, `basis`); `next_step_index`; `revisit_hint` (neutral text such as "We'll bring this back in a few days").
+The browser disables "Check answer" while offline; attempts are never queued. Response `201`: `attempt_id`; `outcome` (`correct`, `partially_correct`, `incorrect`, `self_met`, `self_not_met`; definitions in `05`); `assistance` (server-recorded `none`, `hint` with count, `worked_example`, `solution_revealed`; the client cannot assert it); `feedback` (authored text, misconception note, exemplar and self-check prompts); `evidence_changes[]` (`skill_id`, `from_level`, `to_level`, `basis`; at most one `skill_evidence` row per attempt, unique); `next_step_index`; `revisit_hint` (neutral text such as "We'll bring this back in a few days").
 
 **`POST /v1/sessions/{id}/complete`** (request, `Idempotency-Key` required): one field, `base_revision` (int). The client must sync its draft first; a newer server revision → `409 draft_conflict`.
 
-Response `200`: `session_id`, `completed_at`; `summary` (`steps_done`, `attempts`, aggregated `evidence_changes`, `effort_highlights` such as `started`, `returned_after_gap`, `corrected_misconception`, kept separate from evidence, PRD §6); `topic_changes[]` (`topic_id`, `from_state`, `to_state`, applied once, R02); `roadmap_progress` (`completed_required`, `total_required`, `percent`); `milestone` (when the roadmap completes, R04) or null; `next_suggestion` (next planned day, not a demand). A repeat returns the identical stored body.
+Response `200`: `session_id`, `completed_at`; `summary` (`steps_done`, `attempts`, aggregated `evidence_changes`, `effort_highlights` such as `started`, `returned_after_gap`, `corrected_misconception`, kept separate from evidence, PRD §6); `topic_changes[]` (`topic_id`, `from_state`, `to_state`, applied once, R02); `roadmap_progress` (`completed_required`, `total_required`, `percent`); `milestone` (when the roadmap completes, R04) or null; `next_suggestion` (next planned day, not a demand). A repeat returns the identical stored status code and body.
+
+**`POST /v1/guest/attempts`** (no login): `assessment_item_id`, `content_version_id` (from `GET /v1/guest/sample`), `answer`. Response `200`: `outcome`, `feedback`. No attempt ID, no rows written, answers never logged.
+
+**`POST /v1/guest/claim`** (request, `Idempotency-Key` required)
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `subject_id` | UUID | The browser's random analytics ID; the account adopts it so the funnel joins up. |
+| `onboarding` | object | Preference and goal answers, imported by `profile`. |
+| `sample` | object | `content_version_id` and `attempts[]` (`assessment_item_id`, `answer`, `answered_at`). |
+
+Response `200`: `claimed_attempts`, `evidence_changes[]`. The server re-evaluates every answer against the pinned content version and records evidence **capped at `practised`**, because the browser could have edited answers after seeing feedback. A repeat with the same key replays the stored response. Merge rules when the account already has data: `03`.
+
+**`GET /v1/enrolments/{id}/migration` → `200`**: `to_version_id`, `preview_hash`, `required_before` and `required_after` (`completed`, `total`), `topics[]` (`topic_key`, `change`, `credit`, `refresh_suggested`). A completed topic whose objective changed keeps its credit and is marked "Refresh suggested" (`05`).
+
+**`POST /v1/enrolments/{id}/migrate`** (request, `Idempotency-Key` required): `to_version_id`, `preview_hash`, `decision` (`accept` or `decline`).
+
+- `accept` → `200` with `enrolment_id` (the **new** enrolment; the old one becomes `migrated`), `previous_enrolment_id`, `roadmap_progress`, `topic_changes[]`.
+- `decline` → `200` with the unchanged `enrolment_id`; the offer stays available on Roadmap.
+- The hash no longer matches current state → `409 migration_preview_stale` with a fresh preview in `details`; nothing changes.
+- A session is open → `409 session_open`. Migration applies only after the open session ends: the learner finishes it or sets it aside, and a suspended session finishes on its original content version.
 
 ### 5.4 Standard error envelope
 
@@ -351,10 +384,10 @@ Response `200`: `session_id`, `completed_at`; `summary` (`steps_done`, `attempts
 | HTTP | Codes |
 | --- | --- |
 | 400 | `malformed_request` |
-| 401 | `unauthenticated`, `token_invalid` |
-| 403 | `account_required`, `forbidden` (operator scopes) |
+| 401 | `unauthenticated`; `token_invalid` (bad, expired or used signed token: unsubscribe, recovery, email verification, OAuth `state`) |
+| 403 | `invite_required` (sign-up without a valid invite for this email), `account_pending_deletion` (only cancel and export are allowed during the grace period), `forbidden` |
 | 404 | `not_found`, also returned for another learner's resource |
-| 409 | `draft_conflict`, `content_version_mismatch`, `prerequisites_unmet`, `session_not_open`, `request_in_progress` |
+| 409 | `draft_conflict`, `content_version_mismatch`, `prerequisites_unmet`, `session_not_open`, `session_open`, `migration_preview_stale`, `request_in_progress` |
 | 422 | `validation_failed`, `idempotency_key_reused` |
 | 429 | `rate_limited` with `Retry-After` |
 | 503 | `temporarily_unavailable` with `Retry-After` |
@@ -364,16 +397,17 @@ Response `200`: `session_id`, `completed_at`; `summary` (`steps_done`, `attempts
 
 `409 draft_conflict` `details`: `server_revision`, `server_step_index`, `server_saved_at`, `server_device_label`, `server_data`, `your_base_revision`.
 
-Client rule: keep the local draft; show both versions ("Saved on *Phone* at 19:42" vs "This device"); the learner chooses; the client re-sends the chosen data with `base_revision = server_revision`. The server never merges answer content and never overwrites a newer revision silently (PRD §12). Flow detail: `03-key-flows.md`.
+Client rule: keep the local draft; show both versions ("Saved on *Phone* at 19:42" vs "This device") and highlight the steps that differ; the learner keeps one version for the **whole draft** (no per-step merge, no "decide later"); the client re-sends the chosen data with `base_revision = server_revision`. The server never merges answer content and never overwrites a newer revision silently (PRD §12). Flow detail: `03-key-flows.md`.
 
 ## 6. Cross-cutting concerns
 
 ### 6.1 Ownership scoping and authorisation
 
-- Every learner-owned table carries a non-null owner (`user_id`). Data access for these tables takes `owner_id` from the authenticated principal; lookups are by `id AND owner`. Children (attempts, drafts, artifacts) inherit the parent's owner.
+- Every stored learner record has an owning account: each learner-owned table carries a non-null owner (`user_id`). Guests store nothing server-side (§6.8). Data access for these tables takes `owner_id` from the authenticated principal; lookups are by `id AND owner`. Children (attempts, drafts, artifacts) inherit the parent's owner.
 - Another learner's resource → `404 not_found` (no existence leak).
-- Operator tokens are scoped (`content:publish`, …) and cannot call learner routes. Operator support access to learner data goes through audited console commands (`09`).
-- **Authorisation test matrix (PRD §12):** generated from the route table. For every route with an ID: learner B on A's resource → 404; guest on `learner` routes → 403; no principal → 401; operator token on learner routes → 401. CI fails if a route has no auth classification. Attempts, drafts and exports are explicitly listed cases.
+- An account in its deletion grace period signs in to a restricted principal: only `GET /v1/me`, `POST /v1/me/deletion/cancel`, the export endpoints and sign-out are allowed; anything else → `403 account_pending_deletion`.
+- There is no operator HTTP API. Operator support access to learner data goes through audited console commands (`09`).
+- **Authorisation test matrix (PRD §12):** generated from the route table. For every route with an ID: learner B on A's resource → 404; no principal on `learner` routes → 401; account in deletion grace on any route outside the allowed set → 403. CI fails if a route has no auth classification. Attempts, drafts, exports and guest claim are explicitly listed cases.
 - Not planned for MVP: database row-level security. Revisit if anything other than the app (for example, analyst access) connects to the primary database.
 
 ### 6.2 Idempotency
@@ -381,20 +415,20 @@ Client rule: keep the local draft; show both versions ("Saved on *Phone* at 19:4
 | Aspect | Rule |
 | --- | --- |
 | Key | Client-generated UUID per **user action** (not per retry), persisted in the local draft store so retries after reload reuse it. |
-| Required on | Attempt submission, session completion, export request, lab artifacts, content reports; optional on `POST /v1/sessions`. Email dispatch uses delivery keys (§7). |
-| Storage | `idempotency_keys`: unique (`owner_id`, `key`), route, request hash, response status and body, `expires_at`. |
-| Write | Key row, business change and stored response commit in **one transaction**. A concurrent duplicate blocks on the unique index until the first commits, then replays (Postgres-compatible behaviour). |
-| Replay | Same key + same hash → stored response, `Idempotent-Replayed: true`. Same key + different hash → `422 idempotency_key_reused`. In-flight beyond timeout → `409 request_in_progress` (retryable). |
-| TTL | 7 days (tunable); daily housekeeping deletes expired keys. |
-| Defence in depth | State guards (`open → completed` only once), unique keys on `topic_progress` transitions and evidence per attempt, so data stays correct even if a key is lost. |
+| Required on | One scope each (names in `04`): attempt submission, session completion, lab artifacts, guest claim, enrolment migration, export request, account deletion. Reminder email is **not** keyed here: the unique `notification_deliveries` row de-duplicates it (§7). |
+| Storage | `idempotency_keys` (`04`): unique (`user_id`, `scope`, `key`), request hash, state, stored response status code and body, `expires_at`. |
+| Write | Key row, business change and stored response commit in **one transaction**. A concurrent duplicate blocks on the unique index until the first commits, then replays (PostgreSQL behaviour). |
+| Replay | Same key + same hash → the originally stored status code and body, `Idempotent-Replayed: true`. Same key + different hash → `422 idempotency_key_reused`. In-flight beyond timeout → `409 request_in_progress` (retryable). |
+| TTL | 7 days; daily housekeeping deletes expired keys. |
+| Defence in depth | State guards (`open → completed` only once), unique keys on `topic_progress` transitions and one `skill_evidence` row per attempt, so data stays correct even if a key is lost. |
 | Jobs and events | At-least-once; every handler is idempotent; consumers dedupe on `event_id`. |
 
 ### 6.3 Time and time zones
 
 | Concern | Rule |
 | --- | --- |
-| Storage | Instants in UTC. Future local facts (review due date, reminder time) stored as local `date`/`time` plus the learner's IANA zone, never as precomputed UTC. |
-| Learning day | `local_date` = now converted to the learner's zone. Daily rules (one reminder per learning day, due reviews, weekly progress) key on `local_date`. |
+| Storage | Instants in UTC. Future local facts (review due date, preferred reminder time) are the source of truth, stored as local `date`/`time` plus the learner's IANA zone. A derived `next_reminder_at` (UTC) index is allowed because it is recomputed whenever the zone or reminder settings change and after each send decision. |
+| Learning day | `local_date` = now converted to the learner's zone, with the day boundary at 04:00 local time. Daily rules (one reminder per learning day, due reviews, practice days, "practised today") key on `local_date`. |
 | Intervals | Review intervals (≈ 1, 3, 7, 21 days, PRD §9) are calendar-day arithmetic on local dates, so DST never moves a review into another day. |
 | Reminder instant | Computed per day: local date + preferred local time → UTC. Non-existent time (spring forward) → shift forward by the gap; ambiguous time (fall back) → earlier occurrence. |
 | Zone change | Applies from the next local day. Unique delivery key (user, local date) plus a minimum gap between reminders (12 h proposed) prevents a double send. |
@@ -414,8 +448,8 @@ Client rule: keep the local draft; show both versions ("Saved on *Phone* at 19:4
 | --- | --- | --- | --- |
 | Secrets | Database credentials, email API key, cookie and token signing keys | Host secret store / environment | Operator; rotation in `09` |
 | Deploy config | Base URLs, CDN origin, allowed origins | Environment | Deploy |
-| Learning tunables | Review intervals, review caps (2/1), retained delay (≥ 7 days), absence threshold, guest scope and TTL, idempotency TTL, reminder window and minimum gap | Versioned config file in the app repo; config hash logged at start-up | Pull request + deploy; records note the policy version applied (`04`/`05`) |
-| Feature flags (kill switches) | `reminders_enabled`, `guest_mode_enabled`, `new_signups_enabled`, `client_events_enabled`, later `ai_tutor_enabled` | `feature_flags` table, read at most every 60 s | Operator console command, logged |
+| Learning tunables | Review intervals, review caps (2/1), retained delay (≥ 7 days), absence threshold, guest bundle expiry in the browser (30 days), idempotency TTL (7 days), reminder window and minimum gap | Versioned config file in the app repo; config hash logged at start-up | Pull request + deploy; records note the policy version applied (`04`/`05`) |
+| Feature flags (kill switches) | `reminders_enabled`, `guest_sample_enabled`, `new_signups_enabled`, `client_events_enabled`, later `ai_tutor_enabled` | Configuration (environment variables), read at start-up; no database table | Change in the host's environment settings, which redeploys or restarts the app; the host logs the change |
 
 Flags are global booleans, few, and removed when stable. Tunables that change learning outcomes are code-reviewed, not toggled at runtime.
 
@@ -423,18 +457,17 @@ Flags are global booleans, few, and removed when stable. Tunables that change le
 
 | Scope | Proposed limit (tunable) | Key |
 | --- | --- | --- |
-| Sign-up, sign-in, recovery | 5 per minute, 20 per hour | IP + email |
-| Guest creation | 10 per hour | IP |
-| Unsubscribe, recovery confirm | 30 per minute | IP |
+| Sign-up, sign-in, OAuth start, recovery | 5 per minute, 20 per hour | IP + email (IP only for OAuth) |
+| Guest sample attempts | 60 per hour | IP |
+| Unsubscribe, recovery confirm, verification confirm | 30 per minute | IP |
 | Learner writes (drafts, attempts, hints) | 60 per minute | principal |
-| Client events | 120 per minute, ≤ 50 events per batch | principal |
-| Operator endpoints | 10 per hour | token |
+| Client events | 120 per minute, ≤ 50 events per batch | principal, or IP without login |
 
 Pilot: in-process counters on the single instance. Move to database-backed counters if a second instance is added. Exceeded → `429 rate_limited` with `Retry-After`. Draft autosave is debounced client-side so normal use never approaches the limit.
 
 ### 6.7 Input validation and safe rendering
 
-- Every request is validated at the boundary against a schema: types, enums, lengths, unknown-field rejection on writes. Limits: body ≤ 256 KB, draft `data` ≤ 32 KB, short text ≤ 4,000 chars, lab artifact ≤ 64 KB of text or JSON.
+- Every request is validated at the boundary against a schema: types, enums, lengths, unknown-field rejection on writes. Limits: body ≤ 256 KB, draft `data` ≤ 64 KB, free-text answer ≤ 32 KB (≤ 64 KB per attempt), lab artifact ≤ 64 KB of text or JSON.
 - Parameterised SQL only.
 - Learner text is stored and rendered as **plain text** (output-encoded); no learner Markdown or HTML in MVP. Learner text never appears in emails, logs or analytics.
 - Authored Markdown is compiled to HTML in CI with an allow-list sanitiser (`06`). A Content-Security-Policy forbids inline script. Code samples render as text.
@@ -444,19 +477,23 @@ Pilot: in-process counters on the single instance. Move to database-backed count
 
 | Item | Where | Notes |
 | --- | --- | --- |
-| Guest identity | Server `users` row (guest kind, no email) + HttpOnly device cookie | Same owner-scoping code path as learners. |
-| Onboarding, sample session, attempts, evidence | Server, owned by the guest | Evaluated server-side like any attempt. |
-| In-progress drafts | Local draft store and server draft | Same sync as learners (§6.9). |
-| Reminders, export, labs, migration | Not available | `403 account_required`. |
-| Scope | Product tunable (Open question 2) | UI states "saved on this device only until you create an account" (PRD §5). |
-| Claim | Sign-up as guest → in-place upgrade (same user ID). Sign-in to an existing account → `POST /v1/guest/claim` merges via `UserDataProvider.mergeGuest` in one transaction. | Merge conflict rules: `03`. |
-| Expiry | Unclaimed guests purged after 30 days of inactivity (tunable) | Guest purge job (§7). |
-| Analytics | Pseudonymous subject ID carried over on claim | Funnel spans sign-up (F12). |
+Guest work is **device-only**. The server stores no guest rows, no guest `users` record and no guest cookie, and there is no `guest` auth type.
+
+| Item | Where | Notes |
+| --- | --- | --- |
+| Scope | Onboarding plus the one sample scenario | No enrolment, diagnostic, further sessions, reminders, labs or export before sign-up. |
+| Onboarding answers, sample drafts and attempts | Browser storage (IndexedDB/localStorage) | UI promise (`08`): "Saved only in this browser on this device until you create an account." (PRD §5) |
+| Sample content | `GET /v1/guest/sample` | Learner-facing content only; answer keys stay on the server. |
+| Sample feedback | `POST /v1/guest/attempts` | Server-side evaluation through `assessment.evaluateGuest`: no auth, rate-limited, stateless, stores nothing. |
+| Claim | After sign-up or sign-in, `POST /v1/guest/claim` uploads the bundle | Idempotent (`Idempotency-Key`). Every answer is re-evaluated against the pinned content version; evidence is capped at `practised`. Merge rules: `03`. |
+| Expiry | The browser deletes an unclaimed bundle after 30 days | No server purge job, because there is nothing to purge. |
+| Analytics | A random client-generated `subject_id`, sent with allow-listed events through `POST /v1/events` | Only `sample_started`, `first_answer_submitted`, `attempt_evaluated` (sample) and `guest_progress_claimed`. On claim the account adopts the `subject_id`, so the funnel spans sign-up (F12). |
+| Uninvited visitor | Finishes the sample, then sees how to ask to join | A link to the pilot recruitment form (`10`); there is no waitlist table. |
 
 ### 6.9 Offline and draft sync (high level)
 
 - The local draft store holds, per session: latest draft, `base_revision`, pending `save_id`, pending idempotency keys and sync status. Signing out clears it.
-- Every edit writes locally first; the client sends `PUT …/draft` after a short idle debounce and **before every step transition** (PRD §12). If the network is down, reading steps can continue; attempt submission waits (evaluation is server-side) and the UI shows "Saved on this device, not yet synced".
+- Every edit writes locally first; the client sends `PUT …/draft` after a short idle debounce and **before every step transition** (PRD §12). If the network is down, reading steps and editing can continue and drafts keep saving locally, with the UI showing "Saved on this device, not yet synced". "Check answer" is disabled while offline: evaluation is server-side and attempts are never queued.
 - One open session per learner; a second device resumes the same session, and revisions detect concurrent edits. Sequences: `03-key-flows.md`.
 
 ```mermaid
@@ -491,20 +528,20 @@ An offline-capable app shell (service worker) is an option for `01`/`08`, not a 
 | Structured logs | One JSON line per request and job: time, level, `request_id`, route template, status, duration, module, pseudonymous subject. Never bodies, answers, drafts, emails, tokens or cookies. |
 | Error capture | Server and browser exceptions to error monitoring with scrubbing of bodies, cookies, query tokens and headers. |
 | Metrics | Per-route rate and p50/p95 latency, error rate, job queue depth and oldest-job age, job failures, reminder sent/failed, draft conflicts, idempotent replays, database connections. Collection method in `01`. |
-| Health | `/healthz` plus an external uptime check. |
-| Alerts (few, actionable) | Site down; 5xx rate spike; oldest job > 30 min; reminder failure spike; backup verification failed; deletion request > 7 days old. |
+| Health | `/up` (the framework's health route, extended with a database check) plus an external uptime check. |
+| Alerts (few, actionable) | Site down; 5xx rate spike; oldest job > 30 min; reminder failure spike; backup verification failed; deletion request not purged by day 25 after the request. |
 
 ### 6.12 Graceful degradation
 
 | Outage | Learner impact | Behaviour |
 | --- | --- | --- |
-| Email provider | No reminders or recovery emails; learning unaffected | Send jobs retry within the send window, then mark `failed`; no late reminders for a past day. |
+| Email provider | No reminders, verification or recovery emails; learning unaffected | Reminders are at most once: an ambiguous timeout is marked `failed` and never retried, and no reminder is sent late for a past day. Verification, recovery and export emails retry. |
 | Analytics storage or ingestion | None | Event jobs retry then dead-letter; `POST /v1/events` returns `202` and may drop; learning transactions never write analytics. |
 | Error monitoring | None | SDK fails silently; logs remain. |
 | AI provider (P1) | Tutor unavailable | `HintProvider` falls back to authored hints; spend caps trip the same path (PRD §11). |
 | Static host/CDN | New page loads fail; API stays up | Accept for pilot; `01` should prefer a host with origin fallback or keep shell and API on the same provider. |
-| Worker down | Reminders, exports, purges, analytics delayed | Today and the player are computed on request; alert on oldest-job age. |
-| Content import failure | No new content | Transactional import; current versions keep serving; CI sees `failed`. |
+| Worker down | Reminders skipped for the missed window; exports, purges and analytics delayed | Today and the player are computed on request; alert on oldest-job age. |
+| Content publish failure | No new content | Transactional `content:publish`; current versions keep serving; the deploy reports the failure. |
 | Relational database | API unavailable | `503` with `Retry-After`; local drafts retained; restore per `09`. |
 
 ## 7. Background jobs

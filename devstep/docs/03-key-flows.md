@@ -16,20 +16,23 @@ covered elsewhere.
 - One daily loop: Today → session → attempt → evidence → review schedule →
   completion → next action. Every other flow either feeds this loop or protects it.
 - Before sign-up, guest work exists **only in the learner's browser**. When the
-  guest claims it, the server evaluates the answers again, so a guest cannot
-  forge evidence. **Proposal**
+  guest claims it, the server evaluates the answers again and caps the evidence
+  at `practised`, so a guest cannot forge evidence. Pilot sign-up needs an
+  invite. **Proposal**
 - Anything that could run twice (attempt, completion, claim, migration, lab
   evidence, reminder) has an idempotency key or a conditional update. The
   database guarantees "exactly once". The client does not.
 - Drafts are saved locally first, then sent with `base_revision`. If the
-  revision is stale the server returns `409` and the learner chooses which
-  version to keep. Nothing is silently overwritten (PRD §12).
-- Hints, worked examples and reveals are recorded on the server. A reveal caps
-  evidence at `practised` and schedules a fresh alternate attempt (PRD §9).
+  revision is stale the server returns `409 draft_conflict` and the learner
+  chooses which version of the whole draft to keep. Nothing is silently
+  overwritten (PRD §12). Answers are checked only online.
+- Hints, worked examples and reveals are recorded on the server. Revealing the
+  solution before submitting leaves no qualifying attempt (nothing above
+  `introduced`) and schedules a fresh alternate attempt (PRD §9).
 - Missed sessions and long absences create no catch-up debt. The learner gets
   resume or a three-minute refresher, and reviews stay capped (F06, R05).
 - Reminders are checked in each learner's IANA zone, at most one per learning
-  day, and suppressed once a session is completed that day. Missing one
+  day, and skipped once the learner has practised that day. Missing one
   reminder is better than sending two. **Proposal**
 - Published content and roadmap versions never change. Retiring keeps history.
   Roadmap migration is always the learner's explicit choice, with progress
@@ -40,7 +43,7 @@ covered elsewhere.
 | Participant | Meaning |
 | --- | --- |
 | Learner, Author, Reviewer | People (actors in `00-conventions.md`). |
-| Browser, Local draft store | The single-page app (SPA) and its durable browser storage for drafts, guest work and queued requests. |
+| Browser, Local draft store | The single-page app (SPA) and its durable browser storage for drafts, their idempotency keys and guest work. |
 | API | HTTP layer of the single deployable. Authenticates, scopes requests to their owner, opens the transaction. |
 | `identity` … `analytics` | Canonical modules. Arrows between them are in-process calls, not network hops (`02`). |
 | DB, Scheduler | The single database, and a job runner backed by that database (ticks and queued jobs). |
@@ -59,11 +62,11 @@ Unless a note says otherwise, each API request is one DB transaction.
 | Rule | Behaviour | Label |
 | --- | --- | --- |
 | Owner scoping | The user ID comes from the login session, never from the request body. Another learner's session, draft, attempt or export returns `404`. | PRD §11, §12 |
-| Idempotency keys | The Browser creates one key for each thing the learner means to do and stores it with the local draft, so a reload reuses it. The server stores (user, operation, key, request hash, response) in `idempotency_keys`, under a unique constraint, in the same transaction as the effect. Same key and same body: the stored response is replayed. Same key and different body: `422`. Key still in flight: the request waits for the first to commit and then replays, or gets `409` and retries. | Proposal |
+| Idempotency keys | The Browser creates one key for each thing the learner means to do and stores it with the local draft, so a reload reuses it. The server stores (user, scope, key, request hash, stored response) in `idempotency_keys` for 7 days, under a unique constraint, in the same transaction as the effect. Same key and same body: the stored response is replayed with its original status code (for example `201`). Same key and different body: `422`. Key still in flight: the request waits for the first to commit and then replays, or gets `409` and retries. | Proposal |
 | Conditional transitions | State changes use "update where state = expected". The number of rows changed shows which request won. | Proposal |
 | Drafts | Optimistic concurrency with `base_revision` (flow 4). | PRD §12 |
 | Analytics | Emitted after commit. Domain events come from the server. Events only the UI sees use `POST /v1/events`. Payloads hold IDs, content version, mode and timestamps only. An analytics outage never blocks learning. | PRD F12, §12, §13 |
-| Time | Stored in UTC. A **learning day** is the local calendar date in the learner's IANA zone. | PRD §11, Proposal |
+| Time | Stored in UTC. A **learning day** runs from 04:00 to 04:00 local time in the learner's IANA zone, so practice at 00:30 counts for the day before. | PRD §11, Proposal |
 | Content pinning | Sessions and attempts reference the exact published content version. Retired versions stay readable. | PRD §11, §12 |
 | Non-blocking dependencies | An email, AI or analytics failure degrades one feature and never blocks a session. | PRD §12 |
 
@@ -88,7 +91,7 @@ flowchart TD
     TODAY --> PICK
     PICK -->|"start or resume"| SESS["Session player, drafts autosaved<br/>(flow 4)"]
     PICK -->|"smaller"| SMALL["Start small: curated<br/>3-minute task"]
-    PICK -->|"rest day"| REST["Planned rest,<br/>no penalty"]
+    PICK -->|"rest today"| REST["Rest today: skip today's<br/>reminder, no penalty"]
     PICK -.->|"desktop, optional"| LAB["Build session: lab<br/>(flow 13)"]
     SMALL --> SESS
     SESS --> ATT["Submit attempt<br/>(flow 5)"]
@@ -113,7 +116,7 @@ export and deletion (14).
 | # | Flow | Trigger | Main modules | PRD IDs |
 | --- | --- | --- | --- | --- |
 | 1 | Guest sample, then sign-up and claim | Public sample link | catalogue, assessment, identity, learning | §5, F03, F04, F09, F12 |
-| 2 | Onboarding | First sign-in | profile, roadmap, notifications, assessment | F01, R01, F10, §5 |
+| 2 | Onboarding | First sign-in | profile, learning, assessment, roadmap, notifications | F01, R01, F10, §5 |
 | 3 | Today recommendation | Learner opens Today | scheduling, learning, roadmap, catalogue | F02, F05, R02, §9 |
 | 4 | Start or resume, autosave, offline, second device | Learner starts an action | learning | F03, F09, R05, §12 |
 | 5 | Submit, evaluate, evidence, review | Learner submits an answer | learning, assessment, scheduling | F04, F05, F09, §9 |
@@ -147,11 +150,12 @@ sequenceDiagram
     participant ASM as assessment
     participant AN as analytics
     L->>B: Open public sample link
-    B->>API: GET /v1/guest/sample (added, no login)
+    B->>API: GET /v1/guest/sample (no login)
     API->>CAT: Sample mission at latest published version
     API-->>B: 200 steps, hints, content version, cacheable
-    B->>LS: Create random guest id, store sample and empty draft
-    B->>L: Notice - guest work is saved only in this browser on this device
+    B->>LS: Create random subject_id, store sample and empty draft
+    B->>L: Notice - saved only in this browser on this device until you create an account
+    B->>API: POST /v1/events sample_started (guest subject_id)
     loop Each step
         L->>B: Answer or move on
         B->>LS: Save draft (device only)
@@ -161,10 +165,10 @@ sequenceDiagram
         B->>L: Authored hint from the sample bundle
     end
     L->>B: Submit answer
-    B->>API: POST /v1/guest/attempts (added, guest id, item, answer, assistance, version)
+    B->>API: POST /v1/guest/attempts (subject_id, item, answer, assistance, version)
     API->>ASM: Evaluate against rubric, stateless
     ASM-->>API: Outcome and feedback
-    API->>AN: first_answer_submitted and attempt_evaluated with guest pseudonym
+    API->>AN: first_answer_submitted and attempt_evaluated with the guest subject_id
     API-->>B: 200 feedback, no learner record stored
     B->>LS: Store attempt, feedback and timestamps (device only)
     B->>L: Feedback plus create an account to keep this
@@ -182,28 +186,28 @@ sequenceDiagram
     participant LRN as learning
     participant ASM as assessment
     participant AN as analytics
-    L->>B: Create account or sign in
-    B->>API: POST /v1/auth/signup (added, shape owned by 02)
-    API->>ID: Create user and login session
-    API-->>B: 201 signed in
+    L->>B: Create account with an invite code, or sign in
+    B->>API: POST /v1/auth/sign-up (invite code, email, password) or /v1/auth/sign-in
+    API->>ID: Check the invite is unused and bound to this email
+    ID->>ID: Create user with cohort and arm from the invite, start login session
+    API-->>B: 201 signed up, or 200 signed in
     B->>LS: Read guest bundle
     alt Guest bundle present
         B->>L: Add your guest progress to this account?
         L->>B: Yes
-        B->>API: POST /v1/guest/claim (bundle, Idempotency-Key is the guest id)
-        API->>ID: Claim guest id for this user
-        alt Already claimed by this user
-            ID-->>API: Stored claim result, replayed
-        else Claimed by a different user
-            ID-->>API: Reject, nothing copied
+        B->>API: POST /v1/guest/claim (bundle, subject_id, Idempotency-Key stored with the bundle)
+        API->>ID: Claim the bundle for this user
+        alt Key already used by this user
+            ID-->>API: Stored claim result, replayed with its original status
         else First claim
-            ID->>LRN: Import attempts, and unfinished draft as an open session
-            LRN->>ASM: Evaluate each answer again at its content version
+            ID->>LRN: Import attempts, and unfinished draft as an open sample session
+            LRN->>ASM: Evaluate each answer again at its pinned content version
             ASM-->>LRN: skill_evidence written, level at most practised
-            ID->>AN: Link guest pseudonym to user pseudonym
+            ID->>ID: Account adopts the guest subject_id so the funnel joins up
         end
-        API-->>B: 200 claimed counts, or 409 if rejected
-        B->>LS: Clear guest bundle only after 200
+        API-->>B: 201 claimed counts
+        API->>AN: guest_progress_claimed, after commit
+        B->>LS: Clear guest bundle only after success
     else No bundle on this device
         B->>L: Explain that no guest work was found on this device
     end

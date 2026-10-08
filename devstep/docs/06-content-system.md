@@ -17,18 +17,23 @@ founder and one part-time reviewer, and no paid content service.
   assets), labs, transfer assessments and roadmap-version structures. Published
   versions never change, and every attempt references one (PRD §11).
 - **PRD §8:** each mission carries all required metadata (§5). Minimum pool:
-  the primary items, 2 held-back alternates and a topic check.
+  the primary items, one curated small variant, and at least 2 held-back
+  alternates (Alt A check-eligible, Alt B retention-reserved) plus a topic
+  check, so every topic has at least 2 check-eligible items.
 - **Proposal:** 22 CI rules block publication, including prerequisite cycles
   (§8A), item minimums, link checks, freshness, accessibility and leakage.
 - **PRD §8:** a reviewer other than the author tries every exercise. The publish
   job checks this itself, so no paid Git plan is needed to enforce it.
-- **Proposal:** semantic versions (patch, minor, breaking, plus `defect_fix`).
-  Only breaking or structural changes create a new roadmap version (R06).
+- **Proposal:** semantic versions `X.Y.Z` (patch, minor, breaking, plus
+  `defect_fix`) and a separate objective version (`objective_key`,
+  `objective_major`). Only breaking or structural changes create a new roadmap
+  version (R06).
 - **Proposal:** retiring a unit stops new use but never deletes it. Attempts and
   evidence keep their references (§12).
-- **Hypothesis:** about 425 hours of content work (360 author, 65 reviewer;
-  range 270–655). That exceeds the PRD's 8–11 pre-pilot weeks at part-time pace,
-  so content is the critical path (PRD §14).
+- **Hypothesis:** about 430 hours of content work before the pilot (≈360
+  author, ≈70 reviewer), plus ≈20 reviewer hours and blind transfer scoring
+  during the pilot. All six modules are reviewed before the pilot starts, so
+  content is the critical path (PRD §14).
 
 ## 1. Scope and boundaries
 
@@ -62,8 +67,8 @@ rejecting cycles before publication.
 | --- | --- |
 | YAML mistakes and Git friction | JSON Schemas give editor hints and clear CI errors; the Git host's web editor covers small fixes |
 | No WYSIWYG preview at first | Static preview (§12); the real player locally once it exists |
-| Publishing needs an import step and credentials | Reuse the deploy pipeline (Open question 2); the import is idempotent and atomic |
-| A public repo would leak answer keys | Keep content private; lab kits contain no answer keys, so they can be public (Open question 6) |
+| Publishing needs an import step and credentials | A deploy-time `content:publish` command after migrations (§8.2); idempotent and atomic, with no admin endpoint |
+| A public repo would leak answer keys | Keep content private. Public lab kits hold only planted starter states, checks and templates; answer keys, reference solutions and exemplars stay private (§5.2) |
 | Outgrowing files | Revisit if a non-technical author joins or experts must edit in the app; a later admin UI writes the **same schema** and runs the **same validator** |
 
 ## 3. Content hierarchy
@@ -75,24 +80,31 @@ flowchart TD
   MOD --> T["Topic (required or optional)"]
   T --> M["Mission (versioned unit, ordered steps)"]
   M --> PI["Primary items (shown in the mission)"]
-  M --> HB["Held-back items<br/>2+ alternates and a topic check"]
+  M --> SV["Small variant<br/>(a curated step subset)"]
+  M --> HB["Held-back items: topic check,<br/>Alt A (check-eligible), Alt B (retention-reserved)"]
   PI --> HF["Hints, feedback, answer key or rubric"]
   HB --> HF
   M --> WE["Worked example, misconception notes, sources"]
   T -.->|optional topic| L["Lab (build mode, separate evidence)"]
-  L --> KIT["Starter kit at a pinned tag"]
-  M --> SK["Skills and skill prerequisites"]
-  RV --> TA["Baseline and final transfer assessments"]
+  L --> KIT["Starter kit edition at a pinned tag"]
+  M --> SK["Primary skill and skill prerequisites"]
+  RV --> TA["Transfer forms X and Y<br/>(counterbalanced)"]
+  RV --> PW["Path-wide pools: diagnostic<br/>and delayed check"]
 ```
 
 - **PRD §8A:** in the pilot, each of the 18 required topics has one core
   mission. The format allows several per topic.
 - **Proposal:** each lab is its module's **optional topic**: outside the
-  progress denominator and recorded separately (R04).
+  progress denominator and recorded separately (R04). Labs never affect
+  required progress.
 - **Proposal:** item roles are `primary` (shown in the mission), `alternate`
-  and `topic_check` (both held back), `baseline`, `final_transfer` and
-  `diagnostic` (F01). `05-learning-engine.md` decides which held-back item is
-  used when, including challenge-out; this doc only guarantees the pool.
+  and `topic_check` (both held back), `diagnostic` (F01), `transfer` and
+  `delayed_check` (the path-level pool). Two flags refine held-back items:
+  `check_eligible` (every `topic_check`, plus Alt A, at no extra authoring) and
+  `retention_reserved` (Alt B, kept unseen for the delayed retention check). An
+  item is never both. `05-learning-engine.md` decides which held-back item is
+  used when, including challenge-out and the retry after a failed check; this
+  doc only guarantees the pool and the flags.
 - **Proposal, for `02-system-architecture.md`:** the API never sends held-back
   items, answer keys or feedback to the client before submission.
 
@@ -106,14 +118,17 @@ content/                                 # private repo (Open question 1)
 │   ├── roadmap.yaml                     # slug, title, outcome
 │   └── versions/                        # v1.yaml, v2.yaml: structure immutable
 ├── missions/
-│   └── m-query-plans/                   # directory name = mission ID
+│   └── perf.query-plans/                # directory name = mission ID
 │       ├── mission.md                   # front matter + step bodies
 │       ├── items/                       # primary-1, primary-2 (shown);
-│       │                                # alt-1, alt-2, check-1 (held back)
+│       │                                # check-1, alt-a, alt-b (held back)
 │       └── assets/                      # images with alt text, text plans
-├── labs/lab-perf-experiment/            # lab.yaml + tasks/*.md
+├── labs/perf.lab-experiment/            # lab.yaml, tasks/*.md, reference/
+│                                        # (private: reference states, exemplars)
+├── shared/                              # constraint cards, rubric scale
 ├── assessments/                         # rubric-transfer.yaml (shared),
-│                                        # ta-baseline/, ta-final/ (+ items/)
+│   │                                    # crud-to-reliable.transfer-x/, -y/
+│   └── pools/                           # diagnostic and delayed-check items
 └── release-notes/2026-11.md             # learner-facing, per month
 .github/                                 # or the Git host's equivalent:
                                          # pull_request_template.md (§7.3),

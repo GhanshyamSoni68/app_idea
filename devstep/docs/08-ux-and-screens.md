@@ -168,10 +168,12 @@ flowchart TD
   B9 -->|Enrol| B10["Today with the first action"]
   B9 -->|Look first| B11["Roadmap preview"]
   B11 --> B9
+  B9 -.->|Guest| B12["Create an account to enrol<br/>invite needed in the pilot"] --> B10
 ```
 
-- Six steps, one question per screen, **Back** on every step, **Skip** on optional steps, progress shown as "Step 3 of 6" in text. *(Proposal)*
-- Defaults are pre-filled from the PRD pilot schedule: three 10-minute sessions plus one optional lab a week, labelled "a starting point, not a rule". *(PRD §5)*
+- Six steps, one question per screen, **Back** on every step, **Skip** on optional steps, progress shown as "Step 3 of 6" in text. The diagnostic always comes before enrolment. *(Proposal)*
+- A guest can answer steps 1–3 and 5; the answers stay in this browser and move into the account with the sample. Step 4 is offered after sign-up (reminders need an email address), and step 6 asks for an account.
+- Defaults are pre-filled from the PRD pilot schedule: three 10-minute sessions plus one optional lab a week (a weekly target of 3 practice days), labelled "a starting point, not a rule". *(PRD §5)*
 - Stack is context only. Copy says examples use Laravel/PHP and SQL and that the concepts are portable. *(PRD §8)*
 - No skill tree and no "rate yourself on 30 technologies". Skipped diagnostic areas show as **Not checked yet** in Evidence, never as zero. *(PRD §5, F01)*
 - Hypothesis: onboarding without the diagnostic takes under two minutes. Test in the concierge trial (`10-measurement-and-validation.md`).
@@ -186,6 +188,7 @@ flowchart TD
   C3 --> C5["Player: one step"] --> C6["Answer, draft autosaves"] --> C7{"Want help?"}
   C4 --> C5
   C7 -->|Hint| C8["Next graduated hint"] --> C6
+  C7 -->|Show solution| C14["Confirm, then solution<br/>fresh question later"] --> C10
   C7 -->|No| C9["Check answer<br/>and read feedback"] --> C10{"More steps?"}
   C10 -->|Yes| C5
   C10 -->|No| C11["Stopping point<br/>session complete"] --> C12["Today: done for today<br/>next planned session shown"]
@@ -193,22 +196,25 @@ flowchart TD
   C12 -.->|Next learning day| C1
 ```
 
+- There is one open session at a time. Starting a different one (for example a 10-minute session while a multi-day lab is open) suspends the open one with its draft, and Today offers it as **Continue**. *(05)*
+- **Check answer** is disabled while offline; the draft keeps saving on the device (§5).
+
 ### 3d. "I'm tired": small mode or planned rest
 
 ```mermaid
 flowchart TD
   D1["Today"] --> D2{"Less energy today?"}
   D2 -->|Start small| D3["Curated 3-minute task<br/>not a cut-down lesson"]
-  D2 -->|Rest today| D4["Planned rest recorded<br/>no reminder today"]
+  D2 -->|Rest today| D4["Today's reminder skipped<br/>no reason asked, nothing recorded"]
   D2 -->|Another day| D5["Pick a day this week<br/>no extra load added"]
   D3 --> D6["One recall or decision<br/>and feedback"] --> D7["Stopping point:<br/>You can stop here"] --> D8{"Keep going?"}
   D8 -->|Stop| D9["Today: done for today"]
   D8 -->|One more small task| D3
-  D4 --> D10["Today: Rest planned<br/>with a quiet Practise anyway link"]
+  D4 --> D10["Today: No reminder today<br/>with Undo, the action stays available"]
 ```
 
-- **Start small** uses a curated equivalent, never a truncated lesson. *(PRD §9)*
-- **Rest today** asks for no reason and is undoable the same day. Whether it suppresses that day's reminder is *Open question 7*.
+- **Start small** uses a curated equivalent, never a truncated lesson. It is hidden when no small task exists. *(PRD §9)*
+- **Rest today** skips today's reminder. It is a reminder setting, not a record: it asks for no reason, stores nothing about the day and can be undone the same day. It is shown only when a reminder is scheduled for today *(Open question 7)*.
 
 ### 3e. Return after absence
 
@@ -221,7 +227,7 @@ flowchart TD
   E5 --> E8["Feedback and stopping point"] --> E9["Today: normal-sized plan<br/>reviews capped, no catch-up"]
   E6 --> E9
   E7 --> E9
-  E6 -.->|Content updated meanwhile| E10["Finish your version<br/>or start the updated one"]
+  E6 -.->|Content changed meanwhile| E10["Revised: finish on your version<br/>Withdrawn: restart, old draft read-only"]
 ```
 
 - The refresher is the primary button because the PRD asks to start with a brief retrieval check after a long absence. *(PRD §6, F06)*
@@ -243,6 +249,7 @@ flowchart TD
 
 - Labs run on the learner's machine; DevStep never runs their code. The setup check is a command in the lab kit whose output the learner pastes. *(PRD §11, F07; kit details in `07-curriculum-plan.md`)*
 - On a phone, **Open anyway** is available; nothing is blocked by width alone.
+- A lab often spans several days. If the learner starts a short session meanwhile, the lab is suspended with its draft and Today keeps **Continue lab** as a secondary action.
 - The no-setup fallback comes from PRD §16 and is labelled on the evidence record.
 
 ### 3g. Roadmap: enrol, preview, pause and resume
@@ -255,7 +262,7 @@ flowchart TD
   G5 --> G3
   G4 --> G6["Roadmap: current module open<br/>later modules collapsed"]
   G6 -->|Preview a later topic| G7["Objective, prerequisites,<br/>effort, evidence needed"]
-  G6 -->|Pause| G8{"Also pause reminders?"} --> G9["Paused: topic states<br/>and drafts kept"]
+  G6 -->|Pause| G9["Paused: topic states and drafts kept<br/>reminders and reviews paused too"]
   G9 -->|Resume| G10["Plan rescheduled from today<br/>no missed-lesson debt"] --> G6
   G2 -.->|Switch roadmap R07| G11["Keep progress and ask<br/>whether old reviews continue"]
 ```
@@ -292,6 +299,7 @@ flowchart TD
 flowchart TD
   I1["Evidence tab"] --> I2["Grouped by level:<br/>retained, demonstrated,<br/>practised, introduced"] --> I3["Skill detail"]
   I3 --> I4["Each record: date, level,<br/>basis label, help used,<br/>task version, limitation"]
+  I3 --> I11["Latest check, last-confirmed date,<br/>Refresh suggested if a check was missed"]
   I3 --> I5["Next practice need"]
   I5 -->|Practise now| I6["Player session on this skill"]
   I2 --> I7["Lab evidence item"] --> I8["Submitted results and decision<br/>labelled Submitted by you"]
@@ -304,7 +312,7 @@ flowchart TD
 ```mermaid
 flowchart TD
   J1["Settings: Reminders<br/>off by default"] --> J2["Turn on"] --> J3["Consent: what is sent,<br/>how often, how to stop"]
-  J3 -->|Agree| J4["Time, confirm time zone,<br/>quiet hours"] --> J5{"Time inside quiet hours?"}
+  J3 -->|Agree| J4["Time in 15-minute steps,<br/>confirm time zone,<br/>quiet hours, default 21:00 to 08:00"] --> J5{"Time inside quiet hours?"}
   J3 -->|Not now| J1
   J5 -->|Yes| J6["Inline message:<br/>choose another time"] --> J4
   J5 -->|No| J7["Saved: next reminder shown<br/>with date, time and zone"] --> J8{"Later change"}
@@ -316,6 +324,7 @@ flowchart TD
 ```
 
 - Reminders only go out on learning days, at most one a day, and not when the learner has already practised that day. *(PRD §6, F10)*
+- A reminder that would fall in quiet hours is skipped, not sent later. **Snooze** skips the next reminder only; **Rest today** skips today's. Pausing the roadmap pauses reminders without a separate question.
 - The time zone is detected from the device but always shown and confirmed; schedules use the learner's IANA time zone. *(PRD §11)*
 
 ### 3j. Export and delete account

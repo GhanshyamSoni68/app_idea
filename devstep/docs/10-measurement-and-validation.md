@@ -83,14 +83,14 @@ flowchart LR
 
 | Rule | Detail (Proposal) |
 | --- | --- |
-| Generation | The server creates a random UUID (v4) when a guest identity or an account is first created. It is never derived from the email, user ID or device, because hashed emails can be reversed by guessing. |
-| Storage | One mapping from user or guest to `analytics_learner_id`, owned by `identity`. `04-data-model.md` decides whether this is a column or a table. |
-| Assignment | The server stamps the ID from the authenticated or guest context. Clients never send it, so it cannot be spoofed. |
-| Guest to account | An account created by claiming guest progress keeps the guest's ID. If the guest claims into an existing account, the guest's events are re-keyed to that account's ID inside the claim transaction. This is the only update ever allowed on existing event rows. |
+| Generation | A random UUID (v4). A guest's `subject_id` is generated in the browser on the first visit and kept with the local guest bundle; the server stores no guest row. An account gets one from the server at sign-up, unless it adopts a guest's at claim. It is never derived from the email, user ID or device, because hashed emails can be reversed by guessing. |
+| Storage | `users.analytics_subject_id` (`04-data-model.md`), owned by `identity`, is the only mapping. A guest's ID exists only in the browser until it is claimed. |
+| Assignment | For a signed-in learner the server stamps `subject_id` from the authenticated context; clients never send it, so it cannot be spoofed. A guest's browser sends its own ID, and `POST /v1/events` accepts only the guest allow-list from it: `sample_started`, and `first_answer_submitted` and `attempt_evaluated` for the sample. A forged guest ID can therefore add only sample events. |
+| Guest to account | At claim (`POST /v1/guest/claim`), a new account adopts the bundle's `subject_id`, so the sample-to-sign-up funnel joins up with no change to stored rows, and the server emits `guest_progress_claimed`. If the guest signs in to an existing account (or the ID is already taken), the guest's events are re-keyed to the account's `subject_id` after the claim commits. This re-keying at claim is the only update ever allowed on existing event rows. |
 | Exposure | Never placed in URLs, emails, reminder links or third-party tools. Reminder links carry their own signed token (`02-system-architecture.md`, `09-security-privacy-ops.md`). |
 | Research link | Pilot participants also get a `participant_code` (P-001 and so on) in `pilot_participants` (added), so exit-interview themes can be joined to behaviour. Interviewees (I-xx) and concierge participants (C-xx) never get analytics IDs. |
 | Honesty | The data is pseudonymous, not anonymous: the operator can re-identify a learner through the mapping. The aim is to keep direct identifiers out of events and to keep the mapping deletable. With only 30–50 people, event sequences alone could still single someone out, so access stays limited to the operator. |
-| Deletion | On account deletion, the learner's events are deleted along with their other personal records (default; Open question 5). |
+| Deletion | At purge (the end of the deletion grace period, `09-security-privacy-ops.md`), every event with the account's `subject_id` is deleted along with its other personal records. At n = 30–50, unlinking would give no meaningful anonymity. Pilot metrics already reported survive in the frozen weekly aggregate snapshots (§5.2), and each deleted account is reported as a counted exclusion in its arm (§8.5). |
 
 ### 3.3 Event envelope
 
@@ -99,21 +99,22 @@ physical table.
 
 | Field | Type | Rule |
 | --- | --- | --- |
-| `event_id` | uuid | Client events: generated on the client and used to drop duplicates. Server events that must happen exactly once (for example `session_completed`) get a deterministic ID derived from the event name plus the entity ID. |
+| `event_id` | uuid | Unique for every event. Server events that must happen exactly once (for example `session_completed`) get a deterministic ID derived from the event name plus the entity ID, so a repeated write is a no-op. Other events get a random one. |
+| `client_event_id` | uuid, nullable | Client events only: generated on the client and unique, so a retried batch drops its duplicates. Null on server events. |
 | `event_name` | text | Must appear in §3.5 or §3.6. Unknown names are rejected. |
 | `schema_version` | int | Set per event and incremented whenever the event's properties change. |
-| `analytics_learner_id` | uuid | Stamped by the server (§3.2). |
+| `subject_id` | uuid | Stamped by the server for signed-in learners; generated in the browser for guests (§3.2). |
 | `source` | enum | `server`, `client`. |
 | `actor` | enum | `learner` (the learner started it), `system` (the scheduler or reminder worker), `operator` (for example, a reviewer scoring). Absence calculations use `learner` only. |
 | `occurred_at` | timestamptz | UTC. For client events, this is the client timestamp corrected by the batch clock offset (`received_at` minus the client send time). |
 | `received_at` | timestamptz | When the server received the event. |
-| `local_date` | date | The learner's local date when the event happened, in their IANA time zone. Day-based metrics use it without needing joins. |
-| `app_release` | text | Build identifier, so metrics can be split before and after a release. |
+| `local_date` | date | The learner's local learning day when the event happened, in their IANA time zone. The day starts at 04:00 local time (`05-learning-engine.md`). Day-based metrics use it without needing joins. |
+| `app_version` | text | Build identifier, so metrics can be split before and after a release. |
 | `device_class` | enum | `phone`, `tablet`, `desktop`, `unknown`. Derived from viewport width on client events and on `session_started`. No user-agent string is stored. Answers the PRD §16 question about phone practice. |
-| `learning_session_id` | uuid, nullable | Set when the event happens inside a learning session. |
+| `session_ref` | uuid, nullable | The `learning_sessions` ID, set when the event happens inside a learning session. |
 | `content_version_id` | uuid, nullable | The exact published content version (PRD §11). |
 | `mode` | enum, nullable | `small`, `practise`, `build`. |
-| `props` | jsonb | Only the properties allow-listed for this event and schema version. |
+| `properties` | jsonb | Only the properties allow-listed for this event and schema version. |
 
 ### 3.4 Forbidden data and enforcement
 
@@ -136,9 +137,9 @@ Enforcement (Proposal):
 | Allow-list | Each event name and schema version lists its permitted properties. An unknown property rejects the whole event. |
 | No free strings | Every string must be a UUID or a declared enum member, and every number a bounded integer. Free text has no route in. |
 | Rejections | Rejected events are counted in logs and never stored with their payload. |
-| Source check | `POST /v1/events` accepts only the "client" events in §3.5–§3.6. A server event name sent from a client is rejected. |
+| Source check | `POST /v1/events` accepts only the "client" events in §3.5–§3.6. A server event name sent from a client is rejected, except the guest allow-list (§3.2), which is accepted only without a signed-in session and stored with `source = client`. |
 | Weekly scan | A forbidden-data scan runs every week (§3.7, V10). |
-| Never blocking | Client events are fire-and-forget, with an offline queue discarded after 24 hours. Server events are recorded with the state change they describe, so each happens exactly once. `02-system-architecture.md` chooses the mechanism (same transaction or outbox); a failed analytics write must never fail the learner's request. |
+| Never blocking | Client events are fire-and-forget, with an offline queue discarded after 24 hours. Server events are written after the state change they describe commits, never inside the learning transaction; the deterministic `event_id` keeps each one to a single row. `02-system-architecture.md` chooses the mechanism. A failed analytics write must never fail the learner's request. |
 
 ### 3.5 PRD events (§13)
 
@@ -149,15 +150,15 @@ Enforcement (Proposal):
 | `onboarding_completed` | server | First save of goal, availability and the optional diagnostic (F01) | `diagnostic_status` (`completed`, `partial`, `skipped`), `diagnostic_items_answered`, `planned_days_per_week`, `preferred_mode`, `reminder_opted_in` (bool), `stack_family` (enum; list in `08-ux-and-screens.md`), `goal_key` (enum, or `custom` when typed) | Goal text, diagnostic answers |
 | `recommendation_seen` | client | Today has rendered a recommendation and its start control is interactive. Fires on the first render per `recommendation_id`. | `recommendation_id` (added; opaque ID issued by `GET /v1/today`), `recommendation_kind` (`resume`, `review`, `mission`, `lab`, `recovery`), `mission_id` or `lab_id`, `offered_smaller` (bool) | Rationale text |
 | `session_started` | server | `POST /v1/sessions` creates a new session. It does not fire when the call returns an already-open session. | `origin` (`today`, `smaller_mode`, `return_screen`, `roadmap`, `reminder_link`), `recommendation_id` (nullable), `mission_id`, `roadmap_enrolment_id`, `topic_id` | — |
-| `first_answer_submitted` | server | The first attempt accepted in a session. Fires once per session. | `assessment_item_id`, `seconds_since_session_start` | The answer |
+| `first_answer_submitted` | server (client for a guest's sample) | The first attempt accepted in a session. Fires once per session. For a guest, the browser sends it after the first sample answer is evaluated. | `assessment_item_id`, `seconds_since_session_start` | The answer |
 | `hint_used` | server | `POST /v1/sessions/{id}/hints` | `assessment_item_id`, `hint_index`, `hint_kind` (`hint`, `worked_example`) | Hint text |
 | `answer_revealed` | server | `POST /v1/sessions/{id}/reveal` | `assessment_item_id`, `hints_before`, `after_attempt` (bool) | Solution text |
-| `attempt_evaluated` | server (`actor = operator` when a reviewer scores) | The `assessment` module records the outcome of an attempt. If an attempt is re-scored, a new event is emitted and the latest one per `attempt_id` wins. | `attempt_id`, `assessment_item_id`, `skill_id`, `rubric_version`, `attempt_purpose` (`mission`, `topic_check`, `review`, `delayed_check`, `challenge_out`, `transfer_baseline`, `transfer_final`, `pilot_delayed_check`), `assessment_form` (`A`, `B`, null), `is_alternate` (bool), `outcome` (`met`, `partially_met`, `not_met`), `score_points`, `score_max` (rubric items only), `assistance`, `hint_count`, `evidence_basis`, `evidence_level_before`, `evidence_level_after`, `days_since_demonstrated` (nullable) | Answer, code, reviewer comments |
+| `attempt_evaluated` | server (`actor = operator` when a reviewer scores; client for a guest's sample) | The `assessment` module records the outcome of an attempt. If an attempt is re-scored, a new event is emitted and the latest one per `attempt_id` wins. A guest's browser sends it with the result of the stateless sample evaluation, carrying only `assessment_item_id`, `outcome`, `assistance` and `hint_count`, so it never counts as evidence. | `attempt_id`, `assessment_item_id`, `skill_id`, `rubric_version`, `attempt_purpose` (`mission`, `topic_check`, `review`, `delayed_check`, `challenge_out`, `transfer_baseline`, `transfer_final`, `pilot_delayed_check`), `assessment_form` (`X`, `Y`, null), `is_alternate` (bool), `outcome` (`correct`, `partially_correct`, `incorrect`, `self_met`, `self_not_met`; defined in `05-learning-engine.md`), `score_points`, `score_max` (rubric items only), `assistance`, `hint_count`, `evidence_basis`, `evidence_level_before`, `evidence_level_after`, `days_since_demonstrated` (nullable) | Answer, code, reviewer comments |
 | `session_completed` | server | `POST /v1/sessions/{id}/complete` succeeds. Fires once per session, guaranteed by the idempotency key. | `items_attempted`, `items_met`, `review_items_served`, `duration_s` (wall clock from start to complete), `completion_reason` (`finished`, `stopped_at_point`) | — |
 | `session_resumed` | server | `POST /v1/sessions` returns an open session, or a session is reopened after ≥ 30 minutes with no activity | `gap_minutes` (capped at 43 200), `resume_origin` (same values as `origin`) | Draft content |
 | `review_completed` | server | A scheduled review item is resolved inside a session. Fires alongside that attempt's `attempt_evaluated`. | `skill_id`, `assessment_item_id`, `interval_step` (1–4), `outcome`, `assistance`, `next_interval_days`, `is_delayed_check` (bool, per `05-learning-engine.md`) | — |
 | `lab_evidence_submitted` | server | `POST /v1/labs/{id}/artifacts` is accepted | `lab_id`, `artifact_id`, `artifact_kind` (`decision_record`, `experiment_report`, `test_result`), `checks_passed`, `checks_total`, `evidence_basis` (always `learner_submitted`) | File contents, test output, repository names, paths, machine details |
-| `reminder_paused` | server | The learner snoozes or pauses reminders, in settings or from an email link | `pause_kind` (`snooze_once`, `pause_days`, `pause_indefinite`), `pause_days` (nullable), `source` (`settings`, `email_link`) | — |
+| `reminder_paused` | server | The learner skips reminders in reminder settings: "Rest today" skips today's, "Snooze" skips the next one. Pausing an enrolment also pauses reminders and is recorded as `enrolment_paused`. Unsubscribe links can only unsubscribe. | `pause_kind` (`rest_today`, `snooze_next`) | — |
 
 `attempt_evaluated` is the evidence record. `review_completed` is the
 scheduling record for the same moment. Evidence levels and delayed-check

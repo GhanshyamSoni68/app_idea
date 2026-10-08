@@ -14,9 +14,9 @@ Define DevStep's logical architecture (system context, containers, module bounda
 - **Nine modules, acyclic call graph.** `catalogue` is read-only at runtime; no module reads another module's tables; `analytics` and `notifications` are strictly downstream.
 - **Progress is transactional; side effects are not.** Core event subscribers (`AttemptEvaluated` → `scheduling`, `roadmap`) run inside the request transaction; analytics and email run after commit via the job queue, so they cannot block learning.
 - **Server-side evaluation, CDN-delivered content.** Learner-facing content bundles are immutable, versioned and cached at the CDN without answer keys; every attempt references the exact published content version.
-- **Every learner record is owner-scoped**, guests included (a server-side guest bound to one device cookie). Cross-owner access returns 404, enforced by a generated test matrix.
-- **Drafts are local-first with revisions.** Stale saves get `409 draft_conflict` with both versions; nothing is silently overwritten.
-- **Layered idempotency:** `Idempotency-Key` replay for attempts, completion and export; state guards and unique keys protect data even without a key; one reminder per learner per local date by unique key.
+- **Every stored learner record has an owning account.** Guests store nothing on the server: their onboarding and sample work stays in the browser until sign-up, then a claim re-evaluates it. Cross-owner access returns 404, enforced by a generated test matrix.
+- **Drafts are local-first with revisions.** Stale saves get `409 draft_conflict` with both versions, resolved for the whole draft; nothing is silently overwritten.
+- **Layered idempotency:** `Idempotency-Key` replay for attempts, completion, lab artifacts, export, deletion, guest claim and migration; state guards and unique keys protect data even without a key; reminders are at most once per learner per local learning day, de-duplicated by a unique delivery row.
 - **Seams, not features,** for AI tutor, briefings, companion, extra/custom roadmaps, native apps and repo integration.
 
 ## 1. Architectural drivers
@@ -28,7 +28,7 @@ Define DevStep's logical architecture (system context, containers, module bounda
 | Learning is never blocked by side systems | PRD §12 | Analytics, email and AI are after-commit or optional (§6.12). |
 | Evidence integrity | PRD F04, §9 | Server-side evaluation, content-version pinning, hints and reveals recorded by the server. |
 | Continuity across devices and interruptions | PRD F03, F09, §12 | Local draft store, revisioned drafts, idempotent writes. |
-| Explainable, testable rules | PRD §9 | Business rules live in module code with a fixed-clock test harness, not in DB triggers. |
+| Explainable, testable rules | PRD §9 | Business rules live in module code with a fixed-clock test harness. Database triggers may enforce integrity only, never business rules. |
 | Validate before expanding | PRD §14, §16 | Leave seams for P1/later features; build none of them now. |
 
 Pilot scale: 30–50 participants (PRD §13). **Hypothesis:** one API instance and one worker are enough; confirm with the load test in §8.
@@ -38,13 +38,14 @@ Pilot scale: 30–50 participants (PRD §13). **Hypothesis:** one API instance a
 ```mermaid
 flowchart LR
   subgraph people["People"]
-    learner["Learner<br/>(guest or signed in)"]
+    learner["Learner<br/>(guest on this device, or signed in)"]
     author["Author and Reviewer"]
     operator["Operator"]
   end
   devstep["DevStep<br/>(browser app, app API, worker)"]
   subgraph external["External systems"]
     email["Email provider"]
+    github["GitHub<br/>(OAuth sign-in)"]
     errmon["Error monitoring"]
     repo["Content Git repo and CI"]
     machine["Learner's machine<br/>(lab kits, runs locally)"]
@@ -54,9 +55,10 @@ flowchart LR
   learner -->|runs lab kit and checks| machine
   machine -.->|check output pasted by learner| devstep
   author -->|writes and reviews content| repo
-  repo -->|publishes validated release| devstep
+  repo -->|publishes validated release at deploy| devstep
   devstep -->|reminder and export emails| email
   email -->|delivers| learner
+  devstep -->|OAuth sign-in| github
   devstep -->|errors| errmon
   errmon -->|alerts| operator
   operator -->|deploys and runs console tasks| devstep
@@ -65,7 +67,7 @@ flowchart LR
   class ai later
 ```
 
-Constraints shown by the context: authors and reviewers never edit production data (repo → review → CI → publish, PRD F11, `06-content-system.md`); the email provider sends transactional mail only (reminders, recovery, export ready); lab kits run on the learner's machine and DevStep never executes learner code (PRD §11); the AI provider is P1 (F13), absent from MVP, and reachable only through an AI gateway seam. The operator's console tasks and runbooks are in `09-security-privacy-ops.md`.
+Constraints shown by the context: authors and reviewers never edit production data (repo → review → CI → publish, PRD F11, `06-content-system.md`); the email provider sends transactional mail only (verification, reminders, recovery, export ready); lab kits run on the learner's machine and DevStep never executes learner code (PRD §11); the AI provider is P1 (F13), absent from MVP, and reachable only through an AI gateway seam. The operator's console tasks and runbooks are in `09-security-privacy-ops.md`.
 
 ## 3. Containers (C4 level 2)
 
@@ -102,7 +104,7 @@ flowchart TB
   author --> repo
   repo --> ci
   ci -->|immutable bundles and lab kits| cdn
-  ci -->|register release| api
+  ci -->|deploy runs the publish command| api
   cdn -->|lab kit download| machine
   learner -->|runs| machine
   api --> errmon
@@ -117,13 +119,13 @@ flowchart TB
 
 | Container | Responsibility | Notes |
 | --- | --- | --- |
-| Browser app | Today, Roadmap, Evidence, player, lab screens; local draft store; client events. | SPA vs server-rendered-with-islands is decided in `01` (AD-06). The player needs client-side state either way. |
+| Browser app | Today, Roadmap, Evidence, player, lab screens; local draft store; the guest's onboarding and sample work before sign-up; client events. | SPA vs server-rendered-with-islands is decided in `01` (AD-06). The player needs client-side state either way. |
 | Static host / CDN | Hashed app shell; learner-facing content bundles at immutable versioned paths; lab kit archives. | Bundles contain no answer keys or rubric internals (AD-09). |
 | App API | All business logic in nine modules (§4); auth; validation; idempotency. | Stateless; sessions and state in the database. |
 | Scheduler / worker | Periodic ticks and job execution (§7). | Same build and modules as the API; separate process. |
-| Relational database | Durable state for all modules, job queue, idempotency keys, flags. | Postgres-compatible SQL assumed in examples. Backups: `09`. |
-| Analytics storage | `analytics_events` (pseudonymous). | Separate schema in the same database instance at pilot scale (Open question 3). |
-| Content repo + CI | Validate, build, publish releases. | Format and workflow: `06`. |
+| Relational database | Durable state for all modules, the framework's job queue, idempotency keys. | PostgreSQL (`01`). Integrity triggers and `FOR UPDATE SKIP LOCKED` are allowed; SQLite compatibility is not a constraint. Backups: `09`. |
+| Analytics storage | `analytics_events` (pseudonymous). | Separate schema in the same database instance at pilot scale (Open question 1). |
+| Content repo + CI | Validate, build, publish releases. | Publishing is the deploy-time `content:publish` command, run after migrations. Format and workflow: `06`. |
 | Lab kits | Starter project, synthetic data, local check script. | Check output is submitted as `learner_submitted` evidence (PRD §9). |
 | AI gateway (P1) | Bounded context, quotas, redaction, fallback (PRD §11). | Seam only (§9). |
 
@@ -172,8 +174,8 @@ flowchart TB
 ### 4.2 Boundary rules
 
 1. **One owner per table** (§4.3). Only the owner reads or writes it; others use public operations or events. Foreign keys to `users.id` and catalogue IDs are allowed (integrity, not reads). Enforced by a build-time import/table-access check in CI.
-2. **Acyclic calls.** When a lower module needs a higher one, the lower module defines a port and the higher one implements it, wired at start-up: `SessionPlanner` (owned by `learning`, implemented by `scheduling`), `UserDataProvider` (owned by `identity`, implemented by every owner-scoped module for export, purge and guest merge), `HintProvider` (owned by `learning`; authored hints now).
-3. **`catalogue` is read-only at runtime.** Its only writer is the content publish import job, which inserts new immutable versions and marks old ones `retired`; it never updates published content in place.
+2. **Acyclic calls.** When a lower module needs a higher one, the lower module defines a port and the higher one implements it, wired at start-up: `SessionPlanner` (owned by `learning`, implemented by `scheduling`), `UserDataProvider` (owned by `identity`, implemented by every owner-scoped module for export and purge), `GuestBundleImporter` (owned by `identity`; `profile` imports onboarding answers and `learning` re-evaluates sample answers through `assessment` at claim), `HintProvider` (owned by `learning`; authored hints now).
+3. **`catalogue` is read-only at runtime.** Its only writer is the deploy-time `content:publish` command, which inserts new immutable versions and marks old ones `retired`; it never updates published content in place.
 4. **Downstream never blocks.** `analytics` and `notifications` are never called inside a learning transaction and only receive after-commit events. `notifications` reads upstream state (scheduling, profile, identity) at send time.
 5. **In-transaction subscribers** are limited to core modules (`profile`, `roadmap`, `learning`, `assessment`, `scheduling`) and must not call external services.
 6. **Owner comes from the principal**, never from a request body or path (§6.1).

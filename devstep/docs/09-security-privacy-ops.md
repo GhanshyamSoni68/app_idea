@@ -202,6 +202,8 @@ L = likelihood and I = impact for the pilot context (H, M, L). These are judgeme
 | Draft save | 60 per minute per user | user | 429. The client backs off and keeps the local draft |
 | Attempt, complete, hint, reveal | 30 per minute per user | user | 429 |
 | Client events | 120 per minute per user; 50 events per batch at most | user | Excess dropped |
+| Guest sample and guest events (no login: `GET /v1/guest/sample`, `POST /v1/guest/attempts`, guest `POST /v1/events`) | 30 per minute per IP; 50 events per batch at most | IP | 429; excess events dropped |
+| Guest claim | 5 per hour per user | user | 429; the bundle stays on the device |
 | Export request | 1 per 24 h per user | user | 429 with the next allowed time |
 | Unsubscribe | 30 per minute per IP | IP | 429 |
 | AI tutor (P1) | Daily quota per user plus a global monthly cap (figures set before F13) | user, global | Fall back to authored hints |
@@ -212,10 +214,11 @@ L = likelihood and I = impact for the pilot context (H, M, L). These are judgeme
 | --- | --- | --- | --- | --- |
 | Email verification | Random, ≥ 128 bits, stored hashed | 24 h | Single-use | Bound to user and address |
 | Password reset | Random, ≥ 128 bits, stored hashed | 60 min | Single-use | Using it revokes all sessions; no redirect parameter |
-| Invite code | Random, stored hashed | Until pilot start + 30 days | Single-use | Bound to the invited address |
+| Invite code | Random, stored hashed | Until pilot start + 30 days | Single-use | Bound to the invited address; carries the cohort and arm |
+| GitHub OAuth `state` | Random, bound to the browser session | ≤ 10 min | Single-use | Callback rejected if missing or mismatched. Scopes limited to profile and verified email; no repository access. A GitHub identity is never linked to an existing account just because the emails match |
 | Unsubscribe | HMAC-signed: user, purpose `reminder_unsubscribe`, issued-at | 60 days | Idempotent | Grants nothing else. Inert if issued before a later re-subscription |
-| Export download | No token. Requires a signed-in owner. Any storage URL is generated on demand | Storage URL ≤ 5 min | Per request | The "export ready" email carries no link token |
-| Guest claim | Device-held payload (A4). If 03 adds server-side guest records: random device secret, stored hashed | 30 days | Single-use | Attaches only to the caller's own account |
+| Export download | Short-lived signed link returned by `GET /v1/me/export/{id}`; honoured only with the owner's session. The file is served from Postgres | Link ≤ 5 min | Per request | The "export ready" email carries no link token |
+| Guest claim | No token. The signed-in learner uploads the device-held bundle (A4) with an `Idempotency-Key` | The browser deletes an unclaimed bundle after 30 days | Once per bundle; a replay returns the stored result | Attaches only to the caller's own account. Every answer is re-evaluated against the pinned content version; evidence capped at `practised` |
 | Provider webhook | Provider signature plus timestamp | ≤ 5 min clock skew | Deduplicated by event ID | Rejected if unsigned or stale |
 
 Signing keys support two active versions for rotation. Comparisons are constant-time.
@@ -246,7 +249,7 @@ Tags: **Must-before-pilot**, **Before-public-launch**, **Later**.
 
 | ID | Control | Threats | Tag |
 | --- | --- | --- | --- |
-| C01 | Use the framework's maintained authentication; no hand-rolled crypto or session code | T01–T03 | Must-before-pilot |
+| C01 | Use the framework's maintained authentication and OAuth libraries (email and password, GitHub sign-in); no hand-rolled crypto or session code; no email-only login links | T01–T03 | Must-before-pilot |
 | C02 | Passwords of 12+ characters, no composition rules, breached-password check; hashed with the framework's default adaptive algorithm (for example Argon2id or bcrypt) | T01 | Must-before-pilot |
 | C03 | Session cookies HttpOnly, Secure, SameSite=Lax, host-only; session ID rotated at login; 30-day rolling idle limit, 90-day absolute limit | T02, T08 | Must-before-pilot |
 | C04 | Fresh sign-in (≤ 15 min old) required for email change, password change and deletion; the old address is told about an email change; reset revokes all sessions | T03 | Must-before-pilot |
@@ -259,12 +262,12 @@ Tags: **Must-before-pilot**, **Before-public-launch**, **Later**.
 | C11 | Random UUIDs for user-owned records; a record the caller doesn't own returns the same 404 as one that doesn't exist | T04, T10 | Must-before-pilot |
 | C12 | Explicit allow-lists of writable fields; evidence level and basis are never writable by the client | T04, T05 | Must-before-pilot |
 | C13 | Authorisation suite (§5) plus a route-inventory check in CI; failures block merge | T04 | Must-before-pilot |
-| C14 | Idempotency keys unique per user, operation and key; reminder uniqueness per user and local date | T04, T12 | Must-before-pilot |
+| C14 | Idempotency keys unique per user, operation and key; one `notification_deliveries` row per user and local learning day (at-most-once reminders) | T04, T12 | Must-before-pilot |
 | C15 | No admin web UI. Operator scripts are kept in the repo, reviewed as diffs and logged when run | T23 | Must-before-pilot |
 | C16 | Learner text rendered as plain text with framework auto-escaping; a lint rule bans raw-HTML APIs outside one reviewed Markdown component | T02, T06 | Must-before-pilot |
 | C17 | Authored Markdown: the validator rejects raw HTML; allow-list sanitiser at publish and at render; HTTPS links only, with `rel="noopener noreferrer"`; images from our own origin only | T07 | Must-before-pilot |
 | C18 | Headers: CSP (`script-src 'self'`, `object-src 'none'`, `base-uri 'none'`, `frame-ancestors 'none'`), HSTS, `nosniff`, `Referrer-Policy: strict-origin-when-cross-origin` | T02, T06, T07 | Must-before-pilot |
-| C19 | Server-side schema validation and length caps (Proposal: answer ≤ 20,000 characters, draft payload ≤ 100 KB) | T06, T21 | Must-before-pilot |
+| C19 | Server-side schema validation and length caps, as 04 sets them: 32 KB per answer, 64 KB per attempt, 64 KB per draft | T06, T21 | Must-before-pilot |
 | C20 | CSRF token plus an Origin check on every state-changing request; CORS allows only our exact origin | T08 | Must-before-pilot |
 | C21 | Email templates contain no learner-supplied text; template variables are escaped | T06 | Must-before-pilot |
 | C22 | HTTPS only, with HSTS; TLS to the database | T02, T20 | Must-before-pilot |
@@ -272,7 +275,7 @@ Tags: **Must-before-pilot**, **Before-public-launch**, **Later**.
 | C24 | Rate limits as in §3.4 | T01, T09, T21 | Must-before-pilot |
 | C25 | Caps on scaling (maximum instances or concurrency), database storage auto-growth, request body size and job concurrency | T21 | Must-before-pilot |
 | C26 | Budget alerts at 50/80/100% on every paid service; hard spend caps where offered; ingestion caps on logs and error tracking | T21 | Must-before-pilot |
-| C27 | Kill switches (configuration flags) for reminders, exports, new sign-ups and AI | T12, T21, T22 | Must-before-pilot |
+| C27 | Kill switches (configuration flags) for reminders, exports, new sign-ups, the guest sample and AI | T12, T21, T22 | Must-before-pilot |
 | C28 | Privacy-friendly bot challenge on public sign-up and the sample scenario | T09, T21 | Before-public-launch |
 | C29 | Token rules as in §3.5 | T03, T05, T10 | Must-before-pilot |
 | C30 | Webhooks: signature and timestamp verified, deduplicated by provider event ID | T12 | Must-before-pilot |
@@ -283,7 +286,7 @@ Tags: **Must-before-pilot**, **Before-public-launch**, **Later**.
 | C35 | Open and click tracking turned off | T17 | Must-before-pilot |
 | C36 | Secrets only in the platform's secret store, separate per environment; never in repos, the client bundle, lab kits or logs | T13 | Must-before-pilot |
 | C37 | Secret scanning on the code host (push protection where offered) and a pre-commit scan | T13 | Must-before-pilot |
-| C38 | Least-privilege credentials: send-only email key; scoped deploy token; publish credential limited to the catalogue; separate database roles (app without DDL, migration, read-only operator) | T13, T16, T23 | Must-before-pilot |
+| C38 | Least-privilege credentials: send-only email key; scoped deploy token; publish credential limited to the catalogue; separate database roles (app without DDL, migration, read-only operator); an off-site storage key for the app that can only add deletion-ledger entries, separate from the dump job's key | T13, T16, T23 | Must-before-pilot |
 | C39 | MFA on every operator account (code host, hosting, database, email, DNS registrar, password manager); registrar lock and auto-renew; recovery codes kept offline; operator disk encrypted | T11, T23 | Must-before-pilot |
 | C40 | Secret rotation runbook: rotate on any suspicion and once a year | T13 | Before-public-launch |
 | C41 | Lockfiles committed; CI installs from the frozen lockfile | T14 | Must-before-pilot |
@@ -297,8 +300,8 @@ Tags: **Must-before-pilot**, **Before-public-launch**, **Later**.
 | C49 | Kit checksums published and shown in the app; downloads only from our HTTPS release location | T18 | Must-before-pilot |
 | C50 | Allow-listed analytics schema; the server rejects unknown properties and free text; no IP address or user agent stored with events | T17 | Must-before-pilot |
 | C51 | Logging policy: no request bodies, tokens, passwords or email addresses; user UUID only; scrubbing switched on in the error tracker | T13, T17 | Must-before-pilot |
-| C52 | Database and backups encrypted at rest (check the provider default in 01) | T20 | Must-before-pilot |
-| C53 | Production data never copied to staging or local machines; non-production uses synthetic data and an email sandbox | T13, T20 | Must-before-pilot |
+| C52 | Database and backups encrypted at rest (check the provider default in 01); weekly dumps and ledger entries encrypted before upload | T20 | Must-before-pilot |
+| C53 | Production data never copied to preview environments or local machines; restore drills use a throwaway cloud database (§8.5); previews and local use synthetic data and send no real email | T13, T20 | Must-before-pilot |
 | C54 | Database not publicly reachable, or reachable only from an allow-list over TLS; operator access through the read-only role, recorded in a simple access log (date, reason, scope) | T20, T23 | Must-before-pilot |
 | C55 | Export and deletion tested end to end, including the deletion ledger and replay after a restore (§6.4) | T20, T24 | Must-before-pilot |
 | C56 | A notice at every free-text and lab-evidence input: do not paste employer code, credentials or personal data (copy in 08) | T19 | Must-before-pilot |
@@ -329,8 +332,8 @@ PRD §12 requires "authorization tests" that stop anyone accessing another learn
 | AZ03 | B submits to A's session | `POST /v1/sessions/{A}/attempts` with a new key | 404; no `attempts`, `skill_evidence` or `analytics_events` row created |
 | AZ04 | B acts on A's session | `POST .../complete`, `.../hints`, `.../reveal` | 404; A's assistance and completion unchanged |
 | AZ05 | B lists evidence with a filter | `GET /v1/evidence?user_id={A}` | Only B's evidence; the parameter is ignored |
-| AZ06 | B fetches A's export | `GET /v1/me/export/{A's id}` | 404; no file URL issued |
-| AZ07 | Anyone uses A's old storage URL | Direct fetch after expiry | Denied; files are private and URLs last ≤ 5 min |
+| AZ06 | B fetches A's export | `GET /v1/me/export/{A's id}` | 404; no download link issued |
+| AZ07 | Anyone uses A's download link | Fetch after expiry, or without A's session | Denied; links last ≤ 5 min and work only with the owner's session |
 | AZ08 | B changes A's enrolment | `PATCH /v1/enrolments/{A}`, `POST .../migrate` | 404; no change |
 | AZ09 | B defers or challenges a topic in A's enrolment | `POST /v1/topics/{id}/defer` or `/challenge` with A's enrolment | 404 or 422; A's `topic_progress` unchanged |
 | AZ10 | B attaches lab evidence to A | `POST /v1/labs/{id}/artifacts` referring to A's session or enrolment | Rejected; nothing attached to A |
@@ -339,19 +342,19 @@ PRD §12 requires "authorization tests" that stop anyone accessing another learn
 | AZ13 | Tampered unsubscribe token | A's token with a changed user or purpose, or signed by a retired key | Rejected; no change |
 | AZ14 | Replayed unsubscribe token | A's token used twice; then used again after A re-subscribes | First use idempotent; inert after re-subscription |
 | AZ15 | Token used for the wrong job | Unsubscribe token presented as a session or to any other route | 401 |
-| AZ16 | Forged guest claim | B claims G1's progress without G1's device secret (if server-side guest records exist) | Rejected |
-| AZ17 | Replayed guest claim | G1's claim reused, or claimed into a second account | Rejected; data attached once only |
+| AZ16 | Edited guest claim | B claims a G1 bundle whose answers were changed after feedback, or which carries outcomes or evidence levels | Client outcomes and levels ignored; every answer re-evaluated against the pinned content version; evidence recorded no higher than `practised` |
+| AZ17 | Replayed guest claim | G1's claim replayed with the same `Idempotency-Key`; the same bundle claimed into a second account | Replay returns the stored result and adds nothing. The second account gets only re-evaluated evidence (capped at `practised`) and cannot adopt a `subject_id` already adopted by another account |
 | AZ18 | Guest claim overwriting data | Claim payload whose IDs or timestamps collide with B's records | Only new rows owned by B are added; existing rows untouched (03 and 05 own merge rules) |
 | AZ19 | Idempotency key reused across users | B sends A's `Idempotency-Key` | Processed as B's own request; A's stored result never returned |
 | AZ20 | Concurrent devices | A's second device saves with a stale `base_revision` | 409; no silent overwrite (**PRD** §12) |
 | AZ21 | Unauthenticated | U calls every owner-scoped route in the inventory | 401 |
 | AZ22 | CSRF | State-changing request with a valid cookie but no CSRF token, or a foreign Origin | 403 |
 | AZ23 | Deletion | B calls `DELETE /v1/me` without a recent sign-in; after D's purge, D's session, tokens and export IDs are tried | Fresh sign-in required; everything of D's inert or 404 |
-| AZ24 | Analytics injection | `POST /v1/events` carrying text, an email address or another subject ID | Rejected or stripped; the subject always comes from the session |
+| AZ24 | Analytics injection | `POST /v1/events` carrying text, an email address or another subject ID; a guest batch with a non-allow-listed event or an already adopted `subject_id` | Rejected or stripped. For signed-in learners the subject always comes from the session. Guests may send only the allow-listed sample events under an unadopted random ID |
 | AZ25 | Webhook forgery | Unsigned, wrongly signed or stale provider event | 401; no state change |
 | AZ26 | Error leakage | Every failure above | No other learner's identifiers, no stack traces, no SQL |
 
-Run AZ01–AZ06 as a post-deploy smoke test against staging as well.
+Run AZ01–AZ06 against each pull request's preview environment as well (synthetic data only).
 
 ## 6. Privacy
 

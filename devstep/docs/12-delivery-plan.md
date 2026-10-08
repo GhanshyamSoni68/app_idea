@@ -57,12 +57,14 @@ These are **Proposals**. They are the rules used to order everything below.
 ## 1. Planning gate — definition of ready to start building
 
 The gate sits between concierge validation and the functional alpha. Before it, nobody writes product
-application code.
+application code. Gate 1, after discovery, is a separate and earlier check (Phase 1 exit, §2); its
+pass criteria are in `10-measurement-and-validation.md` §6.9.
 
 Allowed before the gate:
 - planning docs
 - content drafts
 - lab kits, which are curriculum artefacts that run on the learner's machine
+- a plain domain, bought in Phase 1 so the email sending domain can warm up (no landing page)
 - one optional throwaway hosting spike of at most one day, if `01-tech-stack-and-hosting.md` leaves a hosting risk open.
 
 **How to run it (Proposal):** hold one 60–90-minute review, with the reviewer present for the content items.
@@ -71,32 +73,34 @@ can be waived only with a written reason, an owner and a date.
 
 ### A. Decisions accepted
 
-- [ ] **G01 ★** The stack and hosting ADR is accepted. It includes the free-tier limits that could bite during a 30–50-person pilot and the upgrade path (`01-tech-stack-and-hosting.md`).
+- [ ] **G01 ★** The stack and hosting ADR is accepted. It includes the free-tier limits that could bite during a 30–50-person pilot and the upgrade path (`01-tech-stack-and-hosting.md`). The founder has chosen a provisional hosting region (`09-security-privacy-ops.md` states what each choice means for data transfers).
 - [ ] **G02** The module boundaries and API catalogue have been reviewed against the thin slice (`02-system-architecture.md`).
 - [ ] **G03** The data model has been reviewed by walking each flow in `03-key-flows.md` through `04-data-model.md`. Check owner scoping, attempts pinned to content version, guest claim, idempotency keys and deletion.
 - [ ] **G04** The learning-engine rules are written as decision tables with worked examples: recommendation order, review intervals and caps, evidence transitions, completion rules (`05-learning-engine.md`).
 - [ ] **G05** The content format and publish workflow are agreed, and the discovery sample mission already exists in that format (`06-content-system.md`).
 - [ ] **G06** The privacy baseline is agreed: event payload allow-list, retention, deletion window and backup-expiry approach (`09-security-privacy-ops.md`).
-- [ ] **G07** The alpha event list, pilot metric definitions and concierge go/no-go thresholds are frozen (`10-measurement-and-validation.md`).
+- [ ] **G07** The alpha event list and pilot metric definitions are frozen (`10-measurement-and-validation.md`). The concierge go/no-go thresholds were frozen at Phase 2 entry, before the first participant started, and have not changed since.
 - [ ] **G08** The thin slice (§5) and not-now list (§9) in this plan are accepted.
 
 ### B. Validation evidence
 
 - [ ] **G09 ★** 8–12 interviews have been done and synthesised (PRD §13 step 1). The synthesis answers the PRD §16 discovery questions: is Laravel-first the right niche, what do users avoid, do they use their phone for practice, which skill would they pay for, and what does their current alternative fail to give them.
-- [ ] **G10 ★** Target users have tried the sample mission and the M2 lab (**Proposal:** at least five). Setup success and setup time are recorded. If setup failed, the no-setup fallback has been decided (PRD §16).
-- [ ] **G11 ★** The concierge trial is complete. It shows repeat use without extensive personal encouragement, against the thresholds in `10-measurement-and-validation.md`, and has produced a ranked friction list (PRD §14).
+- [ ] **G10 ★** At least five target users have tried the sample mission and the Lab 2 (M2) path. Concierge participants who attempted Lab 2 count. Setup success and setup time are recorded. If setup failed, the no-setup fallback has been decided (PRD §16).
+- [ ] **G11 ★** The concierge trial is complete. It meets the repeat-use and unprompted-return thresholds in `10-measurement-and-validation.md` (template emails only, no personal chasing) and has produced a ranked friction list (PRD §14).
 - [ ] **G12** Each of the top three frictions has a response in alpha scope, or is explicitly deferred with a reason.
 
 ### C. Content readiness
 
-- [ ] **G13 ★** The reviewer has been recruited, has tried the sample mission and lab, and has agreed hours through content freeze (§7).
-- [ ] **G14** Authoring hours for the sample mission and lab have been recorded. The estimates in §7 and in `07-curriculum-plan.md` have been recalibrated from them.
+- [ ] **G13 ★** The reviewer has been recruited, has tried the sample mission and lab, and has agreed hours through the pilot (about 90 h, §7).
+- [ ] **G14** Authoring hours for the sample mission and lab have been recorded. The effort model in `06-content-system.md` (summarised in §7) has been recalibrated from them.
 - [ ] **G15** M1 and M2 mission drafts exist from the concierge trial and have been revised from participant feedback.
+- [ ] **G19** The lab-kit decisions are made: the kit stack and the Docker licensing guidance for employer laptops (`07-curriculum-plan.md`). There is no second lab-kit edition before the pilot.
+- [ ] **G20** The 3-OS setup matrix is agreed (macOS on Apple silicon, Windows 11 with WSL 2, Ubuntu LTS, per `07-curriculum-plan.md`), with a named test machine for each and the Lab 2 setup results so far recorded against it.
 
 ### D. Capacity and operations
 
 - [ ] **G16** The founder has confirmed weekly hours for the next 12 weeks, and §8 has been re-baselined.
-- [ ] **G17** A pilot budget ceiling has been set from quotes (§11). Spending alerts are available on the chosen services (per `01-tech-stack-and-hosting.md`).
+- [ ] **G17** A pilot budget ceiling has been set from quotes (§11), covering people costs (reviewer, backup scorer) as well as infrastructure. Spending alerts are set: provider budget alerts where available, otherwise a monthly bill check (`01-tech-stack-and-hosting.md`).
 - [ ] **G18** A backlog has been created from the §4 epics, and the definition of done (§4.3) is agreed.
 
 ## 2. Phase plan
@@ -113,12 +117,12 @@ Before Phase 1 (now to 11 Oct 2026), this document set is discussed and the open
 | Aspect | Plan |
 | --- | --- |
 | Goal | Learn why target developers abandon learning, and test whether one authored scenario and lab is worth an evening of their time. |
-| Duration | **PRD:** 1–2 weeks. **Baseline:** 3 weeks (12 Oct – 1 Nov 2026). Interview scheduling is calendar-bound, and the founder is also authoring. |
-| Entry criteria | The doc set has been discussed once. The interview guide and recruitment message are ready (`10-measurement-and-validation.md`). The sample topic is chosen (**Proposal:** the M2 "query plans" mission, which is the PRD §5 example, plus the M2 lab). |
-| Exit criteria | **PRD:** interviews completed, and one scenario and lab tried by target users. **Proposal:** authoring hours recorded, reviewer recruited, and 10–15 concierge participants recruited. |
-| Key deliverables | Interview synthesis. Sample mission in the draft content format. M2 lab kit v0 (starter, seeded synthetic data, setup check, rubric). Concierge participant list. Reviewer agreement. |
-| Not done in this phase | Product code. A landing page with a sign-up funnel. Brand or domain purchase. AI tooling. A second stack. |
-| Kill/pivot checkpoint | **Re-target** the channels or audience if fewer than 8 target developers can be recruited for a short interview. This is a leading indicator for recruiting a 30–50-person pilot. **Pivot the topic or wedge** if interviewees keep describing a need DevStep excludes, such as interview cramming (PRD §4). **Pivot the lab format** to the no-setup fallback if most testers cannot finish setup. |
+| Duration | **PRD:** 1–2 weeks. **Baseline:** 3 weeks (12 Oct – 1 Nov 2026), ending with gate 1 on 1 Nov. Interview scheduling is calendar-bound, and the founder is also authoring. |
+| Entry criteria | The doc set has been discussed once. The interview guide and recruitment message are ready (`10-measurement-and-validation.md`). The sample is the M2 "query plans" mission (the PRD §5 example) plus Lab 2, which is the first lab built. |
+| Exit criteria | **PRD:** interviews completed, and one scenario and lab tried by target users. **Proposal:** gate 1 passed against the criteria in `10-measurement-and-validation.md` §6.9. Authoring hours recorded, reviewer recruited, and 10–15 concierge participants recruited. |
+| Key deliverables | Interview synthesis and gate 1 note. Sample mission in the draft content format. Lab 2 kit v0 (starter, seeded synthetic data, setup check, rubric). Concierge participant list. Reviewer agreement. Optionally, a plain domain with the sending domain set up to warm up. |
+| Not done in this phase | Product code. A landing page with a sign-up funnel. Brand work (a plain domain for email is allowed). AI tooling. A second stack. |
+| Kill/pivot checkpoint | **Gate 1 fails:** revise the persona or path and run 4–6 more interviews. That adds 1–2 weeks, and the concierge trial and planning gate move by the same amount. **Re-target** the channels or audience if fewer than 8 target developers can be recruited for a short interview. This is a leading indicator for recruiting a 30–50-person pilot. **Pivot the topic or wedge** if interviewees keep describing a need DevStep excludes, such as interview cramming (PRD §4). **Pivot the lab format** to the no-setup fallback if most testers cannot finish setup. |
 
 ### Phase 2 — Concierge validation
 

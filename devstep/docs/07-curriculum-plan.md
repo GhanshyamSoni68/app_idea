@@ -8,12 +8,12 @@ Status: Proposal — for discussion
 
 - **Outcome (Proposal).** Learners practise, and are checked on, how to investigate and improve the performance and reliability of an ordinary CRUD web application, and how to decide when the architecture should not change. Completion means the topics were covered and understanding was checked. It does not show verified implementation proficiency (PRD §8A).
 - **One continuing scenario (PRD §5, §8).** The scenario is a fictional facilities-maintenance work-order app. Each module adds a new problem: a slow dashboard, stale cached counts, duplicate report jobs, a failure under Monday-peak load, and pressure to extract a service.
-- **23 skills with stable IDs** sit in an acyclic prerequisite graph (`sys.*`, `perf.*`, `cache.*`, `async.*`, `rel.*`, `arch.*`). There are 18 required mission topics, and some modules (for example M6.1 and M6.2) can be started early.
+- **23 skills with stable IDs** sit in an acyclic prerequisite graph (`sys.*`, `perf.*`, `cache.*`, `async.*`, `rel.*`, `arch.*`). Each of the 18 required mission topics has one primary skill; the other five skills are secondary and evidenced by labs only. Prerequisites are soft by default with three `strict` edges, and some modules (for example M6.1 and M6.2) can be started early.
 - **Missions are stack-neutral.** Every mission uses SQL on PostgreSQL 18, HTTP semantics and pseudo-code, so it works on a phone and for developers in any stack. Framework notes are optional asides.
-- **Lab-kit recommendation (Proposal).** Build a portable core: PostgreSQL 18 in Docker Compose, a deterministic synthetic dataset, and black-box checks that run in a tools container. Ship a **Laravel 13 / PHP 8.5 edition** as the first application layer. Only labs L3–L5 need edits to application code, and L2 also has a SQL-only route.
-- **Assessments.** Baseline and final transfer assessments use two counterbalanced forms with unseen non-work-order scenarios and a shared rubric (PRD §13). There are 18 auto-scored alternate topic checks and delayed retention checks at least 7 days after demonstration. Open-ended architecture answers are self-assessed against an exemplar and labelled that way.
-- **Pacing (PRD §5).** The default is six weeks: one module per week, 3 × 10-minute sessions and one optional lab. At the PRD's review cap, spaced-review demand runs at about 2–3× the free review slots, so review continues after completion (Open question 4).
-- **Inventory.** Everything below is still to be authored: 18 missions, 36 alternates, 18 changed-condition questions, 18 topic checks, 6 labs with 6 no-setup fallbacks, 1 dataset generator, 1 setup check, 2 transfer-assessment forms and 6 diagnostic items.
+- **Lab-kit recommendation (Proposal).** Build a portable core: PostgreSQL 18 in Docker Compose, a deterministic synthetic dataset, and black-box checks that run in a tools container. Ship a **Laravel 13 / PHP 8.5 edition** as the first application layer. Only labs L3–L5 need edits to application code, and L2 also has a SQL-only route. L2 is built first, during discovery. No second edition is built before the pilot.
+- **Assessments.** Baseline and final transfer assessments use two counterbalanced forms with unseen non-work-order scenarios and a shared rubric (PRD §13). There are 18 auto-scored topic checks, each with Alternate A as a second check-eligible item, retention checks (Alternate B) at least 7 days after demonstration, and a separate six-item pool for the pilot's path-level delayed check. Open-ended architecture answers are self-assessed and labelled that way.
+- **Pacing (PRD §5).** The default is six weeks: one module per week, 3 × 10-minute sessions and one optional lab. At the PRD's review cap, spaced-review demand from week 5 runs at about twice the free review slots, so the backlog drains in maintenance after completion (Open question 3).
+- **Inventory.** Everything below is still to be authored: 18 missions with 18 curated small variants, 36 alternates, 18 changed-condition questions, 18 topic checks, 6 path-level delayed-check items, 6 labs with 6 no-setup fallbacks, 1 dataset generator, 1 setup check, 2 transfer-assessment forms and 6 diagnostic items.
 
 ## 1. Scope and neighbours
 
@@ -43,13 +43,13 @@ Mission IDs (`M1.1`…`M6.3`), lab IDs (`L1`…`L6`) and assessment IDs (`A0`, `
 | Completion **does** signal | Completion **does not** signal |
 | --- | --- |
 | All 18 required topics covered, each by an attempt plus feedback review (PRD §8A). | Verified implementation proficiency. Labs are optional and recorded separately (PRD §8A). |
-| An unassisted pass on an alternate topic check in a different scenario for each topic, or a challenge-out. | Production experience or on-call competence. |
+| A pass on a topic check in a different scenario for each topic (on a later day, at most one hint), or a challenge-out. | Production experience or on-call competence. |
 | Which skills reached `demonstrated`, and later `retained` (shown separately in Evidence, F08). | Any credential. Local lab-check output is learner-submitted evidence (PRD §9). |
 | | Expert judgement on architecture. Open-ended answers are `self_assessed` unless a human reviewed them. |
 
 **Proposal: copy for the completion summary** (tone per §10; `08-ux-and-screens.md` places it): "You covered all 18 topics in From CRUD to Reliable Systems and passed a check on each one in a new scenario. This shows checked understanding. It is not a verified measure of implementation skill. Your completed labs and their evidence are listed separately. Reviews will keep coming back so you can keep what you learned."
 
-Required vs optional (PRD §8A): the 18 mission topics are `required` and form the progress denominator. The six labs are optional and do not affect the denominator. No other optional enrichment topics ship at launch.
+Required vs optional (PRD §8A): the 18 mission topics are `required` and form the progress denominator. The six labs are `optional` topics (the `06-content-system.md` model) and never affect required progress or the denominator. No other optional enrichment topics ship at launch.
 
 ## 3. The continuing scenario: a work-order application
 
@@ -160,17 +160,19 @@ flowchart LR
 
 ### 4.1 Skills (23)
 
+Each mission has exactly one **primary** skill (18 in all). Its topic check, alternates, review item and any demonstration attach to it. The other five skills are **secondary**: a mission practises them, but they earn evidence only from labs and otherwise appear only in analytics. They have no review items. Secondary uses are marked "(secondary)" below.
+
 | Skill ID | Observable ability | Mission(s) | Lab evidence |
 | --- | --- | --- | --- |
 | `sys.request-path` | Sequence the hops of a request and mark which are synchronous or background, and where state lives. | M1.1 | L1 |
 | `sys.requirements` | Separate functional requirements, quality targets and constraints, and make a quality target measurable. | M1.2 | L1 |
 | `sys.boundaries` | Identify components or modules, data ownership and a boundary violation. | M1.3 | L1, L6 |
-| `sys.decision-records` | Write a decision record with context, options, decision, consequences and conditions for revisiting it. | M1.3, M6.3 | L1, L6 |
+| `sys.decision-records` | Write a decision record with context, options, decision, consequences and conditions for revisiting it. | M1.3, M6.3 (secondary) | L1, L6 |
 | `perf.latency-evidence` | Use percentiles, traces and query counts to locate a latency contributor before acting. | M2.1 | L2 |
 | `perf.query-plans` | Read `EXPLAIN (ANALYZE)` output: costly node, estimate vs actual rows, scan types. | M2.2 | L2 |
-| `perf.experiments` | Design a reproducible before/after measurement that changes one variable and states its limitations. | M2.2 | L2, L5 |
+| `perf.experiments` | Design a reproducible before/after measurement that changes one variable and states its limitations. | M2.2 (secondary) | L2, L5 |
 | `perf.indexes` | Choose an index and column order for a query shape, and name its write and storage cost. | M2.3 | L2 |
-| `perf.pagination` | Choose offset or keyset pagination for a use case and state the limitation of each. | M2.3 | L2 |
+| `perf.pagination` | Choose offset or keyset pagination for a use case and state the limitation of each. | M2.3 (secondary) | L2 |
 | `cache.suitability` | Judge whether a read is safe and worthwhile to cache: change rate, staleness tolerance, cost, audience. | M3.1 | L3 |
 | `cache.invalidation` | Choose TTL, explicit invalidation or versioned keys, and predict the stale window and stampede risk. | M3.2 | L3 |
 | `cache.boundaries` | Keep cached data inside its tenant or user audience, including HTTP cache headers. | M3.3 | L3 |
@@ -178,17 +180,17 @@ flowchart LR
 | `async.retries` | Choose retry limits, backoff with jitter and non-retryable errors, and spot retry amplification. | M4.2 | L4 |
 | `async.idempotency` | Make duplicate or retried processing harmless using keys, constraints and conditional side effects. | M4.3 | L4 |
 | `rel.stateless` | Find state that is local to one instance (sessions, files, memory, schedulers) and move it to shared services. | M5.1 | L5 |
-| `rel.concurrency` | Recognise races, lost updates and connection limits, and choose a locking or constraint approach. | M5.2 | L5 |
+| `rel.concurrency` | Recognise races, lost updates and connection limits, and choose a locking or constraint approach. | M5.2 (secondary) | L5 |
 | `rel.load-evidence` | Read throughput, latency and errors against concurrency to find the saturated resource. | M5.2 | L5 |
 | `rel.observability` | Localise an incident using golden signals, structured logs and request IDs, and name a missing signal. | M5.3 | L5 |
 | `arch.modular-monolith` | Define module interfaces and owned data inside one deployable, and choose a way to enforce them. | M6.1 | L6 |
 | `arch.service-boundaries` | Evaluate candidate service boundaries by cohesion, data ownership, change rate and transactional coupling. | M6.2 | L6 |
 | `arch.extraction-costs` | List the operational, consistency and delivery costs of extracting a service. | M6.3 | L6 |
-| `arch.trade-offs` | Make and defend an architecture choice under explicit constraints, including when not to change. | M6.3 | L6 |
+| `arch.trade-offs` | Make and defend an architecture choice under explicit constraints, including when not to change. | M6.3 (secondary) | L6 |
 
 ### 4.2 Skill prerequisite graph (`skill_prerequisites`)
 
-Each edge points from a prerequisite to the skill that depends on it. The graph is acyclic: using the node numbers in the diagram (S01–S23), every edge goes from a lower number to a higher one, so the numbering is itself a valid topological order. **PRD §8A** requires cycles to be rejected before publication. `06-content-system.md` owns the validator.
+Each edge points from a prerequisite to the skill that depends on it. The graph is acyclic: using the node numbers in the diagram (S01–S23), every edge goes from a lower number to a higher one, so the numbering is itself a valid topological order. Dashed nodes are secondary skills (§4.1). **PRD §8A** requires cycles to be rejected before publication. `06-content-system.md` owns the validator.
 
 ```mermaid
 flowchart TD
@@ -260,6 +262,8 @@ flowchart TD
   S20 --> S21
   S21 --> S22
   S22 --> S23
+  classDef secondary stroke-dasharray: 5 5
+  class S04,S08,S09,S17,S23 secondary
 ```
 
 ### 4.3 Topic dependencies (`topic_dependencies`)

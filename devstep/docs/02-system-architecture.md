@@ -174,7 +174,7 @@ flowchart TB
 ### 4.2 Boundary rules
 
 1. **One owner per table** (§4.3). Only the owner reads or writes it; others use public operations or events. Foreign keys to `users.id` and catalogue IDs are allowed (integrity, not reads). Enforced by a build-time import/table-access check in CI.
-2. **Acyclic calls.** When a lower module needs a higher one, the lower module defines a port and the higher one implements it, wired at start-up: `SessionPlanner` (owned by `learning`, implemented by `scheduling`), `UserDataProvider` (owned by `identity`, implemented by every owner-scoped module for export and purge), `GuestBundleImporter` (owned by `identity`; `profile` imports onboarding answers and `learning` re-evaluates sample answers through `assessment` at claim), `HintProvider` (owned by `learning`; authored hints now).
+2. **Acyclic calls.** When a lower module needs a higher one, the lower module defines a port and the higher one implements it, wired at start-up: `SessionPlanner` (owned by `learning`, implemented by `scheduling`), `UserDataProvider` (owned by `identity`, implemented by every owner-scoped module for export and purge, and by `analytics` to purge the learner's events), `GuestBundleImporter` (owned by `identity`; `profile` imports onboarding answers and `learning` re-evaluates sample answers through `assessment` at claim), `HintProvider` (owned by `learning`; authored hints now).
 3. **`catalogue` is read-only at runtime.** Its only writer is the deploy-time `content:publish` command, which inserts new immutable versions and marks old ones `retired`; it never updates published content in place.
 4. **Downstream never blocks.** `analytics` and `notifications` are never called inside a learning transaction and only receive after-commit events. `notifications` reads upstream state (scheduling, profile, identity) at send time.
 5. **In-transaction subscribers** are limited to core modules (`profile`, `roadmap`, `learning`, `assessment`, `scheduling`) and must not call external services.
@@ -308,7 +308,7 @@ Envelope (all events): `event_id`, `name`, `schema_version`, `occurred_at` (UTC)
 | `welcome_back` | object or null | `days_away`, `last_work` (title, topic, date). Only after an absence threshold (`05`). |
 | `weekly_progress` | object | `practice_days_target`, `practice_days_done` (distinct learning days with a meaningful practice activity), `week_start`. Effort only, no skill claims. |
 | `reviews_included` | int | Reviews folded into the action (≤ 2 `practise`, ≤ 1 `small`). No overdue count is returned (PRD §9). |
-| `enrolment` | object or null | `id`, `roadmap_slug`, `status`, `completed_required`, `total_required`. |
+| `enrolment` | object or null | `id`, `roadmap_slug`, `status`, `completed_required`, `total_required`, `migration_available` (bool; Today shows a one-line notice, the offer itself lives on Roadmap). |
 
 **`POST /v1/sessions`** (request)
 
@@ -546,20 +546,19 @@ An offline-capable app shell (service worker) is an option for `01`/`08`, not a 
 
 ## 7. Background jobs
 
-Mechanics: jobs live in `background_jobs` (added) in the relational database; workers claim with row locking that skips locked rows (Postgres-compatible); delivery is at-least-once with a visibility timeout, capped exponential retries, and a terminal `failed` state. The scheduler enqueues periodic jobs with a unique (`job_name`, `slot`) key so a restart cannot double-enqueue. Operators retry failed jobs by console command.
+Mechanics: jobs use the framework's database-queue tables (named in `04`) in the relational database; workers claim with `FOR UPDATE SKIP LOCKED`; delivery is at-least-once with a visibility timeout, capped exponential retries, and a terminal `failed` state. Periodic handlers are idempotent per time slot, so a tick enqueued twice after a restart does no double work. Operators retry failed jobs by console command. Reminder send is the one deliberate exception to retries (at most once, below).
 
 | Job | Module | Trigger / frequency | Idempotency | Failure behaviour |
 | --- | --- | --- | --- | --- |
-| Event fan-out (one job per downstream subscriber per event) | platform → analytics, notifications | Enqueued in the publishing transaction | Subscribers dedupe on `event_id` | Retries (≈ 1 h total, tunable), then `failed`; never visible to the learner. |
-| Reminder scan | notifications | Every 5 min (tunable) | Read-only; enqueues sends keyed by (user, local date) | Missed tick is harmless; next tick catches up inside the window. |
-| Reminder send | notifications | From scan | Unique `notification_deliveries` (user, local date); suppression re-checked right before send (practised today, paused, quiet hours, deletion pending); provider idempotency key if supported (unverified, `01`) | Retry until the send window closes (2 h after the reminder time, proposed), then `failed`; never sends late. |
-| Export generation | identity via `UserDataProvider.export` | On request | One open request per user; re-run overwrites its own output | 3 retries, then `failed`; learner can re-request; operator alerted. Output kept 7 days. |
-| Deletion purge | identity via `UserDataProvider.purge` | Daily | Delete-by-owner per module; per-module completion recorded | Resumes next run; alert at 7 days, well inside the PRD's proposed 30 days (§12). |
-| Guest purge | identity | Daily | Same purge path | Same as deletion. |
-| Housekeeping | platform | Daily | Delete where expired (idempotency keys, export files, finished jobs) | Retry next day; alert on table growth. |
-| Content publish import | catalogue | `POST /v1/admin/content-releases` | `release_id` + checksum: re-run is a no-op; same ID with a new checksum is rejected | One transaction; schema, reference or prerequisite-cycle failure rolls back and marks `failed`. |
-| Analytics rollups | analytics | None in MVP; ad-hoc SQL | — | Add a nightly snapshot when metric queries take seconds or affect the primary. |
-| Backup verification | Outside the app (host tooling or scheduled CI) | Weekly (proposed); full restore drill before the pilot (PRD §12) | Restores into a scratch database only | Alert operator; procedure in `09`. |
+| Event fan-out (one job per downstream subscriber per event) | platform → analytics, notifications | Enqueued in the publishing transaction, run after commit | Subscribers dedupe on `event_id` | Retries (≈ 1 h total, tunable), then `failed`; never visible to the learner. |
+| Reminder scan | notifications | Scheduler tick every 15 min; reminder times are in 15-minute steps | Selects due learners from the derived `next_reminder_at` index and claims one `notification_deliveries` row per learner per local learning day (unique) before enqueuing the send | Missed tick is harmless; the next tick catches up inside the send window. |
+| Reminder send | notifications | From scan | **At most once.** The unique delivery row is the de-duplication key (status `claimed` → `sent`, `suppressed` or `failed`); no idempotency key is used. Suppression re-checked right before send: practised today, enrolment paused, rest today or snooze, deletion pending, quiet hours (default 21:00–08:00 local; a reminder that falls inside is skipped, not carried over) | No automatic retry after an ambiguous timeout: the row is marked `failed`. Never sends late (send window 2 h after the reminder time, proposed). `next_reminder_at` is recomputed after each decision. |
+| Export generation | identity via `UserDataProvider.export` | On request | One open request per user; re-run overwrites its own output | 3 retries, then `failed`; learner can re-request; operator alerted. Output kept in the database 7 days, downloaded through a short-lived authenticated link. |
+| Deletion purge | identity via `UserDataProvider.purge` | Daily; picks requests whose 7-day grace has ended | Delete-by-owner per module, **including that learner's analytics events**; per-module completion recorded; the deletion ledger outside the main database is written at request and at purge so purges are re-applied after any restore (`04`, `09`) | Resumes next run; alert if a request is not purged by day 25, inside the 30-day promise (§12). |
+| Weekly analytics snapshot | analytics | Weekly during the pilot | One frozen aggregate per week and arm; re-run is a no-op | Pilot metrics survive account deletions; each deleted account is reported as a counted exclusion (`10`). |
+| Housekeeping | platform | Daily | Delete where expired (idempotency keys after 7 days, export files, finished jobs) | Retry next day; alert on table growth. |
+| Content publish | catalogue | Deploy-time `content:publish` command, run by the pipeline after migrations (`06`) | `release_key` + `manifest_hash` (`04`): same key and hash is a no-op; same key with a new hash is rejected | One transaction; the command refuses unreviewed content (`06`); schema, reference or prerequisite-cycle failure rolls back and fails the deploy. |
+| Backup verification | Outside the app (host tooling or scheduled CI) | Weekly (proposed); full restore drill before the pilot (PRD §12) | Restores into a throwaway cloud database, never a laptop | Alert operator; procedure in `09`. |
 
 ## 8. Non-functional requirements
 
@@ -574,7 +573,7 @@ Mechanics: jobs live in `background_jobs` (added) in the relational database; wo
 | Degradation | PRD §12 | Email, AI, analytics outages never block learning | §4.2 rule 4, §6.12 | Fault injection per dependency |
 | Backups | PRD §12 | Restore tested before pilot | §7 verification and drill | `09` runbook |
 | Analytics privacy | PRD §12, F12 | No answer text, code or emails in events | Allow-listed schemas; pseudonymous subject IDs; server validation of client events | Schema tests; log scan |
-| Deletion | PRD §12 | Active records removed ≤ 30 days | Daily purge job | Test and monthly check |
+| Deletion | PRD §12 | Active records removed ≤ 30 days; backups age out within a further 30 days | 7-day cancellable grace, daily purge job on day 7 (analytics events included), alert by day 25, deletion ledger outside the main database | Test and monthly check |
 | No training without consent | PRD §12 | Separate explicit consent | No model calls in MVP; consent seam (§9) | Review |
 | No timed answers | PRD §5, §10 | No countdowns | Session model has no time limits | `08` |
 
@@ -586,10 +585,10 @@ Mechanics: jobs live in `background_jobs` (added) in the relational database; wo
 | Exhausted content | `nothing_ready` / `roadmap_complete`; maintenance practice | `05`, `08` |
 | Obsolete lesson versions | Pins, retained bundles, migration preview | §6.4, `06` |
 | Duplicate submissions | Idempotency keys and unique keys | §6.2 |
-| Abandoned sessions | Stay `open` and resumable; `if_open = park` | `05` |
+| Abandoned sessions | Stay resumable; starting another session moves the open one to `suspended` (`if_open = suspend`) | `05` |
 | Long absences | `welcome_back`, retrieval check first, review cap | `05` |
 | Daylight-saving changes | Local-date arithmetic and reminder rules | §6.3 |
-| Concurrent devices | One open session, revisions, conflict UI | §5.5, §6.9 |
+| Concurrent devices | One open session, revisions, whole-draft conflict UI | §5.5, §6.9 |
 
 ## 9. Extension seams
 
@@ -601,7 +600,8 @@ Mechanics: jobs live in `background_jobs` (added) in the relational database; wo
 | Extra roadmaps (R07) | Catalogue is multi-roadmap; slug-based API; "one active enrolment" enforced in code, not schema | Additional content, rich switching UI |
 | Custom roadmap (R08) | Roadmap versions are data assembled from published modules | Editor, AI-generated curricula |
 | Native apps | Versioned REST API is the only contract; principal abstraction can accept bearer tokens; `notifications` keeps a channel field (email only) | Apps, push notifications |
-| Repository integration | Lab artifacts accept versioned structured check output; `learner_submitted` basis | Repo scanning, Git-host OAuth, server-side code execution (PRD §7, §11) |
+| Passkeys | Sign-in is an `identity` operation with pluggable credential types (password and GitHub OAuth at pilot, `01`) | WebAuthn registration and sign-in |
+| Repository integration | Lab artifacts accept versioned structured check output; `learner_submitted` basis | Repo scanning, repository-scope Git-host access (sign-in OAuth requests no repository scope), server-side code execution (PRD §7, §11) |
 | Human review (`human_reviewed`) | Evidence basis enum already exists | Reviewer queue |
 | File uploads | Artifacts stored as bounded text now | Object storage (PRD §11) |
 
@@ -616,21 +616,18 @@ Mechanics: jobs live in `background_jobs` (added) in the relational database; wo
 | AD-05 | REST + JSON under `/v1`, cookie sessions | Simple, debuggable, CDN-friendly for public reads, usable by future native clients | Round trips slow the first screen, or native apps arrive (add token auth, keep REST) |
 | AD-06 | Rendering approach (SPA vs server-rendered) deferred to `01` | Cost and operations weighting belongs there. Constraint from here: local draft store and one API contract | Decided in `01` |
 | AD-07 | In-process events: core in-transaction, downstream after commit | Consistent progress; side systems cannot block learning (PRD §12) | Long transactions or many subscribers |
-| AD-08 | Business logic in app modules; database enforces integrity only (FK, unique, check) | Testable, explainable rules (PRD §9); one place to read logic | A measured hot path cannot meet its budget without moving work into the database |
+| AD-08 | Business logic in app modules; database enforces integrity only (FK, unique, check, integrity triggers; never business rules in triggers) | Testable, explainable rules (PRD §9); one place to read logic | A measured hot path cannot meet its budget without moving work into the database |
 | AD-09 | Server-side evaluation; public bundles exclude answer keys | Evidence integrity (F04) | Offline practice becomes a validated need (then ship keys only for low-stakes practice items) |
-| AD-10 | Server-side guest bound to a device cookie | Uniform owner scoping; trustworthy claim; no duplicate client logic | Guest abuse or storage cost becomes material |
+| AD-10 | Guest work is device-only; the sample is evaluated statelessly and the claim re-evaluates with evidence capped at `practised` | No guest records to secure, purge or hijack; nothing stored before an account exists; a claim cannot inflate evidence | Guests need cross-device work or more than the sample, or the stateless endpoint is abused |
+| AD-11 | Pilot login: invite-only sign-up, email + password with verification, GitHub OAuth; passkeys later; no magic links | Framework auth with no extra vendor; email stays off the sign-in critical path (`01`) | Passkey support is confirmed in the pinned framework version, or invites end after the pilot |
 
 ## Open questions for discussion
 
-1. **Login method.** *Recommended default:* email + password using the chosen framework's standard auth, cookie sessions, recovery by email link. Passwordless links would make every new-device sign-in depend on the email provider. OAuth later.
-2. **Guest scope.** *Recommended default:* server-side guest (AD-10) limited to onboarding, diagnostic, the sample scenario and one further session; purge after 30 days unclaimed.
-3. **Analytics storage.** *Recommended default:* a separate schema in the same database instance, written only by after-commit jobs; move out when rollups or volume affect the primary.
-4. **Answer keys.** *Recommended default:* server only; CDN bundles carry learner-facing material and feedback is returned by the attempts endpoint.
-5. **Deletion grace period.** *Recommended default:* none; explicit confirmation in the UI, purge at the next daily run.
-6. **Offline attempts.** *Recommended default:* not in MVP; answers wait in the draft.
-7. **Lab evidence format.** *Recommended default:* pasted text or JSON ≤ 64 KB in `artifacts`; no binary uploads or object storage.
-8. **Operator interface.** *Recommended default:* console commands plus audited database access; no admin UI in MVP.
-9. **Instance count.** *Recommended default:* one API instance and one worker for the pilot; keep the API stateless so scaling out only needs database-backed rate limits.
+1. **Analytics storage.** *Recommended default:* a separate schema in the same database instance, written only by after-commit jobs; move out when rollups or volume affect the primary.
+2. **Answer keys.** *Recommended default:* server only; CDN bundles carry learner-facing material and feedback is returned by the attempts and guest-attempts endpoints.
+3. **Lab evidence format.** *Recommended default:* pasted text or JSON ≤ 64 KB in `artifacts`; no binary uploads or object storage.
+4. **Operator interface.** *Recommended default:* console commands plus audited database access; no admin UI in MVP.
+5. **Instance count.** *Recommended default:* one API instance and one worker for the pilot; keep the API stateless so scaling out only needs database-backed rate limits.
 
 ## PRD traceability
 
@@ -638,12 +635,12 @@ Mechanics: jobs live in `background_jobs` (added) in the relational database; wo
 | --- | --- |
 | F01, F02 | §4.3 `profile`; §5.2 preferences, goal, diagnostic; §5.3 `GET /v1/today` |
 | F03, F04 | §5.3 sessions, drafts, attempts, assistance; §4.4 `AttemptEvaluated`; §6.9; AD-09 |
-| F05, F06 | §4.4 scheduling subscribers; §5.3 review cap, `welcome_back`, `smaller_option`; §8 edge cases |
-| F07, F08 | §2, §3 lab kits; `POST /v1/labs/{id}/artifacts`; `GET /v1/evidence`; §4.3 `assessment` |
-| F09, F10 | §5.2 identity and notification endpoints; §6.2; §6.3; §7 export, purge and reminder jobs |
-| F11, F12 | §3 content pipeline; §7 content import; admin endpoints; §4.4 envelope; §6.11; `POST /v1/events` |
+| F05, F06 | §4.4 scheduling subscribers; §5.3 review cap, `welcome_back`, `smaller_option`, `secondary_actions`; §8 edge cases |
+| F07, F08 | §2, §3 lab kits; `GET /v1/labs/{id}`, `POST /v1/labs/{id}/artifacts`; `GET /v1/evidence`; §4.3 `assessment` |
+| F09, F10 | §5.2 identity and notification endpoints; §5.3 guest claim; §6.1; §6.2; §6.3; §7 export, purge and reminder jobs; AD-11 |
+| F11, F12 | §3 content pipeline; §7 `content:publish`; §4.4 envelope; §6.11; `POST /v1/events` |
 | F13–F15, R07, R08 | §9 seams |
-| R01–R06 | §4.3 `roadmap`; §5.2 enrolment endpoints; §6.4 |
-| §5, §9 | §6.8 guest first value; §4.4, §5.3 adaptation hooks (algorithms in `05`) |
+| R01–R06 | §4.3 `roadmap`; §5.2 enrolment endpoints; §5.3 migration preview and decision; §6.4 |
+| §5, §9 | §6.8 device-only guest first value; AD-10; §4.4, §5.3 adaptation hooks (algorithms in `05`) |
 | §11, §12, §13 | §3, §4, §6, §7, §8, §10; event mapping in `10` |
 | Source [8] (Fowler, *Monolith First*) | AD-01, AD-04 |

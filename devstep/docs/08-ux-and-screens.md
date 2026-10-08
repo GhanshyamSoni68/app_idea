@@ -7,12 +7,12 @@ Status: Proposal — for discussion
 **Summary**
 
 - Three primary destinations, **Today, Roadmap, Evidence**, with **Settings** secondary. Player and Lab are focus modes entered from Today or Roadmap. *(PRD §10)*
-- First value comes before sign-up. A guest completes one sample scenario, sees feedback, and is told plainly that the work is saved only in this browser until they create an account. *(PRD §5)*
-- Today always shows one action with time and reason, plus **Start small** and **Rest today**. Nothing on Today requires browsing. *(PRD F02, §6)*
+- First value comes before sign-up. A guest does onboarding and one sample scenario, sees feedback, and is told plainly that the work is saved only in this browser on this device until they create an account. Sign-up needs an invite during the pilot. *(PRD §5, §15)*
+- Today shows exactly one primary action with time and reason, at most three secondary actions, and a quiet **Rest today** link. **Start small** appears only when a small task exists. Nothing on Today requires browsing. *(PRD F02, §6)*
 - The player shows one step at a time, autosaves drafts with a visible status, offers optional graduated hints, and ends on an explicit stopping point that names the evidence earned. *(PRD F03, §5, §10)*
-- Roadmap is an expandable ordered list. Progress reads "5 of 18 required topics · 28%" and is labelled as coverage, not mastery. Challenge-out and defer are separate, clearly explained choices. *(PRD §8A, R01–R06)*
-- Evidence separates introduced, practised, demonstrated and retained, with dates, limitations and basis labels such as **Self-assessed** and **Submitted by you**. *(PRD F08, §9)*
-- No countdowns, red overdue counters, streak loss, comparisons with other users or fear of obsolescence. Copy rewards specific evidence. *(PRD §1, §6, §9)*
+- Roadmap is an expandable ordered list. Progress reads "5 of 18 required topics · 27%" (rounded down) and is labelled as coverage, not mastery. Challenge-out and defer are separate, clearly explained choices. *(PRD §8A, R01–R06)*
+- Evidence separates introduced, practised, demonstrated and retained, with dates, limitations and basis labels such as **Self-assessed** and **Submitted by you**. Levels never drop; a later check that is not met adds **Refresh suggested**. *(PRD F08, §9)*
+- No countdowns, red overdue counters, streak loss, comparisons with other users or fear of obsolescence. Evidence wording is used only when a skill reached demonstrated; otherwise copy recognises the effort. *(PRD §1, §6, §9)*
 - Accessibility is an acceptance gate: 21 checks covering keyboard, screen reader, mobile code blocks, reduced motion, non-colour cues, themes, focus and target size. *(PRD §10)*
 
 **Not in this doc:** API shapes (`02-system-architecture.md`), system-level sequences (`03-key-flows.md`), selection, review, evidence and completion rules (`05-learning-engine.md`), content format and authoring constraints (`06-content-system.md`), mission and lab content (`07-curriculum-plan.md`), retention and deletion timing (`09-security-privacy-ops.md`), analytics events (`10-measurement-and-validation.md`). This doc shows how those rules surface; it does not define them.
@@ -22,12 +22,12 @@ Status: Proposal — for discussion
 | Principle | What it means on screen | Basis |
 | --- | --- | --- |
 | One next action | Today shows one recommendation. Other choices are visibly secondary. | PRD §6 "This feels too big", F02 |
-| Small is legitimate | **Start small** is one tap away and ends cleanly, not as a failure state. | PRD §5, §6 |
+| Small is legitimate | **Start small** is one tap away whenever a small task exists, and ends cleanly, not as a failure state. | PRD §5, §6 |
 | Leaving is safe | Save and exit from any step. Drafts survive network loss and device switches. | PRD §12, R05 |
 | Evidence, not effort theatre | Rewards name what was shown. Effort and skill appear in separate places. | PRD §5, §6 |
 | Honest labels | Self-assessed, learner-submitted, hinted and revealed work is always labelled. | PRD §8A, §9 |
 | Return without debt | No missed-session counts, no backlog totals, no doubled workload. | PRD §6, F06, R05 |
-| Limited choice, real autonomy | Few options at once, but the learner can always pick smaller, rest, pause, or preview. | PRD §2 (self-determination), §8A |
+| Limited choice, real autonomy | Few options at once, but the learner can always rest, pause or preview, and pick smaller when a small task exists. | PRD §2 (self-determination), §8A |
 
 ## 2. Information architecture
 
@@ -47,9 +47,12 @@ flowchart TD
   end
   S01["Landing (public)"] --> S02["Sample scenario (guest player)"]
   S02 --> S03["Keep your progress?"]
-  S03 --> S04["Sign in or create account"]
+  S03 --> S04["Sign in or create account<br/>(invite needed in the pilot)"]
+  S03 -.->|No invite| EXT["Pilot recruitment form<br/>(external link)"]
+  S03 -.->|Not now| S05
   S01 --> S04
   S04 --> S05["Onboarding (6 steps)"]
+  S05 -.->|Enrol needs an account| S04
   S05 --> S06
   S06 --> S07["Return screen (after absence)"]
   S06 --> S08["Player (focus mode)"]
@@ -59,6 +62,7 @@ flowchart TD
   S10 --> S11["Roadmap overview and enrol"]
   S10 --> S12["Topic detail: challenge or defer"]
   S10 --> S13["Version migration offer"]
+  S06 -.->|One-line notice| S13
   S10 --> S14["Completion summary"]
   S10 --> S17
   S12 --> S08
@@ -88,18 +92,18 @@ Operation names follow the starting vocabulary in `00-conventions.md`; `02-syste
 | ID | Screen | Reached from | Wireframe | Main operations |
 | --- | --- | --- | --- | --- |
 | S01 | Landing | Public link | — | none |
-| S02 | Sample scenario | S01 | W02–W04 | local only until claim |
-| S03 | Keep your progress | End of sample | W06 | none |
-| S04 | Sign in / create account | S01, S03, any guest prompt | — | `POST /v1/guest/claim` after sign-up |
-| S05 | Onboarding | First sign-in | W08 | `PUT /v1/me/preferences`, `PUT /v1/me/goal`, `POST /v1/me/diagnostic`, `POST /v1/enrolments` |
-| S06 | Today | Tab bar, after every session | W01 | `GET /v1/today` |
+| S02 | Sample scenario | S01 | W02–W04 | `GET /v1/guest/sample`, `POST /v1/guest/attempts` (stores nothing); work kept in the browser until claim |
+| S03 | Keep your progress | End of sample | W06 | none (links to the pilot recruitment form) |
+| S04 | Sign in / create account | S01, S03, any guest prompt | — | `POST /v1/auth/sign-up` (invite code), `POST /v1/auth/sign-in`, OAuth callback, then `POST /v1/guest/claim` |
+| S05 | Onboarding | First sign-in, or S03 as a guest | W08 | `PUT /v1/me/preferences`, `PUT /v1/me/goal`, `POST /v1/me/diagnostic`, `POST /v1/enrolments` |
+| S06 | Today | Tab bar, after every session | W01 | `GET /v1/today`; **Rest today** uses `PUT /v1/me/notifications` |
 | S07 | Return screen | Today after an absence | W07 | `GET /v1/today` (return variant) |
 | S08 | Player | Today, topic detail, skill detail | W02–W04 | `POST /v1/sessions`, `PUT …/draft`, `POST …/hints`, `POST …/reveal`, `POST …/attempts` |
 | S09 | Session complete | Player | W05 | `POST /v1/sessions/{id}/complete` |
 | S10 | Roadmap | Tab bar | W09 | `GET /v1/roadmaps/{slug}` |
 | S11 | Roadmap overview and enrol | Roadmap, onboarding | — | `GET /v1/roadmaps`, `POST /v1/enrolments` |
 | S12 | Topic detail | Roadmap row | — | `POST /v1/topics/{id}/challenge`, `POST /v1/topics/{id}/defer` |
-| S13 | Version migration offer | Roadmap banner | W15 | `POST /v1/enrolments/{id}/migrate` |
+| S13 | Version migration offer | Roadmap banner; one-line notice on Today | W15 | `POST /v1/enrolments/{id}/migrate` |
 | S14 | Roadmap completion summary | Last required topic completed | W10 | `GET /v1/evidence` |
 | S15 | Evidence | Tab bar | W11 | `GET /v1/evidence` |
 | S16 | Skill evidence detail | Evidence row | — | `GET /v1/evidence` |
@@ -113,13 +117,15 @@ Operation names follow the starting vocabulary in `00-conventions.md`; `02-syste
 
 | Area | Guest | Signed in |
 | --- | --- | --- |
-| Content | One sample scenario *(PRD §5)*. Further practice asks for an account. | All roadmap content for the enrolled version. |
+| Content | Onboarding answers and one sample scenario only *(PRD §5)*. Enrolment and further practice ask for an account. | All roadmap content for the enrolled version. |
 | Today | Shows the sample result and "Create an account to keep it". | Full recommendation. |
 | Roadmap | Read-only preview of modules and topics. **Enrol** asks for an account. | Enrol, pause, resume, challenge, defer, migrate. |
-| Evidence | Sample evidence with the label **Saved on this device only**. | Full evidence, available on every device. |
+| Evidence | Sample result with the label **Saved on this device only**. It becomes **Practised** at most when moved into an account. | Full evidence, available on every device. |
 | Settings | Theme, code-line wrapping, **Clear data on this device**. | Preferences, reminders, export, delete. |
 | Reminders | Not offered (no email address). | Opt-in. |
-| Storage | This browser only, with a stated expiry *(Open question 1)*. | Server-side; a local draft is kept only during interruptions. |
+| Sign-up | Needs an invite during the pilot. Without one: **Ask to join the pilot**, a link to the recruitment form (`10`). No waitlist. | — |
+| Storage | Saved only in this browser on this device until an account is created, then moved into it. Deleted from this browser after 30 days if unclaimed. Nothing stored on the server. | Server-side; a local draft is kept only during interruptions. |
+| Analytics | A random ID made in this browser; allow-listed events only, never answer text. The account adopts the ID on sign-up. | Pseudonymous; no free text (IR-15). |
 
 ## 3. User journeys
 
@@ -130,17 +136,20 @@ Journeys are screen-level. The matching system sequences live in `03-key-flows.m
 ```mermaid
 flowchart TD
   A1["Landing page"] --> A2["Try a sample scenario<br/>about 3 min, no account"] --> A3["Player: one scenario,<br/>one decision, feedback"]
-  A3 --> A5["Stopping point with an<br/>evidence-based message"] --> A6{"Keep this progress?"}
-  A6 -->|Create account| A7["Sign up"] --> A8["Guest work moves<br/>into the account"] --> A9["Onboarding"]
-  A6 -->|Not now| A10["Stay a guest<br/>saved in this browser only"] --> A11{"Back on the same browser<br/>before expiry?"}
+  A3 --> A5["Stopping point with an<br/>effort message"] --> A6{"Keep this progress?"}
+  A6 -->|Create account| A7["Sign up with invite"] --> A8["Guest work checked again,<br/>moved in as Practised"] --> A9["Onboarding"]
+  A6 -->|Not now| A10["Stay a guest<br/>saved in this browser only"] --> A11{"Back on the same browser<br/>within 30 days?"}
+  A10 -.->|Set up first| A9
   A11 -->|Yes| A6
-  A11 -->|No| A12["Starts fresh<br/>nothing to restore"]
+  A11 -->|No| A12["Deleted from this browser<br/>starts fresh"]
   A2 -.->|Storage blocked| A13["Warning: answers are lost<br/>when this tab closes"]
-  A7 -.->|No invite in pilot| A14["Join waitlist<br/>sample stays on device"]
+  A6 -->|No invite yet| A14["Ask to join the pilot<br/>link to recruitment form"] -.-> A10
 ```
 
-- The device-only message appears **before** the learner chooses, in plain words (W06). "Saved" alone is never used for guest work. *(PRD §5)*
-- Pilot access is invite-only *(PRD §15)*; the waitlist branch is a Proposal *(Open question 2)*.
+- The device-only message appears **before** the learner chooses, in plain words (W06): "Saved only in this browser on this device until you create an account." "Saved" alone is never used for guest work. *(PRD §5)*
+- Guest scope is onboarding and the one sample. On sign-up the answers are checked again and recorded as **Practised** at most, because they were kept in the browser. *(Proposal)*
+- Sign-up needs an invite during the pilot *(PRD §15)*. A visitor without one sees **Ask to join the pilot**, a link to the pilot recruitment form (`10-measurement-and-validation.md`). There is no waitlist, and the sample stays on this device.
+- Guest analytics use a random ID made in the browser and never include answer text (`10`).
 
 ### 3b. Onboarding
 
@@ -149,7 +158,7 @@ flowchart TD
   B1["Step 1: Current stack<br/>pick one or Other"] --> B2["Step 2: One outcome<br/>pick one or write a short one"]
   B2 --> B3["Step 3: Available days<br/>and session length"]
   B3 --> B4{"Step 4: Email reminder?<br/>optional"}
-  B4 -->|Yes| B5["Time and time zone<br/>consent text shown"]
+  B4 -->|Yes| B5["Time in 15-minute steps,<br/>time zone, consent text"]
   B4 -->|Skip| B6{"Step 5: Short scenario<br/>diagnostic? optional"}
   B5 --> B6
   B6 -->|Take it| B7["A few scenario questions<br/>no ratings, no skill tree"]

@@ -13,24 +13,24 @@ Based on PRD v0.1 (5 October 2026). Writing rules and canonical names: [`00-conv
 - DevStep holds personal data of modest sensitivity: email, preferences, learning records and free text. Free-text answers and lab artifacts are classed **Restricted** because learners may paste employer code or secrets, even after being warned not to.
 - The most likely threats are broken object-level authorisation (IDOR), account takeover, XSS through learner text or authored Markdown, leaked secrets and unexpected bills. Each one has a named control and a test.
 - Authorisation denies by default and scopes every record to the owner taken from the session. PRD §12 requires authorisation tests, so the automated negative suite (§5) is a pilot gate.
-- Privacy defaults: reminders are opt-in. Analytics are pseudonymous and only allow-listed fields are accepted. No model training. AI processing is disclosed and opt-in. Export is JSON. Deletion completes within 30 days, and backups age out within a further 30 days.
+- Privacy defaults: reminders are opt-in. Guest work stays on the device. Analytics are pseudonymous and only allow-listed fields are accepted. No model training. AI processing is disclosed and opt-in. Export is JSON. Deletion completes within 30 days, and backups age out within a further 30 days.
 - Email: one-click unsubscribe, suppression checked at the moment of sending, at most one reminder per scheduled learning day, quiet hours, and no open or click tracking.
-- Operations rely on features of managed services: platform backups, budget alerts, an external uptime check and a heartbeat check. There are eight alert rules, and each one has a runbook.
+- Operations rely on features of managed services: 14-day point-in-time recovery plus a weekly encrypted off-site dump, budget alerts, an external uptime check and heartbeat checks. There are eight alert rules, and each one has a runbook.
 - Four things must pass before the first pilot invitation: a timed restore drill, the authorisation suite, end-to-end tests of export and deletion, and SPF/DKIM/DMARC on the sending domain.
 - Support is best-effort, with no 24/7 cover: published hours, one support address, and modest pilot SLOs (99% monthly availability).
 
 ## 1. Scope and assumptions
 
 In scope: data classification, threat model, controls, authorisation tests, privacy, email compliance, operations, the pilot gate.
-Out of scope and owned elsewhere: vendor choice, regions and prices (`01-tech-stack-and-hosting.md`); API catalogue and cross-cutting design (`02-system-architecture.md`); sequence diagrams for sign-up, guest claim, export, deletion and reminders (`03-key-flows.md`); table definitions and constraints (`04-data-model.md`); content workflow (`06-content-system.md`); lab kit content (`07-curriculum-plan.md`); consent and warning copy (`08-ux-and-screens.md`); the event catalogue (`10-measurement-and-validation.md`).
+Out of scope and owned elsewhere: vendor choice and prices (`01-tech-stack-and-hosting.md`; the hosting region is the founder's call, and §6.8 covers what it means for transfers); API catalogue and cross-cutting design (`02-system-architecture.md`); sequence diagrams for sign-up, guest claim, export, deletion and reminders (`03-key-flows.md`); table definitions and constraints (`04-data-model.md`); content workflow (`06-content-system.md`); lab kit content (`07-curriculum-plan.md`); consent and warning copy (`08-ux-and-screens.md`); the event catalogue (`10-measurement-and-validation.md`).
 
 | # | Assumption (Proposal unless marked) | Why it matters here |
 | --- | --- | --- |
-| A1 | One modular monolith with a scheduler/worker and a managed relational database (**PRD** §11; 01 confirms). | Small attack surface; one place for authorisation. |
+| A1 | One modular monolith with a scheduler/worker and a managed PostgreSQL database (**PRD** §11; 01 confirms). | Small attack surface; one place for authorisation. |
 | A2 | The browser app and API share one registrable domain, and sessions use HttpOnly cookies, not bearer tokens kept in browser storage. | Lowers the impact of XSS; CSRF controls become relevant (§3). |
 | A3 | Pilot registration is by invitation only. | Removes most abuse and sign-up spam. |
-| A4 | Guest progress stays on the device until the guest claims it (**PRD** §5 asks us to explain this to guests). | No server-side guest records to hijack; 03 owns the claim flow. |
-| A5 | In the pilot, lab evidence is text typed into structured fields. There are no file uploads and no object storage (**PRD** §11). | No malware scanning and no public storage buckets. |
+| A4 | Guest work (onboarding answers and the one sample scenario) stays on the device until the guest claims it at sign-up or sign-in (**PRD** §5 asks us to explain this to guests). The server keeps no guest rows. At claim it re-evaluates every answer and records evidence no higher than `practised`. | No server-side guest records to hijack, and an edited bundle cannot inflate evidence; 03 owns the claim flow. |
+| A5 | In the pilot, lab evidence is text typed into structured fields. There are no file uploads and no application object storage: export files are kept in Postgres too (**PRD** §11). The only bucket holds the off-site backup copy and the deletion ledger (§8.5, §6.4). | No malware scanning and no public storage buckets. |
 | A6 | No admin web UI in the pilot. Content is published through CI (06). Production data fixes run as reviewed scripts. | Removes a high-privilege attack surface. |
 | A7 | The AI tutor (F13) is P1 and switched off. Its controls are listed now so that they gate switching it on. | **PRD** §11, §12, §14. |
 
@@ -49,28 +49,40 @@ Where a control relies on a managed-service feature (point-in-time recovery, bud
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Email address | Login identifier, reminder destination | Personal | `users`; email provider delivery logs | Learner; operator (break-glass); email provider | Account lifetime; provider logs at the shortest setting available (01) | Yes | Yes. A keyed hash stays in `email_suppressions (added)` only after a complaint or hard bounce (§7) |
 | Display name | Optional | Personal | `users` | Learner; operator | Account lifetime | Yes | Yes |
+| Linked GitHub identity | GitHub account ID, username and the verified email GitHub returns, for "Sign in with GitHub"; no repository access | Personal | `users` or a linked-identity table (04 decides); GitHub's own records | Learner; operator; GitHub (§6.6) | Account lifetime; unlinked on request | Yes | Yes (GitHub keeps its own account records) |
 | Time zone | IANA zone | Personal | `learning_preferences` (04 decides) | Learner; app; operator | Account lifetime | Yes | Yes |
 | Preferences | Available days, session length, reminder time, quiet hours | Personal | `learning_preferences`, `notification_preferences` | Learner; app; operator | Account lifetime | Yes | Yes |
 | Goals and baseline | Desired outcome, stack context, diagnostic results | Personal | `goals`, `learning_preferences` (04 places the diagnostic) | Learner; operator | Account lifetime | Yes | Yes |
-| Free-text answers | Explanations, decision records, drafts | Restricted | `session_drafts`, `attempts` | Learner; operator (break-glass) | Account lifetime. A draft is removed once its attempt is submitted | Yes | Yes |
+| Free-text answers | Explanations, decision records, drafts | Restricted | `session_drafts`, `attempts` | Learner; operator (break-glass) | Answers: account lifetime. Drafts: one per session, deleted with the session's retention (04) | Yes | Yes |
 | Lab artifacts | Pasted results, decision records (files later) | Restricted | `artifacts` | Learner; operator (break-glass) | Account lifetime | Yes | Yes |
 | Attempts and evidence | Outcomes, assistance, content version, evidence level, review dates | Personal | `learning_sessions`, `attempts`, `skill_evidence`, `review_schedule`, `roadmap_enrolments`, `topic_progress` | Learner; operator | Account lifetime | Yes | Yes |
 | Consent records | Reminder opt-in, pilot research consent, AI opt-in (P1), notice version | Personal | `consent_records (added)` | Learner (via settings); operator | Account lifetime | Yes | Yes |
-| Analytics events | Pseudonymous subject ID, content IDs, mode, outcome enums, timestamps | Personal (pseudonymous) | `analytics_events` | Operator (analysis only); no third party | 18 months | Yes | Yes (Open question 4) |
+| Analytics events | Pseudonymous `subject_id`, content IDs, mode, outcome enums, `device_class`, timestamps | Personal (pseudonymous) | `analytics_events` | Operator (analysis only); no third party | 18 months | Yes | Yes, at purge (§6.4). Pilot metrics survive as frozen weekly aggregates (10) |
+| Guest analytics events | Allow-listed sample events under a random `subject_id` generated in the browser (§6.2) | Personal (pseudonymous) | `analytics_events`; the ID in browser storage | Operator (analysis only) | 18 months | Yes, once claimed | Yes, once claimed (the account adopts the ID) |
 | Notification deliveries | Local date, status, provider message ID, no message body | Personal | `notification_deliveries`; provider logs | Operator; email provider | 12 months | Yes | Yes |
 | Auth credentials | Password hash, hashed verification and reset tokens | Restricted | `users`, `auth_tokens (added)` | System only. Nobody can read plaintext | Tokens: minutes to hours (§3.5) | No | Yes |
 | Auth sessions | Session ID, created and last-seen times, coarse device label | Restricted | `auth_sessions` | System; operator (revocation) | 90 days at most | No | Yes |
 | Idempotency keys | Key, user, operation, stored result reference | Personal | `idempotency_keys` | System | 7 days | No | Yes |
-| Export files | ZIP produced on request | Restricted | `export_requests` plus private file storage | Learner (signed in) | File 7 days; metadata 90 days | — | Yes |
-| Deletion records | User UUID and timestamps only | Personal (pseudonymous) | `deletion_requests`; deletion ledger outside the main database | Operator | 12 months (longer than backup retention) | No | Tombstone kept (§6.4) |
-| Invites | Code, invited address, used date | Personal | `invites (added)` | Operator | Pilot end + 30 days | No | Yes |
+| Export files | ZIP produced on request | Restricted | `export_requests` (the file is stored in Postgres; 04 places the column) | Learner (signed in) | File 7 days; metadata 90 days | — | Yes |
+| Deletion records | User UUID and timestamps only | Personal (pseudonymous) | `deletion_requests`; deletion ledger in off-site storage, outside the main database (§6.4) | Operator | 12 months (longer than backup retention) | No | Tombstone kept (§6.4) |
+| Invites | Code (hashed), invited address, cohort and arm, used date | Personal | `invites (added)` | Operator | Pilot end + 30 days | No | Yes |
+| Pilot participation | Participant code, cohort, arm, consent version, recruitment source, internal flag; no names or emails | Personal (pseudonymous) | `pilot_participants (added)` | Operator | Until the pilot's continue/pivot decision | Yes | Yes; counted as an exclusion per arm (10) |
 | Application and access logs | Path without query string, status, timing, user UUID, IP | Personal | Hosting platform logs; error tracker | Operator; hosting and error-tracking processors | 30 days | On request | Expires after 30 days |
 | Support correspondence | Emails to the support address | Personal | Support mailbox | Operator | 12 months after closure | On request | Yes, on request |
-| Guest progress | Sample-scenario answers and drafts | Personal | Browser storage on the device only | Learner only | Until claimed or the browser is cleared | — | — |
-| Backups | Everything above that is held in the database | Restricted | Managed backups | Operator; database provider | 30 days rolling | No | Expire ≤ 30 days after the hard delete |
+| Guest progress | Onboarding answers, sample-scenario answers and drafts | Personal | Browser storage on the device only | Learner only | Until claimed; the browser deletes an unclaimed bundle after 30 days | — | — |
+| Backups | Everything above that is held in the database | Restricted | Platform point-in-time recovery; weekly encrypted dump in off-site storage | Operator; database and storage providers | PITR window 14 days; each dump 28 days | No | Expire ≤ 28 days after the hard delete |
 | AI tutor usage (P1) | Token counts, latency, cost; text redacted | Personal | Usage log (04 decides) | Operator | 12 months | Yes | Yes |
 
 Authors and reviewers have no access to learner data. They work only in the content repository.
+
+**Research data before the pilot gate.** Discovery interviews, the concierge trial and pilot recruitment (10) collect personal data outside the app. It is part of the record of processing. None of it enters the production database except the pseudonymous `pilot_participants` row.
+
+| Data category | Examples | Class | Stored in | Who can access | Retention (Proposal, in line with 10 §6.6) | Consent | On withdrawal |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Screener and recruitment-form answers | Role, experience, stack, availability, recording preference | Personal | Form tool, then the research store under a participant code | Founder; form-tool processor | People not taken forward: 30 days after that phase's recruitment closes. Others: until the pilot decision | Notice on the form; taking part is optional | Deleted |
+| Contact details | Name, email for scheduling | Personal | Separate contact sheet in the research store | Founder only | Until the pilot decision; deleted at once for anyone who declines further contact | As above | Deleted |
+| Interview recordings and transcripts | Audio/video, transcript if a transcription tool is used | Restricted | Research store | Founder only; call and transcription processors | Recordings deleted 90 days after synthesis | Consent note before the call, plus a clear yes on the call before recording | Deleted |
+| Interview and concierge notes | Pseudonymised notes, concierge tracking sheet, form submissions, exit interviews | Personal | Research store; form tool | Founder only | Until the pilot decision | Consent note (interviews); participant information sheet (concierge, pilot) | Deleted, or excluded from analysis if already aggregated |
 
 ## 3. Threat model (STRIDE-lite)
 
@@ -88,11 +100,13 @@ flowchart LR
     SH["Static host or CDN"]
     API["App API<br/>modular monolith"]
     SCH["Scheduler and worker"]
-    DB[("Database")]
-    BK[("Backups")]
+    DB[("Database<br/>including export files")]
+    BK[("Point-in-time recovery")]
   end
-  subgraph TB3["TB3 Third-party processors"]
+  subgraph TB3["TB3 Third-party processors and identity provider"]
     EM["Email provider"]
+    GH["GitHub sign-in<br/>OAuth identity provider"]
+    OFF[("Off-site storage<br/>weekly dump and deletion ledger")]
     AI["AI provider<br/>P1 - off by default"]
   end
   subgraph TB4["TB4 Code and content supply chain"]
@@ -110,6 +124,10 @@ flowchart LR
   API --> DB
   SCH --> DB
   DB --> BK
+  SCH -->|weekly encrypted dump and purge ledger entry| OFF
+  API -->|ledger entry at request, add-only key| OFF
+  BR -->|OAuth redirect| GH
+  API -->|code exchange over HTTPS| GH
   SCH -->|HTTPS with send-only key| EM
   EM -->|signed webhooks| API
   EM --> INBOX
@@ -132,9 +150,11 @@ Every arrow that crosses a boundary is an input to validate or an output to mini
 | --- | --- | --- | --- | --- |
 | Browser app | Untrusted | UI, local drafts, guest progress | T, I | T02, T05, T06, T07, T08, T19 |
 | App API | Trusted core | Authentication, authorisation, every write | S, T, I, D, E | T01, T03, T04, T05, T09, T10, T17, T21 |
-| Database and backups | Trusted, private | All durable state | I, T, D | T20, T23 |
-| Scheduler and worker | Trusted | Reminders, exports, deletion and retention jobs | T, R, D | T12, T21, T24 |
+| Database and backups | Trusted, private | All durable state, including export files | I, T, D | T20, T23 |
+| Scheduler and worker | Trusted | Reminders, exports, deletion and retention jobs, weekly dump | T, R, D | T12, T21, T24 |
+| Off-site storage | Processor, private bucket | Encrypted weekly dumps; deletion ledger | I, T, D | T13, T20 |
 | Email provider | Processor | Addresses, message bodies, delivery events | S, I, R | T03, T11, T12 |
+| GitHub sign-in | Identity provider | GitHub account ID, username, verified email | S, I | T01, T03 |
 | Content repo and CI | Inputs only partly trusted | Code, content, build, publish | T, E | T13, T14, T15 |
 | Static host or CDN | Trusted delivery | Browser bundle, public content | T, I | T16 |
 | Lab kits | Our code on learners' machines | Containers, synthetic data, local checks | T, I, E | T18 |
@@ -149,14 +169,14 @@ L = likelihood and I = impact for the pilot context (H, M, L). These are judgeme
 | --- | --- | --- | --- | --- | --- |
 | T01 | Account takeover by credential stuffing or password guessing | S | M | M | C01, C02, C05, C24 |
 | T02 | Session theft or fixation through XSS, insecure cookies, a shared device or clickjacking | S, I | L | H | C03, C07, C16, C18 |
-| T03 | Takeover through the reset or email-change flow: leaked token, open redirect, change made without notice | S | L | H | C04, C29 |
+| T03 | Takeover through the reset, email-change or GitHub sign-in flow: leaked token, open redirect, change made without notice, forged OAuth `state`, a GitHub identity linked to someone else's account | S | L | H | C01, C04, C29 |
 | T04 | IDOR on sessions, drafts, attempts, evidence, artifacts, enrolments, exports or notification settings | I, T, E | H | H | C10–C14 |
-| T05 | Guest claim hijack: attaching someone else's guest progress, replaying a claim, overwriting account records | T, E | L | M | C10, C12, C29 |
+| T05 | Guest claim abuse: an edited bundle that inflates evidence, a replayed claim, overwriting account records, adopting another account's analytics ID | T, E | L | M | C10, C12, C14, C29 |
 | T06 | Stored XSS through learner text (answers, goals, display name, artifacts) in the app, the export summary or email | T, I | M | H | C16, C18, C19, C21 |
 | T07 | XSS or malicious links through authored Markdown or source URLs | T | L | H | C17, C18, C46 |
 | T08 | CSRF on state-changing endpoints | T | M | M | C03, C20 |
 | T09 | Brute force, account enumeration, sign-up spam, email bombing through reset or verification | S, I, D | M | M | C05, C06, C24 |
-| T10 | Guessing, forging or replaying unsubscribe, export or claim tokens | S, I | L | M | C11, C29, C31 |
+| T10 | Guessing, forging or replaying unsubscribe tokens, export download links or OAuth `state` | S, I | L | M | C11, C29, C31 |
 | T11 | Spoofed email from the DevStep domain; DNS or registrar takeover | S | M | H | C32, C33, C39 |
 | T12 | Reminder failure: sent after unsubscribe, duplicated, sent in quiet hours, sent to a dead address | R | M | M | C14, C34 |
 | T13 | Secrets leaked through repositories, CI logs, the client bundle, lab kits or logs | I | M | H | C36–C38, C51 |
@@ -176,7 +196,7 @@ L = likelihood and I = impact for the pilot context (H, M, L). These are judgeme
 
 | Endpoint class | Limit | Key | When exceeded |
 | --- | --- | --- | --- |
-| Login | 5 per 15 min per account+IP; 50 per hour per IP | account+IP, IP | 429 and a generic message; no hard lockout, which would let an attacker lock learners out |
+| Login (password, or the GitHub callback) | 5 per 15 min per account+IP; 50 per hour per IP | account+IP, IP | 429 and a generic message; no hard lockout, which would let an attacker lock learners out |
 | Invite redemption, sign-up | 10 per hour per IP | IP | 429 |
 | Reset or verification email | 3 per hour per account; 20 per hour per IP | account, IP | Same response as success, nothing sent |
 | Draft save | 60 per minute per user | user | 429. The client backs off and keeps the local draft |

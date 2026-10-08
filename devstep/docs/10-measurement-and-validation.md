@@ -16,8 +16,10 @@ to exist.
 - Analytics is one `analytics_events` table, queried with SQL. The server emits
   every event it can observe. A per-event allow-list keeps answer text, code,
   email and all other free text out.
-- Learners appear in analytics only as a random `analytics_learner_id`. The
-  data is pseudonymous, not anonymous, and the mapping can be deleted.
+- Learners appear in analytics only as a random `subject_id`. A guest's is
+  generated in the browser and adopted by the account at claim. The data is
+  pseudonymous, not anonymous. A deleted account's events are deleted at
+  purge; frozen weekly aggregate snapshots keep the pilot metrics.
 - North star: the number of learners each week with at least one unassisted,
   machine- or reviewer-scored success on an alternate task. Practice-only and
   self-assessed learners are reported beside it, never inside it.
@@ -40,7 +42,7 @@ flowchart LR
     S1["1. Discovery interviews<br/>8-12 developers"] --> G1["Gate 1<br/>problem and persona confirmed?"]
     G1 -->|pass| S2["2. Concierge trial<br/>10-15 people, 2 weeks"]
     G1 -->|fail| R1["Revise persona or path<br/>then re-interview"]
-    S2 --> G2["Gate 2<br/>repeat use and ranked frictions?"]
+    S2 --> G2["Gate 2, the planning gate<br/>repeat use and ranked frictions?"]
     G2 -->|pass| B["Build alpha and pilot readiness<br/>see 12-delivery-plan.md"]
     G2 -->|fail| R2["Revise and rerun concierge<br/>or stop"]
     B --> S3["3. Product pilot<br/>30-50 people, 6 weeks plus delayed checks"]
@@ -49,8 +51,8 @@ flowchart LR
 
 | Stage | Main question | People | Duration | Tooling | Output | Gate |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 Discovery | Does the problem exist as described, for whom, and what do people do now? | 8–12 | 2–3 weeks including recruiting | Video calls, a screener form, a spreadsheet | Synthesis and a findings-to-decisions table (§6.9) | Gate 1 (§6.9) |
-| 2 Concierge | Do people come back to a curated sequence without personal encouragement? Where is the friction? | 10–15 | 2 weeks plus 1 week of exit interviews | Email, a form tool, a spreadsheet | Evidence of repeat use and a ranked friction list (PRD §14) | Gate 2 (§7.6) |
+| 1 Discovery | Does the problem exist as described, for whom, and what do people do now? | 8–12 | 2–3 weeks including recruiting | Video calls, a screener form, a spreadsheet | Synthesis and a findings-to-decisions table (§6.9) | Gate 1 (§6.9); a fail adds 1–2 weeks of interviews |
+| 2 Concierge | Do people come back to a curated sequence without personal encouragement? Where is the friction? | 10–15 | 2 weeks plus 1 week of exit interviews | Email, a form tool, a spreadsheet | Evidence of repeat use and a ranked friction list (PRD §14) | Gate 2, the planning gate (§7.6) |
 | 3 Pilot | Do people start, return and learn, and do they do so more than with a static checklist? | 30–50 | 6 weeks, a delayed check about 3 weeks later, then exit interviews | The product, `analytics_events`, SQL | Metrics against thresholds and a recorded decision (§9) | Decision table (§9) |
 
 ## 2. Measurement principles
@@ -59,7 +61,7 @@ flowchart LR
 | --- | --- | --- |
 | 1 | Measure demonstrated capability and sustainable return, not time in app, articles read or streaks. | PRD §1 |
 | 2 | If the server can observe an action, the server emits the event. Client events are kept to what only the UI knows, such as what was shown or chosen. | Proposal |
-| 3 | Definitions, thresholds and the comparison design are written down and dated before the pilot starts (§8.5). Changes made afterwards are logged. | Proposal |
+| 3 | Definitions, thresholds and the comparison design are written down and dated before the pilot starts (§8.5). Concierge thresholds are frozen the same way at Phase 2 entry, before the trial (§7.6). Changes made afterwards are logged. | Proposal |
 | 4 | Show counts next to every percentage and always report the denominator. | PRD §13, Proposal |
 | 5 | Pilot results are directional. Make no causal or significance claims. | PRD §13 |
 | 6 | An analytics outage must never block learning. | PRD §12 |
@@ -72,8 +74,8 @@ flowchart LR
 
 | Data | Store | Identifier | Who can see it | Notes |
 | --- | --- | --- | --- | --- |
-| Product events | `analytics_events` (`04-data-model.md` owns columns and retention) | `analytics_learner_id` | Operator | No free text (§3.4). |
-| Pilot cohort, arm, consent version, recruitment source | `pilot_participants` (added; `04-data-model.md` owns the definition) | `analytics_learner_id`, `participant_code` | Operator | No names or emails. |
+| Product events | `analytics_events` (`04-data-model.md` owns columns and retention) | `subject_id` | Operator | No free text (§3.4). |
+| Pilot cohort, arm, consent version, recruitment source | `pilot_participants` (added; `04-data-model.md` owns the definition) | `participant_code`, `invite_id`; `subject_id` once the invite is redeemed | Operator | No names or emails. One row per invite, created when the invite is issued (§8.1). |
 | Answers, drafts, lab evidence, transfer-task responses | `attempts`, `session_drafts`, `artifacts` | Owner `user_id` | The learner, plus a reviewer when scoring | Never copied into analytics. |
 | Screener answers, contact details, interview notes and recordings, concierge tracking sheet, exit interviews | Research store: one access-restricted folder plus spreadsheet | `participant_code` (I-xx, C-xx, P-xxx) | Founder only | Retention rules in §6.6. |
 

@@ -13,28 +13,33 @@ design the architecture (`02-system-architecture.md`) or define metrics
 ## Summary
 
 - **No product code before the planning gate (§1).** The gate comes after
-  discovery and a two-week concierge trial. Until then the founder's hours go
+  discovery (with gate 1) and a two-week concierge trial. Until then the founder's hours go
   into interviews and authoring Modules 1–2, which the concierge trial needs anyway.
 - **Five phases, following PRD §14.** The PRD durations are planning ranges, not
   commitments. They roughly fit a near-full-time builder. At a hypothesised
-  **20 h/week solo founder**, the indicative dates are: gate 23 Nov 2026, alpha
-  exit 22 Feb 2027, pilot start 7 Jun 2027, continue/pivot decision 9 Aug 2027 (§3, §8).
-- **Content sets the schedule, not code.** Estimates are ≈220–370 author-hours
-  against ≈180–340 engineering hours (**Hypothesis**; calibrate on the discovery
-  sample). Adding authoring hours moves the pilot date more than adding engineering hours does.
+  **20 h/week solo founder**, the indicative dates are: gate 1 on 1 Nov 2026, planning
+  gate 30 Nov 2026, alpha exit 1 Mar 2027, content freeze 13 Aug 2027, pilot cohorts
+  from 6 and 20 Sep 2027, continue/pivot decision about 10 Dec 2027 (§3, §8).
+- **Content sets the schedule, not code.** Content is ≈430 h before the pilot
+  (author ≈300–450 h, reviewer ≈50–80 h; `06-content-system.md`) against ≈185–355
+  engineering hours (**Hypothesis**; calibrate on the discovery sample and after Module 1).
+  Adding authoring hours moves the pilot date more than adding engineering hours does.
 - **The first engineering milestone is a thin vertical slice (§5):** a guest
-  completes a mission, gets feedback, signs up, evidence is recorded and Today
-  shows the review the next day. It runs on the real hosting.
-- **Every P0 requirement (F01–F12, R01–R06) maps to one of 15 epics** with an
-  owning module, phase, size and dependencies (§4). P1 and Later items stay
-  locked until named evidence arrives.
+  completes the sample in the browser, signs up with an invite, the claim records
+  `practised` evidence, and Today on a second device shows the review the next day.
+  It runs on the real hosting.
+- **Every P0 requirement (F01–F12, R01–R06) maps to one of 16 epics** with an
+  owning module, phase, size and dependencies (§4). EP16 adds the pilot's checklist
+  arm. P1 and Later items stay locked until named evidence arrives.
 - **Each phase has a kill/pivot checkpoint.** The most important is the
-  concierge trial: if people return only after personal chasing, do not build.
+  concierge trial: if unprompted return misses the threshold in
+  `10-measurement-and-validation.md`, do not build. Phases 2 and 5 also name a
+  content-only branch (sell the path as a workbook plus lab kits).
 - **The not-now list (§9) and risk register (§10)** add delivery risks to PRD §16:
   content bottleneck, reviewer availability, scope creep, lab setup, solo-operator
   bus factor and free-tier limits.
-- **The budget lists categories only, each with a quote or pricing-page action (§11).**
-  Estimates belong in `01-tech-stack-and-hosting.md`.
+- **The budget (§11) holds people costs** (reviewer ≈90 h plus a backup scorer);
+  the ≈$30/month in `01-tech-stack-and-hosting.md` is infrastructure only. Amounts come from quotes.
 
 ## Sequencing principles
 

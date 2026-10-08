@@ -50,7 +50,23 @@ section has the full list and the reasoning.
 
 | Doc | Question | Recommended default |
 | --- | --- | --- |
-| _filled after the consistency pass_ | | |
+| 01 | Laravel Cloud (managed) or Forge + a VPS (self-run)? | Laravel Cloud for alpha and pilot; reassess at 500 learners or a bill above $100/month |
+| 01 | Keep production always-on during the pilot? | Yes (≈ +$20/month) to protect the 500 ms Today target; previews may sleep |
+| 01 | Private repo on GitHub Free cannot require a review before merge | Accept self-discipline for code during alpha (content review is enforced by the publish job); buy GitHub Pro/Team if a second developer joins |
+| 02 | Where do analytics live? | Separate schema in the same database, written after commit; move out only if reporting slows the app |
+| 04 | How long to keep free-text answers? | Account lifetime during the pilot; before public launch consider deleting text after 24 months and keeping outcomes |
+| 05 | Does one hint still count as demonstration? | No: `demonstrated` needs zero hints |
+| 05 | Topic check straight after the mission or the next day? | Next learner day, so it doubles as spaced practice |
+| 06 | Content running late after Module 1 | Re-plan if Module 1 takes more than 1.3× its estimate; delay the pilot rather than ship unreviewed modules |
+| 07 | Learners on employer laptops may not be allowed Docker | Recommend a personal machine; test alternatives on the 3-OS matrix; read Docker licence terms before launch |
+| 07 | Second lab-kit edition (e.g. Node) | Decide after the pilot; the SQL-only route for Lab 2 covers non-PHP learners meanwhile |
+| 08 | Should "Show solution" be hidden until hints are used? | No gating at pilot (always available behind a confirmation); revisit if reveal rates are high |
+| 09 | Where does the deletion ledger live? | A small encrypted file beside the off-site backups, written at request and at purge |
+| 10 | Does self-assessed evidence count towards the north star? | No; report it on its own line |
+| 10 | Which checklist-comparison design? | Randomised arms within two staggered cohorts; alternate cohorts if fewer than 30 consent |
+| 11 | Add an AI-study-mode condition to the pilot? | No third arm at pilot size; probe AI-study use in interviews instead |
+| 11 | Content-only fallback form | Try a workbook + lab kits first; a cohort format second |
+| 12 | Founder's weekly hours | Plan at 20 h/week; re-baseline at the planning gate using actual hours |
 
 ## 3. Settled during cross-review
 

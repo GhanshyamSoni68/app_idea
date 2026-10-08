@@ -360,27 +360,30 @@ Run AZ01–AZ06 against each pull request's preview environment as well (synthet
 
 ### 6.1 Roles, purposes and consent
 
-DevStep (the founder, or a company the founder sets up) is the controller. Hosting, database, email, monitoring and AI vendors are processors.
+DevStep (the founder, or a company the founder sets up) is the controller. Hosting, database, off-site storage, email, monitoring, research tools (form, video call, transcription) and AI vendors are processors. GitHub is the identity provider for "Sign in with GitHub"; for the learner's GitHub account it probably acts as an independent controller rather than our processor (adviser to confirm).
 
 | Purpose | Data | Lawful basis (Proposal) | Default | Withdraw or object |
 | --- | --- | --- | --- | --- |
 | Account, learning, progress, export | Account and learning records | Contract | On | Delete the account |
+| Sign in with GitHub | GitHub account ID, username, verified email | Contract | The learner's choice at sign-up or sign-in | Unlink in settings, or delete the account |
 | Transactional email (verification, reset, export ready, deletion, security notices) | Email | Contract | On; cannot be switched off | Not applicable while the account exists |
 | Reminder email (F10) | Email, schedule, time zone | Consent (**PRD** §6, F10) | Off; opt-in | Unsubscribe link, settings, pause |
-| Evaluation analytics (F12) | Pseudonymous events | Legitimate interests | On | Objection through support removes the learner from analysis |
-| Pilot research measures: baseline, final and delayed checks, burden survey, interviews | Assessment outcomes, survey answers | Consent, via a participant information sheet | Asked at pilot onboarding | Withdraw at any time; data then excluded |
+| Evaluation analytics (F12) | Pseudonymous events, including allow-listed guest sample events under a browser-generated ID | Legitimate interests (guest device ID: Open question 5) | On | Objection through support removes the learner from analysis |
+| Discovery interviews, concierge trial and pilot recruitment (before the pilot) | Screener answers, contact details, notes, recordings, form submissions (§2) | Consent, via a consent note or participant information sheet (10) | Asked before taking part; recording only after a clear yes | Withdraw at any time; notes, recordings and contacts deleted |
+| Pilot research measures: baseline, final and delayed checks, burden survey, interviews | Assessment outcomes, survey answers, `pilot_participants` (cohort, arm) | Consent, via a participant information sheet | Asked at pilot onboarding | Withdraw at any time; data then excluded |
 | Security and abuse prevention | IP address, user UUID, request metadata | Legitimate interests | On | Not applicable |
 | Support | Correspondence | Legitimate interests | When the learner writes in | Deleted on request |
 | AI tutor (P1) | Current question and reviewed content | Consent, after disclosure (**PRD** §12) | Off | Settings toggle |
 | Model training on learning data | None | Not done. Would need separate, explicit consent (**PRD** §12) | None | — |
 | Marketing email | None | Not in the pilot. Would need separate consent | None | — |
 
-Every consent is stored in `consent_records (added)` with the purpose, the wording version, the timestamp and how it was given. Every withdrawal is stored the same way. No non-essential cookies or device identifiers are used. Session, CSRF and local-draft storage are strictly necessary. Revisit cookie law (PECR/ePrivacy) before adding anything else to the device.
+Every consent is stored in `consent_records (added)` with the purpose, the wording version, the timestamp and how it was given. Every withdrawal is stored the same way. No non-essential cookies are used. Session, CSRF, local-draft and guest-bundle storage are strictly necessary. The one exception is the guest's random analytics `subject_id` in browser storage, which is not strictly necessary; whether it needs consent under cookie law (PECR/ePrivacy) is Open question 5. Revisit cookie law before adding anything else to the device.
 
 ### 6.2 Analytics pseudonymisation and forbidden payloads
 
-- Each user has a random `analytics_subject_id`. It is not the `users` primary key and never the email (04 places the column). Guest activity is not sent to analytics. The pilot counts guest conversion from claimed records.
-- **Allowed fields** (an allow-list; 10 owns the event catalogue): event name, event ID, subject ID, `occurred_at` (UTC), learner-local date, roadmap version, topic, mission, assessment item and content version IDs, session mode, outcome enum, assistance enum and hint count, evidence level, duration in seconds, client kind (`web_mobile` or `web_desktop`), app release ID.
+- Each account has a random `analytics_subject_id`, carried on events as `subject_id`. It is not the `users` primary key and never the email (04 places the column).
+- **Guests:** the browser generates a random `subject_id`; the server keeps no guest row. Guests may send only the allow-listed sample events (`sample_started`, `first_answer_submitted`, `attempt_evaluated` for the sample, `guest_progress_claimed`). At claim the account adopts that `subject_id`, so the sample-to-sign-up funnel joins up (04 and 10 own the mechanics). An unclaimed guest's events link to no one and expire with the 18-month retention.
+- **Allowed fields** (an allow-list; 10 owns the event catalogue; column names follow 04): `event_name`, `event_id`, `client_event_id`, `subject_id`, `session_ref`, `actor`, `source`, `occurred_at` (UTC), `local_date`, roadmap version, topic, mission, assessment item and content version IDs, session mode, outcome enum, assistance enum and hint count, evidence level, duration in seconds, `device_class` (`phone`, `tablet`, `desktop`, `unknown`), `app_version`, and allow-listed `properties`.
 - **Forbidden** (F12, **PRD** §12):
   - Answer or draft text; code, SQL, lab output or artifact content.
   - Goal or stack free text; survey comments.
@@ -394,36 +397,39 @@ Every consent is stored in `consent_records (added)` with the purpose, the wordi
 
 ### 6.3 Export (F09)
 
-- **Request:** `POST /v1/me/export` (signed in, 1 per 24 h). An async job builds the file and emails "your export is ready — sign in to download". The email carries no link token. Downloads go through `GET /v1/me/export/{id}` for the owner only. The file is deleted after 7 days. Target turnaround is ≤ 24 h.
-- **Format:** a ZIP containing `README.txt`, `manifest.json` (`export_format_version`, `generated_at` UTC, the learner's time zone, record counts, a SHA-256 for each file) and these JSON files:
+- **Request:** `POST /v1/me/export` (signed in, 1 per 24 h). An async job builds the ZIP and stores it in Postgres (no object storage at pilot; an export is well under 1 MB, 01). It then emails "your export is ready — sign in to download". The email carries no link token. `GET /v1/me/export/{id}` returns a short-lived download link (≤ 5 min) to the owner only, and the link works only with the owner's session. The stored file is deleted after 7 days. Target turnaround is ≤ 24 h.
+- **Format (this doc owns the layout):** a ZIP containing `README.txt` (field and evidence-level explanations), `manifest.json` (`export_format_version`, `generated_at` UTC, the learner's time zone, record counts, a SHA-256 for each file) and these files:
 
 | File | Contents |
 | --- | --- |
-| `account.json` | `users` (email, display name, dates; no password hash), `learning_preferences`, `goals`, `notification_preferences`, `consent_records` |
-| `roadmaps.json` | `roadmap_enrolments`, `topic_progress`, with roadmap and topic titles and version IDs |
-| `sessions.json` | `learning_sessions`, `session_drafts`, `attempts` (free text, outcome, assistance, content version ID, mission title) |
-| `evidence.json` | `skill_evidence` with basis and dates, `review_schedule` |
-| `labs.json` | `artifacts` |
-| `notifications.json` | `notification_deliveries` (dates and status only) |
-| `analytics_events.json` | The learner's pseudonymous events |
+| `account.json` | `users` (email, display name, dates, linked GitHub username; no password hash), `learning_preferences`, `goals`, `consent_records`, and the `pilot_participants` row if any (cohort, arm, consent version) |
+| `roadmaps.json` | `roadmap_enrolments` (including migrated ones), `topic_progress`, with roadmap and topic titles, version IDs and migration summaries |
+| `sessions.json` | `learning_sessions` with assistance, `attempts` (free text, outcome, assistance, content version ID, mission title) |
+| `drafts.json` | `session_drafts` that still exist (open or suspended sessions) |
+| `evidence.json` | `skill_evidence` with basis and dates, including annotated rows, plus a summary per skill |
+| `reviews.json` | `review_schedule` |
+| `artifacts.json` | `artifacts` (metadata and text bodies) |
+| `notifications.json` | `notification_preferences` (reminder settings) and `notification_deliveries` (dates and status only) |
+| `analytics_events.json` | The learner's pseudonymous events, including adopted guest events |
 | `summary.html` | A readable overview, escaped, with no scripts |
 
-- **Excluded:** password hash, tokens, `auth_sessions`, `idempotency_keys`, catalogue content bodies (referenced by title and version), suppression hashes and other learners' data. Security logs are provided on request under the right of access.
+- **Excluded:** password hash, token hashes, `auth_sessions`, `idempotency_keys`, deletion-ledger entries, catalogue content bodies and answer keys (referenced by title and version), suppression hashes and other learners' data. Security logs are provided on request under the right of access.
 
 ### 6.4 Deletion and backup expiry
 
-- `DELETE /v1/me` needs a fresh sign-in (C04). It takes effect at once: every session is revoked, reminders and pending jobs stop, the account is hidden, a `deletion_requests` row is written and a confirmation email gives the purge date.
-- **Grace period (Proposal):** 7 days. Signing in during that time shows "Deletion scheduled — cancel?".
-- **Hard delete:** the purge job runs on day 7, and never later than day 30 (**PRD** §12). It removes every row marked "Yes" in §2 and any export files. Where the provider's API allows, it also removes provider-side contact data, except for complaint or hard-bounce suppression. It sends a final confirmation, then writes a tombstone (user UUID, requested and purged times, no email) to a **deletion ledger kept outside the main database**.
-- **Backups:** 30-day rolling retention (Proposal). Data therefore leaves backups ≤ 30 days after the purge, which is about 37 days after the request in normal running. The published commitment is "removed from active systems within 30 days and from backups within a further 30 days".
-- **Restores:** after any restore, re-run the purge for every ledger entry later than the restore point (R2). Logs age out within 30 days.
+- `DELETE /v1/me` needs a fresh sign-in (C04). It takes effect at once: every session is revoked, reminders and pending jobs stop, the account is hidden, a `deletion_requests` row is written, a **request entry** goes to the deletion ledger, and a confirmation email gives the purge date.
+- **Grace period:** 7 days, cancellable. During it, signing in allows only cancelling (`POST /v1/me/deletion/cancel`) or exporting.
+- **Hard delete:** the purge job runs on day 7, and never later than day 30 (**PRD** §12); alert #8 fires if an account is still not purged by day 25. It removes every row marked "Yes" in §2, including the stored export and the learner's `analytics_events`. Pilot metrics survive through frozen weekly aggregate snapshots (10), and each deleted account is reported as a counted exclusion per arm. Where the provider's API allows, it also removes provider-side contact data, except for complaint or hard-bounce suppression. It sends a final confirmation, then writes a **purge entry** to the ledger.
+- **Deletion ledger (where it lives):** a ledger inside the database would roll back with any restore, so it sits outside it. Proposal, the simplest option: one small encrypted JSON object per entry under a `deletion-ledger/` prefix in the off-site storage bucket that already holds the weekly dump (01). Each entry holds the user UUID, `requested_at` and, for purge entries, `purged_at` (04 defines the record); no email. The app writes with a key that can only add objects there (C38); a cancellation also writes an entry, so a cancelled request is never replayed. Whether the vendor can scope a key to one prefix is unverified; if not, use a second small bucket with its own key. Ledger entries are kept 12 months, longer than any backup.
+- **Backups:** 14-day point-in-time recovery and a weekly encrypted dump kept 28 days (§8.5). Data therefore leaves backups ≤ 28 days after the purge, about 35 days after the request in normal running. The published commitment is unchanged: "removed from active systems within 30 days and from backups within a further 30 days".
+- **Restores:** after any restore, from point-in-time recovery or a weekly dump, replay the ledger **before the app reopens** (R2): purge again every account with a purge entry later than the restore point, and recreate the pending request, with its original dates, for every request entry later than the restore point that has no cancellation. Logs age out within 30 days.
 
 ```mermaid
 stateDiagram-v2
-  [*] --> requested: learner confirms deletion
-  requested --> cancelled: learner cancels within 7-day grace
-  requested --> purged: purge job by day 7 and never after day 30
-  purged --> backups_expired: last backup holding the data expires within 30 days
+  [*] --> requested: learner confirms deletion, ledger request entry
+  requested --> cancelled: learner cancels within 7-day grace, ledger entry
+  requested --> purged: purge job on day 7, alert at day 25, ledger purge entry
+  purged --> backups_expired: last dump holding the data expires within 28 days
   cancelled --> [*]
   backups_expired --> [*]
 ```
@@ -432,34 +438,44 @@ stateDiagram-v2
 
 | Retention | Records | Clock starts | Enforced by |
 | --- | --- | --- | --- |
-| Minutes to 24 h | Reset tokens (60 min), verification tokens (24 h), export storage URLs (≤ 5 min) | Issue | Expiry check plus a daily purge job |
-| 7 days | `idempotency_keys`, export files, deletion grace | Creation or request | Daily retention job |
-| 30 days | Platform and access logs, error-tracker events, backups (rolling) | Event | Provider retention setting (check in 01) |
+| Minutes to 24 h | Reset tokens (60 min), verification tokens (24 h), GitHub OAuth `state` (≤ 10 min), export download links (≤ 5 min) | Issue | Expiry check plus a daily purge job |
+| 7 days | `idempotency_keys`, export files (in Postgres), deletion grace | Creation or request | Daily retention job |
+| 14 days | Point-in-time recovery window | Continuous | Platform setting (01) |
+| 28 days | Each weekly off-site dump | Dump date | Bucket lifecycle rule on the dump prefix only |
+| 30 days | Platform and access logs, error-tracker events; unclaimed guest bundles in the browser | Event | Provider retention setting (check in 01); the browser app |
+| 30 days after recruitment closes | Screener and recruitment-form answers of people not taken forward | Phase close | By hand |
 | 90 days | `auth_sessions` (absolute maximum), `export_requests` metadata | Creation | Retention job |
+| 90 days after synthesis | Interview recordings and transcripts | Synthesis | By hand |
 | 12 months | `notification_deliveries`, deletion ledger, operator access log, support mail after closure, AI usage log (P1) | Event | Retention job; mailbox handled monthly by hand |
-| 18 months | `analytics_events`. Aggregate pilot results are kept | Event | Retention job |
+| 18 months | `analytics_events`, including guest events. Aggregate pilot results are kept | Event | Retention job |
 | Pilot end + 30 days | `invites` | Pilot end | By hand |
-| Account lifetime | Profile, preferences, goals, learning records, drafts, evidence, artifacts, consent records | Deletion request | Deletion job |
+| Until the pilot's continue/pivot decision | `pilot_participants`, research notes, concierge records, contact sheet (sooner on withdrawal or a decline of further contact) | Decision | By hand |
+| With the session (04) | `session_drafts`: one draft per session, deleted with the session's retention | Session | Retention job |
+| Account lifetime | Profile, preferences, goals, learning records, evidence, artifacts, consent records | Deletion request | Deletion job |
 | 24 months inactive | The whole account, after 30 days' notice | Last sign-in | Before-public-launch |
 | Until removed at yearly review | `email_suppressions` hashes (complaints, hard bounces) | Event | Yearly review |
 
 ### 6.6 Data-protection checklist (GDPR / UK GDPR style)
 
 - [ ] Controller identity and contact details decided; check whether the regulator requires registration or a fee (for example the ICO data protection fee in the UK).
-- [ ] Record of processing kept. §2 and §6.1 of this doc are the first version.
+- [ ] Record of processing kept. §2 (including the pre-pilot research data) and §6.1 of this doc are the first version.
 - [ ] Lawful basis recorded for each purpose (§6.1).
 - [ ] Plain-language privacy notice published before the pilot: purposes, bases, retention (§6.5), processors, international transfers, rights, contact, and the right to complain to the supervisory authority.
-- [ ] Pilot participant information sheet and research consent (Open question 5).
+- [ ] Interview consent note names every research tool, including transcription if used (10 §6.6).
+- [ ] Pilot participant information sheet and research consent (Open question 1).
 - [ ] Subprocessor list published:
 
 | Role | Vendor | Data | Region | DPA in place | Transfer mechanism |
 | --- | --- | --- | --- | --- | --- |
-| Hosting / app platform | TBD (01) | All | TBD | ☐ | TBD |
-| Managed database and backups | TBD (01) | All | TBD | ☐ | TBD |
+| Hosting / app platform | TBD (01) | All | Chosen region (§6.8) | ☐ | TBD |
+| Managed database and point-in-time recovery | TBD (01) | All | Chosen region (§6.8) | ☐ | TBD |
+| Off-site storage (weekly dump, deletion ledger) | TBD (01) | Encrypted dumps; user UUIDs and dates | TBD | ☐ | TBD |
 | Email provider | TBD (01) | Email, message bodies, delivery events | TBD | ☐ | TBD |
 | Static host or CDN | TBD (01) | IP addresses, request logs | TBD | ☐ | TBD |
 | Uptime monitor and error tracking | TBD (01) | Request metadata, user UUID | TBD | ☐ | TBD |
-| Code host and CI | TBD (01) | No learner data | TBD | ☐ | — |
+| Identity provider: Sign in with GitHub | GitHub | GitHub account ID, username, verified email, sign-in requests | US (unverified) | ☐ (role to confirm, §6.1) | TBD |
+| Code host and CI | GitHub (01) | No learner data in repositories or CI. The same vendor is the sign-in provider above | US (unverified) | ☐ | — |
+| Research tools: forms, video calls, transcription if used, research store | TBD (10) | Screener answers, contacts, recordings, notes | TBD | ☐ | TBD |
 | AI provider (P1, not enabled) | TBD | Question and reviewed content | TBD | ☐ | TBD |
 
 - [ ] A DPA (Art. 28 processor terms) accepted with every processor before it receives learner data.
@@ -471,9 +487,21 @@ stateDiagram-v2
 
 ### 6.7 Audience and claims
 
-- Not aimed at children. Sign-up includes a declaration of being 18 or over (Open question 8), and the terms say the same.
+- Not aimed at children. Sign-up includes a declaration of being 18 or over (Open question 2), and the terms say the same.
 - No clinical claims (**PRD** §4). Copy about procrastination or stress does not promise treatment, and support redirects health-related requests to appropriate services.
 - The terms tell learners not to submit employer code, credentials or third-party personal data.
+
+### 6.8 Hosting region and data transfers
+
+The region is **provisional**: the founder picks it at the planning gate (30 Nov 2026), once the pilot cohort's location is clearer (01 lists the options). It decides where the database, point-in-time recovery and app logs sit. Email, error tracking, uptime checks, GitHub and off-site storage may process data elsewhere whatever the choice, so each still needs a row and a mechanism in §6.6. This is not legal advice; the adviser confirms each mechanism.
+
+| Region | What it means for transfers (UK/EU learners) |
+| --- | --- |
+| EU (Frankfurt) or UK (London) | Core data stays in the UK/EU. EU↔UK flows rely on adequacy decisions (check that they are current). Only the US-based vendors need a transfer mechanism. Simplest for a UK/EU cohort. |
+| US (Virginia) | All core data is transferred to the US. Rely on the EU–US Data Privacy Framework and its UK Extension where the vendor is certified (unverified per vendor), otherwise Standard Contractual Clauses or the UK Addendum/IDTA, plus a transfer risk assessment. Name the transfer in the privacy notice. |
+| Singapore | No EU or UK adequacy decision for Singapore, so Standard Contractual Clauses or the UK Addendum/IDTA plus a transfer risk assessment are needed for UK/EU learners. Learners in Singapore or elsewhere in Asia may bring their own local rules (for example Singapore's PDPA); the adviser checks. |
+
+Whatever the region, the founder's own country of establishment may add obligations for the controller. Record the decision and the mechanism for each vendor in §6.6.
 
 ## 7. Email compliance and deliverability
 
@@ -486,7 +514,7 @@ stateDiagram-v2
 | Hard bounce | Reminders stop and the address is marked undeliverable. The app shows "check your email address". Provider suppression is added. |
 | Soft bounce | The provider retries. After 3 consecutive failed days, reminders pause and the app shows a banner. |
 | Complaint | Reminders are turned off at once and the address is suppressed. A digest alert reaches the operator (§8.6). |
-| Frequency | At most one reminder per scheduled learning day, enforced by uniqueness on user and local date plus an idempotency key (**PRD** §6, F10). No reminder if a session was completed earlier that local day. |
+| Frequency | At most one reminder per scheduled learning day (**PRD** §6, F10). The de-duplication key is a unique `notification_deliveries` row per user and local learning day, not an idempotency key. Sending is at-most-once: no automatic retry after an ambiguous timeout. No reminder if the learner has already practised that learning day (05's definition; the day starts at 04:00 local). |
 | Quiet hours | Default 21:00–08:00 learner-local (Proposal; editable). Nothing is sent inside quiet hours. A reminder that falls inside them is skipped, not carried over. |
 | Stale sends | A reminder more than 2 hours late, for example after an outage, is dropped. |
 | Pause and snooze | Honoured at send time. Time zone and DST rules belong to 03 and 05. |
@@ -498,7 +526,7 @@ stateDiagram-v2
 
 ### 8.1 Principles
 
-- Use the platform's built-in features first: managed database backups, platform logs, budget alerts, managed TLS and an external uptime check. Self-hosted monitoring is out.
+- Use the platform's built-in features first: point-in-time recovery, platform logs, budget alerts, managed TLS and an external uptime check. The weekly off-site dump is the one job we run ourselves. Self-hosted monitoring is out.
 - Every alert has to be actionable and must link to a runbook. If an alert fires twice and needs no action, retune it or delete it.
 - Learning must keep working when email, analytics or AI is down (**PRD** §12). Kill switches (C27) are the first response.
 - No 24/7 cover. Learners can see the support hours.
@@ -508,18 +536,18 @@ stateDiagram-v2
 | Environment | Purpose | Data | Email | Access |
 | --- | --- | --- | --- | --- |
 | Local | Development | Seeded synthetic data | Local mail catcher | Operator |
-| Staging | Checks before release; smoke tests | Synthetic only (C53) | Provider sandbox, or allow-listed internal addresses only | Operator; may be paused to save cost |
+| Preview (one per pull request) | Review a change, try content, run smoke tests and AZ01–AZ06 | Synthetic seed data only, never a copy of production (C53) | Log driver only; no real email | Operator and reviewer; scales to zero |
 | Production | Pilot learners | Real | Real | Operator with MFA, using least-privilege roles |
 
-Configuration has the same shape in every environment. Secrets are separate for each environment, and staging can never reach the production database.
+There is no separate staging environment; previews fill that role (01). Configuration has the same shape in every environment. Secrets are separate for each environment, and a preview can never reach the production database.
 
 ### 8.3 Deploy and rollback
 
-1. Merging to protected main runs CI: tests (including the §5 suite), dependency audit, build. The output is one immutable release bundle.
-2. The bundle deploys to staging automatically. Smoke tests run: `/health (added)`, the public catalogue, a test-account sign-in, AZ01–AZ06.
-3. The operator promotes **the same bundle** to production by hand. Deploy only when 1 hour of attention is available afterwards. No deploys late on Friday or just before time away.
-4. After deploying, run the smoke tests on production and check error rate and uptime for 15 minutes.
-5. **Rollback:** redeploy the previous bundle (target ≤ 15 min). This works because migrations are backward-compatible (§8.4). Content has its own rollback (R3).
+1. Every pull request runs CI (tests including the §5 suite, dependency audit, content validation, build) and gets a preview environment, where the smoke tests and AZ01–AZ06 run on synthetic data.
+2. A pull request merges to protected `main` only with green CI and an approved review. Merging **is** deploying, so merge only when 1 hour of attention is available afterwards. No merges late on Friday or just before time away.
+3. `main` deploys to production automatically: build, migrations, then `content:publish` (01, 06).
+4. **Smoke check on production** straight after the deploy: `/up` (the framework's health endpoint, extended with a database check) and Today for a seed test account. Then watch error rate and uptime for 15 minutes.
+5. **Rollback:** redeploy the previous build (target ≤ 15 min), then revert the change on `main` so the next deploy doesn't bring it back. This works because migrations are backward-compatible (§8.4). Content has its own rollback (R3).
 
 ### 8.4 Database migration safety
 
@@ -528,24 +556,24 @@ Configuration has the same shape in every environment. Secrets are separate for 
 - Use index builds that don't block where the database supports them (for example, PostgreSQL's concurrent index builds).
 - Take an on-demand snapshot before any destructive migration and note its time in the PR. Destructive migrations need a written rollback plan in the PR.
 - Migrations run under the migration role. The app role has no DDL rights (C38).
-- Rehearse each migration on staging with synthetic data at least ten times the pilot's expected volume.
+- Rehearse each risky migration on a preview environment seeded with synthetic data at least ten times the pilot's expected volume.
 
 ### 8.5 Backups and restore drill (must pass before the pilot)
 
-**Backup policy (Proposal):** the provider's automated daily backups, plus point-in-time recovery if offered (unverified, 01), on 30-day rolling retention and encrypted. Before public launch, add a weekly encrypted logical dump to a separate storage account, also kept 30 days, to protect against losing the provider account. Targets: RPO ≤ 24 h (≤ 15 min with point-in-time recovery). RTO is one working day, best-effort.
+**Backup policy (from the pilot):** the platform's point-in-time recovery with a 14-day window (01), plus a weekly encrypted logical dump to separate off-site storage, kept 28 days, which protects against losing the hosting account. Both are encrypted. Total retention stays under 30 days, so deletions leave backups in time (§6.4). Targets: RPO ≤ 15 min through point-in-time recovery (granularity unverified, 01), or ≤ 7 days if only the weekly dump survives. RTO is one working day, best-effort.
 
 **Restore drill runbook.** Run it before the pilot (**PRD** §12), then every quarter and after any major change to the database setup. Before the pilot, production holds only synthetic and test accounts, so the drill carries little risk.
 
-1. Write down the start time and the chosen restore point: the latest backup, plus one point-in-time restore if available.
-2. Restore into a **new, isolated** instance. Never restore over the live database. Treat the new instance as production data.
+1. Write down the start time and the chosen restore points: one point-in-time restore and the latest weekly dump.
+2. Restore each into a **throwaway cloud database** in the production hosting account. Never restore over the live database, and never onto a laptop (no production data on local machines, C53). Treat each copy as production data.
 3. Verify:
    - The schema migration version matches production.
    - Row counts per table are within the expected difference from production.
    - The newest `attempts` timestamp agrees with the restore point.
-   - A staging app pointed at the restored copy can sign in a test account and load Today.
-4. Practise replaying the deletion ledger (§6.4) and resyncing suppressions from the email provider.
+   - A temporary app environment, created for the drill in the production account (never a preview), pointed at the restored copy can sign in a test account and load Today.
+4. Practise replaying the deletion ledger (§6.4) against each copy and resyncing suppressions from the email provider.
 5. Record RTO (start to verified) and the RPO actually achieved. Compare them with the targets.
-6. Destroy the temporary instance and write the result in the operations log (date, durations, problems found).
+6. Destroy the throwaway databases and the temporary app, and write the result in the operations log (date, durations, problems found).
 7. Fix every gap found, and update this runbook and R2.
 
 **Pass criteria:** the restore completes and is verified within one working session (≤ 4 hours hands-on). Data loss is within the RPO. Ledger replay works. The runbook has been updated.
@@ -556,14 +584,14 @@ Alerts go to a single channel that reaches the operator's phone (push or email).
 
 | # | Signal | Source | Alert when (Proposal) | First action |
 | --- | --- | --- | --- | --- |
-| 1 | Uptime | External HTTPS check on the app and `/health (added)` | 2 consecutive failures | Check platform status; roll back if a deploy is the cause |
+| 1 | Uptime | External HTTPS check on the app and `/up` (with its database check) | 2 consecutive failures | Check platform status; roll back if a deploy is the cause |
 | 2 | Server errors | Platform metrics or error tracker | ≥ 10 5xx responses in 15 min | Check the last deploy and the error tracker; roll back |
 | 3 | Scheduler and reminder jobs | Heartbeat ping after each scheduler run; job failure count | Heartbeat missed twice, or ≥ 3 permanent job failures in an hour | Check the worker; pause reminders (C27); R1 if the cause is the provider |
-| 4 | Backup freshness | Provider notification, or a daily check job | Newest good backup is older than 26 h | Open a provider ticket; take an on-demand snapshot |
+| 4 | Backup freshness | Heartbeat from the weekly dump job; provider notice for point-in-time recovery | Dump heartbeat missed (newest dump older than 8 days), or point-in-time recovery reported unhealthy | Rerun the dump job; open a provider ticket; take an on-demand snapshot |
 | 5 | Cost | Budget alerts on every paid vendor | 50%, 80% or 100% of the monthly budget, or forecast overrun | R5 |
 | 6 | Email health | Provider webhooks | Any complaint, or ≥ 3 hard bounces in a day | Check list hygiene, templates and the DMARC report |
 | 7 | Database capacity | Provider metrics | Storage ≥ 80%, or connections near the limit | Clean up or resize, within caps (C25) |
-| 8 | Account lifecycle deadlines | Daily check job | An export pending for more than 24 h, or a deletion still open after 25 days | Rerun the job; investigate; meet the PRD limit |
+| 8 | Account lifecycle deadlines | Daily check job | An export pending for more than 24 h, or an account not purged by day 25 after its deletion request | Rerun the job; investigate; meet the PRD limit |
 
 Auto-renewal handles TLS and domain renewal; the registrar's own notices are enough. Digest only: new error types, dependency advisories, DMARC reports.
 
@@ -575,7 +603,7 @@ Auto-renewal handles TLS and domain renewal; the registrar's own notices are eno
 | Today API latency | p95 < 500 ms at pilot load (**PRD** §12) | Platform metrics; 10 records the test conditions |
 | Reminder timeliness | ≥ 95% of due reminders handed to the provider within 15 min of schedule, on days the provider is healthy | `notification_deliveries` |
 | Reminder correctness | Zero sends to unsubscribed or paused learners; zero second reminders on the same local day. Any breach is an S1 | `notification_deliveries` audit query |
-| Data durability | RPO ≤ 24 h; restore within one working day | Restore drill records |
+| Data durability | RPO ≤ 15 min through point-in-time recovery (≤ 7 days from the weekly dump if the hosting account is lost); restore within one working day | Restore drill records |
 | Export and deletion | Export ≤ 24 h; deletion purged ≤ 30 days (target 7) | Lifecycle alert (#8) |
 | Support | First reply within 2 working days; a reported data exposure is looked at the same day, best-effort | Support mailbox |
 
@@ -589,7 +617,7 @@ Auto-renewal handles TLS and domain renewal; the registrar's own notices are eno
 
 - **Support channel:** one support address (also the reply-to on email). In-app links for "Report a problem" and "Report a content error"; the content report includes the mission and content version (F11, **PRD** §16) but no answer text. A pilot announcement channel carries status notes and planned maintenance.
 - **Published hours:** the operator picks a weekly window and states it in the pilot invitation. Outside it, learners get best-effort cover only.
-- **Bus factor (Open question 9):** a sealed break-glass note held by a trusted person. It says where the runbooks live and how to switch on maintenance mode. It grants no standing access.
+- **Bus factor (Open question 3):** a sealed break-glass note held by a trusted person. It says where the runbooks live and how to switch on maintenance mode. It grants no standing access.
 
 ### 8.9 Incident runbooks
 
@@ -601,9 +629,9 @@ Auto-renewal handles TLS and domain renewal; the registrar's own notices are eno
 
 **R2 · Production database restore**
 - [ ] Turn on maintenance mode. Pause the scheduler (reminders, exports, purges).
-- [ ] Pick the restore point (just before the fault). Restore into a new instance, following the §8.5 steps.
-- [ ] Verify, then point the app at the new instance. Keep the old one read-only until the incident is closed.
-- [ ] Replay the deletion ledger for entries after the restore point. Resync unsubscribes and suppressions from the provider.
+- [ ] Pick the restore point (just before the fault). Use point-in-time recovery; fall back to the latest weekly dump only if the hosting account or its backups are lost. Restore into a new cloud database, following the §8.5 steps.
+- [ ] Verify, then point the app at the new database. Keep the old one read-only until the incident is closed.
+- [ ] Before the app reopens, replay the deletion ledger for entries after the restore point (§6.4). Resync unsubscribes and suppressions from the provider.
 - [ ] Keep reminders paused until the next local day so learners aren't sent duplicates.
 - [ ] Tell affected learners which work may have been lost (anything after the restore point). Write it in the operations log.
 
@@ -639,6 +667,7 @@ Auto-renewal handles TLS and domain renewal; the registrar's own notices are eno
 | When | Task | Time |
 | --- | --- | --- |
 | Daily (automated) | Retention purge, lifecycle deadline check, backup freshness check, heartbeat | 0 |
+| Weekly (automated) | Encrypted off-site dump, with its heartbeat | 0 |
 | Weekly | Digest: alerts, new errors, budget, bounces and complaints, dependency PRs, support inbox | 15 min |
 | Monthly | DMARC reports; access review (accounts, keys, the operator access log); base image rebuild; cost per weekly active learner (**PRD** §14) | 30 min |
 | Quarterly | Restore drill; check secret rotation; review this doc; content review cadence (06) | 2–4 h |
@@ -666,7 +695,9 @@ No pilot invitation is sent until every box is ticked and the evidence is linked
 - [ ] Consent capture works and writes `consent_records`. Reminders are off by default.
 - [ ] Analytics allow-list enforced. Forbidden-payload tests pass. A test pass through every pilot flow leaves no free text in `analytics_events`.
 - [ ] Export produces the §6.3 ZIP for a populated test account. A fresh reviewer has checked it for completeness and for leaks.
-- [ ] Deletion purges a populated test account. The ledger entry exists. The §2 "Yes" rows are gone (checked by query). Replay after a restore has been tested.
+- [ ] Deletion purges a populated test account. The ledger holds its request and purge entries. The §2 "Yes" rows, including its analytics events, are gone (checked by query). Replay after a restore has been tested.
+- [ ] Guest flow checked: nothing guest-related is stored on the server before claim, guest events carry only allow-listed sample events, and a claim caps evidence at `practised` (AZ16–AZ18).
+- [ ] Pre-pilot research data (§2) is held as stated: recordings past 90 days after synthesis deleted, contact sheet separate, research tools listed in §6.6.
 - [ ] Logs and the error tracker hold no bodies, tokens or email addresses (checked by sampling).
 
 **Email**
@@ -676,33 +707,28 @@ No pilot invitation is sent until every box is ticked and the evidence is linked
 - [ ] Rules for one reminder per day, quiet hours, completion suppression and stale-send dropping tested, including a DST change and two time zones.
 
 **Operations**
-- [ ] Restore drill (§8.5) passed. RTO and RPO recorded.
+- [ ] Restore drill (§8.5) passed for both point-in-time recovery and the weekly dump, into throwaway cloud databases. RTO and RPO recorded.
+- [ ] Weekly off-site dump running, encrypted, with a 28-day lifecycle rule and a green heartbeat.
 - [ ] All eight alerts configured and each test-fired once. Runbooks R1–R7 linked from the alerts.
-- [ ] Budget alerts and spend caps set on every paid vendor. Kill switches tested on staging.
-- [ ] Deploy, smoke tests and rollback rehearsed on staging, including one rollback across a migration.
+- [ ] Budget alerts and spend caps set on every paid vendor. Kill switches tested on a preview environment.
+- [ ] Merge-to-deploy, the production smoke check (`/up`, Today for a seed account) and rollback rehearsed while production holds only test accounts, including one rollback across a migration.
 - [ ] Support address, in-app report links, published hours and the pilot announcement channel all live.
-- [ ] Break-glass note written and handed to its holder (if Open question 9 is accepted).
+- [ ] Break-glass note written and handed to its holder (if Open question 3 is accepted).
 
 ## 10. Open questions for discussion
 
-1. **Login method for the pilot?** *Recommended default:* the framework's built-in email and password, with email verification, a breached-password check and long rolling sessions. Passwordless email links would make an email outage block sign-in, which works against **PRD** §12 (an email failure must not block learning). Consider "Sign in with GitHub" later, on demand. Offer TOTP after launch.
-2. **Backup retention window?** *Recommended default:* 30 days rolling, with point-in-time recovery if included in the chosen tier. That gives the published commitment "active data ≤ 30 days, backups ≤ a further 30 days".
-3. **Deletion grace period?** *Recommended default:* 7 days, cancellable, with the purge on day 7. This sits well inside the PRD's 30 days and protects against accidental or malicious deletion.
-4. **Analytics on account deletion?** *Recommended default:* delete the learner's `analytics_events` and keep only aggregate pilot results. Keeping events that are merely unlinked would need legal review, because pseudonymous data is still personal data.
-5. **Basis for pilot research measures?** *Recommended default:* explicit consent through a participant information sheet at pilot onboarding, covering baseline, final and delayed checks, surveys and interviews. Core analytics stay under legitimate interests.
-6. **Off-provider backup copy before the pilot?** *Recommended default:* no. Provider backups plus a passed drill are enough for 30–50 invited learners. Add the weekly encrypted dump before public launch.
-7. **File uploads for lab evidence?** *Recommended default:* not in the pilot. Text fields only (A5), so no object storage, malware scanning or upload controls are needed (C58 stays Later).
-8. **Minimum age?** *Recommended default:* 18+ by declaration at sign-up. The audience is employed developers (**PRD** §4).
-9. **Bus factor?** *Recommended default:* a sealed break-glass note held by one trusted person. It covers maintenance mode, the runbooks, and how to contact pilot learners. It gives no standing production access.
-10. **Data region?** *Recommended default:* host the database, backups and email processing in the UK or EU where the chosen vendors allow it (01). Record any transfers in the subprocessor list.
-11. **Reminder quiet hours default?** *Recommended default:* 21:00–08:00 learner-local, editable. A reminder inside the window is skipped, never carried over to the next day.
+1. **Basis for pilot research measures?** *Recommended default:* explicit consent through a participant information sheet at pilot onboarding, covering baseline, final and delayed checks, surveys and interviews. Core analytics stay under legitimate interests.
+2. **Minimum age?** *Recommended default:* 18+ by declaration at sign-up. The audience is employed developers (**PRD** §4).
+3. **Bus factor?** *Recommended default:* a sealed break-glass note held by one trusted person. It covers maintenance mode, the runbooks, and how to contact pilot learners. It gives no standing production access.
+4. **Which provisional hosting region at the planning gate?** *Recommended default:* the region nearest most pilot participants (01). If most are in the UK or EU, Frankfurt or London keeps the database and backups out of transfer rules (§6.8). Record the choice and each vendor's transfer mechanism in §6.6.
+5. **Does the guest's random analytics ID in browser storage need consent under cookie law?** *Recommended default:* ask the adviser before the pilot. Until then, explain it in one line on the sample's first screen and offer a "don't count my visit" switch that stops guest events. The ID is random, links to no account until claim, and carries only the allow-listed sample events.
 
 ## 11. PRD traceability
 
 | PRD reference | Covered in |
 | --- | --- |
 | §4 exclusions, no clinical claim | §6.7 |
-| §5 guest work and device storage | §1 A4, §3.5, §5 AZ16–AZ18 |
+| §5 guest work and device storage | §1 A4, §3.5, §5 AZ16–AZ18, §6.2 |
 | §6 reminders (opt-in, ≤ 1 per day, quiet hours, no urgency) | §6.1, §7 |
 | F07 labs (synthetic data, no production access) | §3.6, C48, C49, R6 |
 | F09 secure login, cross-device, idempotency, export, deletion | §3.5, C01–C14, §5, §6.3, §6.4 |
@@ -715,7 +741,7 @@ No pilot invitation is sent until every box is ticked and the evidence is linked
 | §12 TLS, secure sessions, rate limiting, validation, safe rendering | C03, C16–C24, §3.4 |
 | §12 drafts and concurrent devices | AZ20 |
 | §12 pseudonymous analytics | §6.2 |
-| §12 export, deletion within 30 days, documented backup expiry | §6.3, §6.4, §6.5, Open questions 2–3 |
+| §12 export, deletion within 30 days, documented backup expiry | §6.3, §6.4, §6.5, §8.5 |
 | §12 no training without consent; disclose third-party AI | §6.1, §3.7, C59 |
 | §12 p95 Today latency budget | §8.7 |
 | §12 email, AI or analytics outage must not block learning; backups tested before pilot | §8.1, R1, §8.5, §9 |

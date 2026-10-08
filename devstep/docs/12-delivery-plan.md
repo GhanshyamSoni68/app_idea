@@ -625,7 +625,7 @@ amounts. Keep the baseline working without any model calls.
 | §8A R07–R08 | §4.2 |
 | §11 Technical boundaries (monolith, no code execution, Redis only when justified) | §9 |
 | §12 Quality, privacy and operations checks | §4.3 definition of done, EP15, Phase 4 exit |
-| §13 Validation sequence and decision thresholds | §1 (G09–G11), §2 phases and pilot decision matrix |
+| §13 Validation sequence and decision thresholds | §1 (G09–G11), §2 phases, gate 1 and the pilot decision summary; §4.1 EP16 (checklist comparison, step 4) |
 | §14 Phases, durations, content track, budget categories | §2, §3, §7, §8, §11 |
 | §15 Free invited pilot, pricing later | §2 Phase 5, §9 |
 | §16 Risks and discovery questions | §10 (RK01–RK07), §1 (G09) |

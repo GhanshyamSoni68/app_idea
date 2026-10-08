@@ -961,7 +961,7 @@ read-only at runtime apart from this path.
 | Author approves their own pull request | Does not count: the publish job itself refuses it, so this does not rely on repository settings alone. With a solo founder, a second reviewer is needed before the pilot (PRD §14). |
 | Publish fails partway, or the same release is published twice | Rollback. Rerunning is safe because releases are keyed by `release_key` and `manifest_hash`. A repeat changes nothing, and the same key with a different hash is rejected. |
 | Edit to published content | A new content version. Open sessions and attempts keep the old one (PRD §11). Changes to an objective, rubric or topic set need a new roadmap version (flow 12). Policy in `06`. |
-| Retiring content in use, or a bad publish | Open sessions can finish, new sessions skip it, and evidence is kept, flagged "refresh recommended" if the objective changed (PRD §12). A bad publish is fixed by a newer version and is never deleted. |
+| Retiring content in use, or a bad publish | Open sessions can finish, new sessions skip it, and evidence is kept, flagged "Refresh suggested" if the objective changed (PRD §12). A bad publish is fixed by a newer version and is never deleted. |
 
 **Idempotency and concurrency:** `release_key` plus `manifest_hash` is the
 publish key, and deploys run one at a time on the main branch. There is no

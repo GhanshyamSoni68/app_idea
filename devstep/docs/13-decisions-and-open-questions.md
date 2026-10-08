@@ -21,7 +21,7 @@ to do next. Each question has a *recommended default* so a decision can be
   skill is new; each piece alone is not. Reviewed content and measured results are
   the only parts that would be hard to copy.
 - **Content, not code, sets the schedule.** About 430 hours of authoring and
-  review before the pilot, against roughly 180–340 engineering hours.
+  review before the pilot, against roughly 185–355 engineering hours.
 - **Indicative dates at 20 h/week:** planning gate 30 Nov 2026, alpha exit
   1 Mar 2027, pilot cohorts from 6 Sep 2027, continue/pivot decision ≈ 10 Dec 2027.
   A paid co-author for Modules 3–6 could bring the pilot forward to Jun–Jul 2027.

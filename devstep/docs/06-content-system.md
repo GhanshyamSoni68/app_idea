@@ -634,20 +634,33 @@ covers something different altogether, it gets a new topic ID instead (§10.2).
 ### 10.2 Roadmap versions: which change triggers what
 
 Manifests pin missions by **major** version, so patch, minor and defect-fix
-updates reach enrolled learners without a new roadmap version.
+updates reach enrolled learners without a new roadmap version. Only breaking or
+structural changes create one, and every new version has `change_class:
+structural`. Structural means any change to what the manifest pins: topics and
+their kinds, objective versions, dependencies (including a `strict` flag),
+completion rules, pinned majors or transfer forms.
 
 | Change | Result | `change_class` | Migration (rules in `05-learning-engine.md`) |
 | --- | --- | --- | --- |
 | Titles, descriptions or effort text in `display` | Edited in place | — | None |
 | Mission or lab patch, minor or defect fix | No new version | — | None |
-| Add an optional topic, lab, or mission in an optional topic | New `vN` | `additive` | Simple offer; denominator unchanged |
+| Add an optional topic, lab, or mission in an optional topic | New `vN` | `structural` | Simple offer; denominator unchanged |
 | Add or remove a required topic; switch a topic between required and optional | New `vN` | `structural` | Migration summary showing changes and retained credit (R06) |
-| Change `topic_dependencies` or a completion rule | New `vN` | `structural` | As above |
-| Breaking change to a mission used by any topic | New `vN` | `structural` | As above |
-| Change of transfer assessment form | New `vN` | `structural` | Also affects pilot comparability (`10-measurement-and-validation.md`) |
+| Change `topic_dependencies` (including `strict`) or a completion rule | New `vN` | `structural` | As above |
+| Breaking change or objective change to a mission used by any topic | New `vN` | `structural` | As above |
+| Change of transfer form | New `vN` | `structural` | Also affects pilot comparability (`10-measurement-and-validation.md`) |
+
+**Per-topic change classes.** From v2 on, `topic_changes` maps every topic key
+in the previous and the new version, using the classes in
+`05-learning-engine.md`: `unchanged`, `content_revised`, `objective_changed`,
+`added`, `removed`, `made_optional`, `made_required`, `split` and `merged`. V18
+recomputes each class from the two manifests and blocks a mismatch, so the
+migration preview cannot understate a change.
 
 **PRD R06:** new content never silently reduces progress. Topic IDs stay stable
-so that credit can be mapped, and a topic whose meaning changes gets a new ID.
+so that credit can be mapped. A refined objective keeps the topic ID and raises
+`objective_major`; a topic that now covers something different gets a new ID,
+mapped through `topic_changes`.
 
 ## 11. Content operations
 
@@ -683,7 +696,7 @@ flowchart LR
 picks a category (factual, wrong answer, link, lab setup, unclear,
 accessibility, outdated) and may add text. Stored as `content_reports` (added;
 columns `04`, retention `09`), never in analytics (F12), no Git account needed;
-email link in the concierge trial (Open question 8). Issue template fields:
+email link in the concierge trial (Open question 4). Issue template fields:
 unit ID and version, step, category, severity, evidence, reproduction steps.
 
 | Severity | Examples | Target (Proposal; pilot hypothesis) |
@@ -695,8 +708,9 @@ unit ID and version, step, category, severity, evidence, reproduction steps.
 ### 11.3 Hotfix path
 
 1. **Contain (operator):** if a reviewed fix cannot ship within the target,
-   retire the faulty item in a retire-only PR, reviewed afterwards because it
-   adds nothing unreviewed. If the mission falls below V06, retire the mission;
+   retire the faulty item in a retire-only PR (reason `content_error` or
+   `unsafe`), reviewed afterwards because it adds nothing unreviewed. If the
+   mission falls below V06, retire the mission;
    the topic shows as temporarily unavailable and progress never drops (R06).
 2. **Fix:** a `hotfix/<issue>` branch with `change_class: defect_fix`. Every
    check runs. **Review:** the reviewer re-tries only the changed items.
@@ -716,8 +730,8 @@ typos. Structural versions add the R06 migration summary (display: `08`).
 | Editing | Any text editor. The JSON Schemas give autocompletion and inline errors in editors that support YAML schemas. |
 | Checks | `content check` runs the same validator as CI. Offline mode skips the link check; `--changed` limits it to changed units. An optional pre-commit hook can run it. |
 | Preview | `content preview` renders missions as static HTML in a phone-width frame, one step at a time. Hints, feedback and reveal stay hidden until clicked, so a reviewer can attempt honestly. CI attaches the same preview to each PR as a downloadable artifact, with no hosting cost. |
-| Real player | Once the app exists, a local import loads working-tree content, drafts included, into the developer's own database. Drafts never reach production. A staging environment is optional, and only if it costs nothing extra (Open question 11). |
-| Labs | Clone the kit at the referenced tag and run the setup check and local checks. Reviewers do the same on a clean machine or container. |
+| Real player | Once the app exists, a local import loads working-tree content, drafts included, into the developer's own database. The pull request's preview environment (`01-tech-stack-and-hosting.md`) can import the branch's content the same way. Drafts never reach production, and there is no separate staging environment. |
+| Labs | Clone the kit at the edition's tag and run the setup check and local checks; CI also runs them against the private reference state. Reviewers do the same on a clean machine or container, across the reference matrix (macOS on Apple silicon, Windows 11 with WSL 2, Ubuntu LTS). |
 | Stats | `content stats` reports item counts per mission, time totals per module, units due for review, and estimated versus reviewer minutes. |
 
 ## 13. AI-assisted drafting policy
@@ -741,21 +755,33 @@ assumes **no** AI time saving until one is measured.
 
 | Work unit | Qty | Author h each (range) | Reviewer h each (range) | Author total | Reviewer total |
 | --- | --- | --- | --- | --- | --- |
-| Mission core: scenario, explanation, worked example, misconception notes, 1–3 primary items with hints and feedback, small variant, sources, accessibility pass | 18 | 6 (4–9) | — | 108 | — |
-| Held-back item (alternate or topic check) with feedback and hints | 54 (18 × 3) | 1 (0.5–1.5) | — | 54 | — |
+| Mission core: scenario, explanation, worked example, misconception notes, primary items and changed-condition question with hints and feedback, small variant (a step subset), sources, accessibility pass | 18 | 5 (3.5–8) | — | 90 | — |
+| Held-back items: topic check, Alt A (check-eligible, no extra authoring), Alt B (retention-reserved), each with feedback and hints | 54 (18 × 3) | 1 (0.5–1.5) | — | 54 | — |
 | Mission review: try every item before reading answers; check sources and accessibility | 18 | — | 1.5 (1–2.5) | — | 27 |
 | Rework after review, and re-check | 18 | 1.5 (0.5–3) | 0.25 | 27 | 4.5 |
-| Shared lab starter project (fictional work-order app, seed generator, setup check) | 1 | 32 (24–48) | 4 (3–6) | 32 | 4 |
-| Lab: tasks, checkpoints, synthetic data, local checks, rubric, no-setup fallback, clean-machine test | 6 | 18 (12–28) | 3.5 (2.5–5) | 108 | 21 |
+| Shared lab kit: core, Laravel 13 edition, two-tier seed generator, setup check, three templates | 1 | 32 (24–48) | 4 (3–6) | 32 | 4 |
+| Setup test on the 3-OS reference matrix | 1 | 8 (6–12) | 2 (1–3) | 8 | 2 |
+| Lab: tasks, checkpoints, planted problems, local checks, rubric | 6 | 13 (9–20) | 2.5 (2–4) | 78 | 15 |
+| Private reviewer pack: reference solution states and the L6 exemplar | 1 | 6 (4–10) | 1 (0.5–2) | 6 | 1 |
+| No-setup lab fallback | 6 | 3 (2–4) | 0.5 (0.5–1) | 18 | 3 |
+| Constraint cards with exemplars | 3 | 2 (1.5–3) | 0.5 | 6 | 1.5 |
 | Shared transfer rubric | 1 | 6 (4–8) | 1.5 (1–2) | 6 | 1.5 |
-| Transfer assessment form (baseline, final), including scoring calibration | 2 | 8 (6–12) | 2.5 (2–4) | 16 | 5 |
-| Roadmap manifest, skills list, module introductions, completion rules | 1 | 8 (6–12) | 2 (1–3) | 8 | 2 |
-| **Total** | | | | **≈ 360 (226–557)** | **≈ 65 (47–99)** |
+| Transfer form (X, Y), including scoring calibration | 2 | 8 (6–12) | 2.5 (2–4) | 16 | 5 |
+| Diagnostic item (one per module) | 6 | 1 (0.5–1.5) | 0.25 | 6 | 1.5 |
+| Path-level delayed-check item (one per module) | 6 | 1 (0.5–1.5) | 0.25 | 6 | 1.5 |
+| Roadmap manifest, skills list, module introductions, completion rules, strict edges | 1 | 8 (6–12) | 2 (1–3) | 8 | 2 |
+| **Total before the pilot** | | | | **≈ 360** | **≈ 70** |
 
-**Total ≈ 425 hours (range ≈ 270–655).** Tooling is engineering work
-(`12-delivery-plan.md`). Pilot upkeep: 2–4 author hours and about 1 reviewer
-hour per week, plus about 15 hours per quarter of volatile review. Reviewer cost
-is these hours times an unverified rate; get quotes first (PRD §14).
+**Planning figure ≈ 430 hours before the pilot** (author ≈ 300–450, reviewer
+≈ 50–80). Every row at its extreme at once (author ≈ 230–565) is unlikely. All
+six modules are reviewed before the pilot starts. During the pilot: 2–4 author
+hours a week, ≈ 20 reviewer hours in total (re-tries of fixes and the volatile
+review), plus blind scoring of the transfer forms' open parts (about 5 minutes
+an answer, Hypothesis; volume depends on cohort size in
+`10-measurement-and-validation.md`). Ask the reviewer to quote for ≈ 90 hours,
+and name a backup scorer. Reviewer cost is these hours times an unverified
+rate; people costs belong to `12-delivery-plan.md` (PRD §14). Tooling is
+engineering work.
 
 | Founder content hours per week | 10 | 15 | 20 |
 | --- | --- | --- | --- |
@@ -765,39 +791,33 @@ is these hours times an unverified rate; get quotes first (PRD §14).
 8–11 weeks, pilot readiness requires "six modules reviewed" (PRD §14), and the
 same part-time person also builds the app. Levers that stay within the PRD:
 
-1. Start module 1 and lab 1 during discovery; the concierge trial needs them.
-2. **Calibrate after module 1:** if actual hours exceed the model by more than
-   1.3 times, re-plan before module 2.
-3. Author only the minimum held-back pool; one starter project for all labs.
+1. Start the Module 2 query-plans mission and Lab 2 during discovery; the
+   sample and the concierge trial need them, and Lab 2 is the first lab built.
+2. **Calibrate after Module 1:** if actual hours exceed the model by more than
+   1.3 times, re-plan before the next module.
+3. Author only the minimum held-back pool; one kit for all labs.
 4. Book the reviewer early so review never queues behind authoring.
-5. If still short: a second author for labs, or a rolling module release,
-   which changes a PRD exit condition (Open question 5).
+5. If still short: a paid co-author for Modules 3–6, or a later pilot date
+   (`12-delivery-plan.md`). There is no rolling release.
 
 ## Open questions for discussion
 
 1. **Where does `content/` live?** *Default:* a folder in the app's private
    repo with path-filtered CI, so schema, importer and content change together.
-2. **How does publish reach production?** *Default:* an import command in the
-   deploy pipeline after merge; no admin endpoint, no extra secret.
-3. **How is "reviewer ≠ author" enforced on a private repo?** *Default:* the
-   publish job's own gate (§7.3) on the free plan (plan features unverified).
-4. **Reviewer recruitment.** *Default:* one paid part-time reviewer booked
-   before discovery ends: about 65 h plus 1 h per pilot week (rate unverified).
-5. **What if content is late?** *Default:* PRD §14, all six modules reviewed
-   before the pilot. If module 1 overruns by more than 1.3 times, the founder
-   picks a later pilot or a rolling release kept at least 2 modules ahead.
-6. **Lab kits in a separate public repo?** *Default:* yes. Kits contain no
-   answer keys, and lab evidence is learner-submitted, not a credential.
-7. **Evidence earned on a defective item.** *Default:* keep evidence and
-   credit, annotate, and schedule a fresh alternate check (05 confirms).
-8. **Problem reports.** *Default:* a prefilled email link in the concierge
+2. **Reviewer and backup scorer.** *Default:* one paid part-time reviewer
+   booked before discovery ends, quoted for ≈ 90 h (≈ 70 h before the pilot and
+   ≈ 20 h during it) plus blind transfer scoring, and a named backup scorer
+   (rates unverified).
+3. **If Module 1 overruns by more than 1.3 times.** *Default:* the founder
+   chooses between a paid co-author for Modules 3–6 and a later pilot date;
+   all six modules are still reviewed before the pilot starts.
+4. **Problem reports.** *Default:* a prefilled email link in the concierge
    trial; an in-app form storing `content_reports` (added) for the pilot.
-9. **Review cadence.** *Default:* volatile 90 days, stable 365 days, plus a
+5. **Review cadence.** *Default:* volatile 90 days, stable 365 days, plus a
    review when a watched technology has a breaking release.
-10. **Held-back pool size.** *Default:* 2 alternates and 1 topic check; add a
-    third where retention or challenge-out uses up the pool.
-11. **Preview fidelity.** *Default:* the static CI-artifact preview; add a
-    staging environment only if it costs nothing extra.
+6. **Real-player review in pull-request previews.** *Default:* once the app
+   exists, a content PR's preview environment imports its branch; until then,
+   the static CI-artifact preview.
 
 ## PRD traceability
 
@@ -805,7 +825,7 @@ same part-time person also builds the app. Levers that stay within the PRD:
 | --- | --- |
 | F11 Content operations (workflow, sources, version, reviewer, last-reviewed) | §2, §5, §7, §8, §9, §11 |
 | §8 Mission requirements, item budget, reviewer tries exercises, quarterly review | §5.1, §7.3, §9 (V06, V11), §11.1, §14 |
-| §8A Structure, required/optional topics, completion rules, cycle rejection, evidence reuse | §3, §6.4, §9 (V04, V05), §10 |
+| §8A Structure, required/optional topics, completion rules, cycle rejection, evidence reuse | §3, §5.2, §6.4, §9 (V04, V05, V18), §10 |
 | R01, R03, R04, R06 Pinned versions, challenge-out, optional labs, version stability | §6.4, §8.3, §10.2 |
 | F03, F05 Player steps, hints, feedback, alternate prompts | §5, §6.1–6.2 |
 | F04, §9 Task version recorded, self-assessed labelling, reveal never demonstrates | §5.2, §6.2, §8.1 |
@@ -813,5 +833,5 @@ same part-time person also builds the app. Levers that stay within the PRD:
 | §10 Accessibility (mobile code, non-colour cues, no timed answers) | §5.2, §7.3, §9 (V12, V13) |
 | §11 Attempts reference exact content versions; no employer code; local labs | §8.1, §10.1, §13 |
 | §12 Retired content keeps evidence; obsolete lesson versions | §8.3, §10.1 |
-| §13 Transfer assessments share one rubric; no free text in analytics | §5.2, §9 (V20), §11.2 |
-| §14 Content as critical path; recruit reviewer early; AI not free | §13, §14, Open questions 4–5 |
+| §13 Transfer assessments share one rubric (forms X and Y); delayed retention; no free text in analytics | §5.2, §9 (V06, V20), §11.2 |
+| §14 Content as critical path; recruit reviewer early; AI not free | §13, §14, Open questions 2–3 |

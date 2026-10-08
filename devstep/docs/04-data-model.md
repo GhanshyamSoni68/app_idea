@@ -613,7 +613,7 @@ inserts a `withdrawn` consent record and clears `email_enabled`,
 
 | Table | Key columns, constraints and indexes |
 | --- | --- |
-| `notification_deliveries` | `id`; `user_id`; `kind` CHECK `learning_reminder`; `channel` CHECK `email`; `local_date` (the learner's local learning day); **UK `(user_id, kind, local_date)`**; `status` CHECK `claimed`, `sent`, `suppressed`, `failed`; `suppression_reason` CHECK `practised_today`, `paused`, `skipped`, `quiet_hours`, `unsubscribed`, `not_learning_day`, `email_suppressed` (set ⇔ suppressed); `claimed_at`, `sent_at`; `provider_message_ref`, `error_code`. No email address or message body is stored. At-most-once: the unique row is the de-duplication key, and a `failed` row is never retried automatically (§5.7). Index `(claimed_at) WHERE status = 'claimed'` |
+| `notification_deliveries` | `id`; `user_id`; `kind` CHECK `learning_reminder`; `channel` CHECK `email`; `local_date` (the learner's local learning day); **UK `(user_id, kind, local_date)`**; `status` CHECK `claimed`, `sent`, `suppressed`, `failed`; `suppression_reason` CHECK `already_practised`, `paused`, `skipped`, `quiet_hours`, `unsubscribed`, `not_learning_day`, `email_suppressed` (set ⇔ suppressed); `claimed_at`, `sent_at`; `provider_message_ref`, `error_code`. No email address or message body is stored. At-most-once: the unique row is the de-duplication key, and a `failed` row is never retried automatically (§5.7). Index `(claimed_at) WHERE status = 'claimed'` |
 | `email_suppressions` | `id`; `email_hash` UK (keyed hash of the normalised address; the key is held outside the database, `09`); `reason` CHECK `hard_bounce`, `complaint`; `provider_event_ref`; `suppressed_at`. **No FK to `users`**, so a suppression survives account deletion without keeping the address. Checked at send time |
 | `analytics_events` | `event_id uuid` PK, unique for every event: assigned by the server, and deterministic (event name plus entity ID) for events that must happen once, such as `session_completed`; `client_event_id uuid NULL` (client events only), UK `(subject_id, client_event_id)` drops client retries without letting one client collide with another's IDs; `subject_id uuid NOT NULL` (**no FK**); `event_name` (checked against the registry in `10`; CHECK length ≤ 64); `actor` CHECK `learner`, `system`, `operator`; `source` CHECK `client`, `server`; `occurred_at`, `received_at`; `local_date date` (the learner's local learning day); `device_class` CHECK `phone`, `tablet`, `desktop`, `unknown`; `session_ref uuid` (no FK); `content_version_id`, `roadmap_version_id`, `topic_key`, `mode`; `properties jsonb` (allow-listed, CHECK ≤ 1 KB; §9); `schema_version`, `app_version`. Indexes `(event_name, occurred_at)`, `(subject_id, occurred_at)`. Written after the learning transaction commits; with no FKs, an analytics problem cannot block learning (PRD §12) |
 | `idempotency_keys` | `id`; `user_id` FK cascade; `scope` CHECK `attempt_submit`, `session_complete`, `artifact_submit`, `guest_claim`, `export_request`, `account_delete`, `enrolment_migrate`; `key` (client-supplied, 8–128 characters); **UK `(user_id, scope, key)`**; `request_hash`; `state` CHECK `in_progress`, `completed`; `response_status`, `response_body jsonb` (≤ 16 KB, no learner text); `resource_ref`; `expires_at` (+7 days, indexed for the purge) |
@@ -857,10 +857,10 @@ tables or native enum types.
 
 - Values are tied to code branches (for example, `solution_revealed` blocks
   demonstration), so adding one needs a deploy anyway.
-- CHECK works the same on SQLite; native enum types do not exist there and are
-  awkward to alter elsewhere.
+- Native PostgreSQL enum types are awkward to alter (a value cannot be
+  removed); a CHECK is simply re-created.
 - Values are readable in exports and ad-hoc SQL without joins.
-- A change means re-creating one constraint, or rebuilding the table on SQLite.
+- A change means re-creating one constraint.
 
 Lookup tables are used only where rows carry authored data (`skills`). Event
 names get only a length CHECK and are validated by the app against the
@@ -876,7 +876,8 @@ should.
 | Assistance | `none` < `hint` < `worked_example` < `solution_revealed` (highest used; hint count stored separately) | `attempts`, `skill_evidence`, `session_assistance.kind` | Conventions |
 | Content status | Runtime subset: `published`, `retired` | `content_versions`, `roadmap_versions` | Conventions; `draft` and `in_review` live in the content repository (`06`) |
 | Topic kind | `required`, `optional` | `roadmap_topics.kind` | Conventions |
-| Assessment purpose | `practice`, `review`, `topic_check`, `challenge`, `diagnostic`, `transfer`, `delayed_check` | `attempts.purpose`, `assessment_items.eligible_purposes` | Added |
+| Attempt outcome | `correct`, `partially_correct`, `incorrect`, `self_met`, `self_not_met` | `attempts.outcome` | `05` defines them |
+| Assessment purpose | `practice`, `review`, `topic_check`, `challenge`, `diagnostic`, `transfer`, `delayed_check` (the only purpose a retention-reserved item serves) | `attempts.purpose`, `assessment_items.eligible_purposes` | Added |
 | Completion path | `standard`, `challenge_out`, `carried_over`, `reused_evidence` | `topic_progress` | Added |
 
 Other added status sets are listed with their tables in §3.
@@ -891,7 +892,9 @@ table at the pilot.
   would lose them.
 - `retained` compares a delayed check with a demonstration at least 7 days
   earlier, which requires both events.
-- Corrections appear as voids (`voided_at`, set once), never as silent edits.
+- Corrections appear as voids (`voided_at`, set once, only for a deleted
+  artifact or a duplicate), never as silent edits. Evidence from defective
+  content is kept, still counts and is annotated at read time (§4.2).
   Rows are deleted only with the account.
 - About 500 rows per learner-year (§11) makes aggregation per request cheap. A
   `skill_status` cache rebuilt from evidence can be added later if the
@@ -910,40 +913,49 @@ SELECT skill_id,
 
 Limitation codes written when evidence is recorded include `self_assessed`,
 `hint_used`, `worked_example_used`, `no_setup_fallback`, `learner_submitted_only`
-and `single_scenario`. "Content since retired" is derived at read time. The
-wording shown is decided in `05` and `08`.
+`single_scenario` and `guest_claim`. "Content since retired" and "task
+corrected on …" (a later `defect_fix` version of the same key and major) are
+derived at read time. The wording shown is decided in `05` and `08`.
 
 ## 7. Guest data and claim
 
-| Option | How it works | For | Against |
-| --- | --- | --- | --- |
-| A. Device-local only | Progress lives in browser storage and is uploaded at sign-up | No server rows for drive-by visitors | A second evaluation path; the server must trust or re-score client evidence; the funnel breaks at sign-up |
-| **B. Server-side guest row** | A `users` row with `kind = 'guest'`, created on the first answer and bound to an httpOnly cookie secret (only its hash is stored) | Same tables, constraints, scoring and idempotency as accounts. Claim is an in-place update. The activation funnel stays continuous (PRD §13) | Rows for people who never sign up. Losing the cookie loses the work, as with A |
+**Decision:** guest work is device-only. Before sign-up, onboarding answers
+and the one sample scenario (its drafts and attempts) live only in browser
+storage. The server stores no guest rows and no guest `users` records. Guests
+get no enrolment and no sessions beyond the sample, so they cannot enable
+reminders or exports. The UI says "Saved only in this browser on this device
+until you create an account", and the browser deletes an unclaimed bundle
+after 30 days (`08`).
 
-**Decision (Proposal): B.** Guests have no email, so they cannot enable
-reminders or exports. Guest creation is rate-limited (`09`). Unclaimed guests
-are purged 30 days after `last_seen_at` through the normal deletion path
-(`origin = 'guest_expiry'`). PRD §5 requires telling guests where their work
-is saved. Suggested copy: "Saved in this browser for 30 days. Create an
-account to keep it and use other devices." Final copy is in `08`.
-
-- **Sign-up claim** is one `UPDATE users` that sets `kind = 'learner'`, the
-  email and `claimed_at`, and clears `guest_token_hash`. It runs under scope
-  `guest_claim`, and no child row moves.
-- **Merge, when a guest signs in to an existing account,** is one transaction
-  with the owner FKs deferred. Every table is re-keyed explicitly; a missed
-  table makes the commit fail. Afterwards the guest `users` row is deleted. The
-  sequence is in `03`.
-
-| Table | Merge rule |
+| Guest step | Server tables touched |
 | --- | --- |
-| `attempts`, `session_assistance`, `session_drafts`, `artifacts`, `skill_evidence` | Re-key. IDs are globally unique, so there is no conflict |
-| `learning_sessions` | Re-key. If both have an `open` session, the guest's becomes `suspended` |
-| `review_schedule` | On a conflict, keep the higher `interval_step` (on a tie, the earlier `due_on`) |
-| `roadmap_enrolments`, `topic_progress` | If the account has no current enrolment, re-key. If it has one on the same version, merge per topic keeping the more advanced state (`completed` > `in_progress` > `deferred` > `not_started`) and end the guest enrolment. If the versions differ, end the guest enrolment and let reuse (§4.4) grant credit |
-| `learning_preferences`, `goals`, `notification_preferences` | The account's rows win |
-| `analytics_events` | Re-key the guest `subject_id` to the account's. It is the same person, and this keeps the sample-to-sign-up funnel |
-| `idempotency_keys` | Delete |
+| Sample content (`GET /v1/guest/sample`) | Catalogue reads only |
+| Answer checked (`POST /v1/guest/attempts`; no auth, rate-limited in `09`) | None: evaluated statelessly, nothing stored |
+| Allow-listed analytics (`sample_started`, `first_answer_submitted`, `attempt_evaluated` for the sample) | `analytics_events` under a random client-generated `subject_id`; no server row links it to a person |
+| Claim at sign-up or sign-in (`POST /v1/guest/claim`) | As below |
+
+**Claim** runs in one transaction under `idempotency_keys` scope
+`guest_claim`:
+
+1. Validate the bundle: format version, pinned content versions that exist,
+   and the free-text caps (§9).
+2. Re-evaluate every answer against its pinned content version. The client's
+   own results are ignored, because answers could have been edited after
+   feedback.
+3. Write a completed `learning_sessions` row with `purpose = 'sample'`, its
+   `attempts` (`origin = 'guest_claim'`, keeping each `client_attempt_id`) and
+   `skill_evidence` with `source = 'guest_claim'`, capped at `practised` by a
+   CHECK. Onboarding answers fill `learning_preferences` and `goals` only where
+   the account has none.
+4. After commit, record `guest_progress_claimed`.
+
+A replay returns the stored response, and UK `(user_id, client_attempt_id)`
+stops a re-sent bundle from duplicating attempts after the key has expired.
+
+**Analytics subject.** A new account adopts the guest `subject_id` as its
+`analytics_subject_id`, so the sample-to-sign-up funnel joins up. When a guest
+claims into an existing account, the guest's few allow-listed events are moved
+to the account's `subject_id` after commit, so a later purge (§8.3) finds them.
 
 ## 8. Deletion, retention and export
 
@@ -951,47 +963,70 @@ account to keep it and use other devices." Final copy is in `08`.
 
 | Table | Retention while the account exists | On account deletion |
 | --- | --- | --- |
-| `users` | Account lifetime | Hard delete; everything below cascades unless stated |
+| `users` | Account lifetime | Hard delete on day 7; everything below cascades unless stated |
 | `auth_sessions`, `auth_tokens` | 30 days after expiry, or 7 days after use | Cascade |
-| `learning_preferences`, `goals`, `notification_preferences` | Account lifetime | Cascade |
+| `learning_preferences`, `goals`, `notification_preferences`, `consent_records`, `pilot_participants` | Account lifetime | Cascade |
+| `invites` | Until pilot end + 30 days (`09`) | Cascade through `redeemed_by` |
+| `content_reports` | Account lifetime (`09` may shorten) | Cascade |
 | `roadmap_enrolments`, `topic_progress`, `learning_sessions`, `session_assistance` | Account lifetime | Cascade |
-| `session_drafts` | While the session is open or suspended; deleted 30 days after it closes | Cascade |
-| `attempts` (free text) | Account lifetime (Open question 4) | Cascade |
+| `session_drafts` | One per session. While the session is open or suspended; deleted 30 days after it closes | Cascade |
+| `attempts` (free text) | Account lifetime during the pilot (Open question 2) | Cascade |
 | `skill_evidence`, `review_schedule` | Account lifetime | Cascade |
 | `artifacts` | Account lifetime; the learner can delete any one | Cascade, plus deletion of stored files |
-| `notification_deliveries` | Rolling 13 months | Cascade |
-| `idempotency_keys` | 24 hours | Cascade |
-| `export_requests` | File 7 days; row 90 days | Cascade, plus deletion of the file |
-| `deletion_requests` | Tombstone until backups older than the deletion expire; then `user_ref` is set to NULL | Kept (opaque ID only) |
-| `analytics_events` | 24 months (Open question 5) | **Kept, with `subject_id` and `session_ref` re-keyed** (§8.3) |
+| `notification_deliveries` | Rolling 12 months | Cascade |
+| `email_suppressions` | Until removed at the yearly review (`09`) | Kept: keyed hash only, no FK |
+| `idempotency_keys` | 7 days | Cascade |
+| `export_requests` | File 7 days; row 90 days | Cascade (the file is in the row) |
+| `deletion_requests` | Kept after the purge with `user_ref` NULL (dates, origin, pilot cohort and arm) for exclusion counts | Kept, anonymous |
+| Deletion ledger (outside the database, §8.2) | 12 months (`09`), longer than any backup | Written at request, cancellation and purge |
+| `analytics_events` | 18 months | **Deleted at purge** (§8.3) |
 | Catalogue | Indefinitely | Unaffected |
 
 ### 8.2 Deletion procedure (F09, PRD §12)
 
 1. `DELETE /v1/me` (scope `account_delete`) runs one transaction. It creates a
-   `pending` request with `effective_at = now + 7 days`, sets
-   `users.status = 'pending_deletion'`, revokes sessions, turns reminders off
-   and cancels queued exports.
-2. During the grace period the learner can cancel. Reminders stay off until
+   `pending` request with `effective_at = requested_at + 7 days`, copies the
+   pilot cohort and arm, sets `users.status = 'pending_deletion'`, revokes
+   sessions, turns reminders off and cancels queued exports. The job then
+   writes the ledger record (below) and notes it in `steps`.
+2. During the 7-day grace, sign-in is limited to cancel and export.
+   `POST /v1/me/deletion/cancel` sets the request to `cancelled`, restores
+   `active` and writes `cancelled_at` to the ledger. Reminders stay off until
    consent is given again.
-3. At `effective_at` the worker sets the request to `processing` and records
-   progress in `steps`. It then re-keys analytics (§8.3), deletes stored
-   files, runs `DELETE FROM users`, which cascades, and marks the request
-   `completed`.
-4. Backups expire on the schedule in `09`. The restore runbook replays every
-   completed tombstone **before** the app reopens.
+3. On day 7 the worker sets the request to `processing` and records progress
+   in `steps`. It deletes the learner's analytics events (§8.3), runs
+   `DELETE FROM users`, which cascades (export files included), writes
+   `purged_at` to the ledger, and marks the request `completed` with
+   `user_ref` cleared. An alert fires if a request is not completed by day 25.
+4. After any restore (point-in-time or dump), the runbook applies the ledger
+   **before** the app reopens: it purges again every user with `purged_at`,
+   and re-creates a pending request for every record with neither `purged_at`
+   nor `cancelled_at`. A cancelled deletion is never replayed.
 
-Active personal records are gone by day 8, inside the PRD's proposed 30 days.
+**Deletion ledger record** (stored outside the main database so a restore
+cannot roll it back; `09` decides where). It holds no email or other
+personal detail.
 
-### 8.3 Analytics on deletion: keep, but re-key
+| Field | Type | Written |
+| --- | --- | --- |
+| `user_id` | uuid | At request |
+| `requested_at` | timestamptz | At request |
+| `cancelled_at` | timestamptz, nullable | At cancellation |
+| `purged_at` | timestamptz, nullable | At purge |
 
-| Option | Result |
-| --- | --- |
-| Keep `subject_id` and drop only the mapping | The person can be re-linked from any backup that still holds `users` |
-| **Re-key (recommended)** | All of the person's events get one fresh random `subject_id`, and each `session_ref` gets a fresh random value; the mapping exists only in memory during the job. Sequences per subject survive for cohort metrics, and the new values exist nowhere else, backups included. Cost: about 3,000 row updates per learner-year |
-| Delete the events | Biases pilot metrics, because learners who drop out and delete their account disappear |
+Active data is gone within 30 days (normally day 7), and backups age out
+within a further 30 days (`09`).
 
-Remaining risk: in a pilot of 30–50 people, event timing alone could point to
+### 8.3 Analytics on deletion: delete at purge
+
+The purge runs `DELETE FROM analytics_events WHERE subject_id = :subject`
+(served by `(subject_id, occurred_at)`), before the `users` row goes. Events
+are never re-keyed or kept under a new ID. Pilot metrics survive because `10`
+freezes weekly aggregate snapshots that hold no `subject_id`, and each
+deleted account is reported as a counted exclusion per arm from the anonymous
+`deletion_requests` rows.
+
+Remaining risk while the account exists: in a pilot of 30–50 people, event timing alone could point to
 someone. Access to analytics is limited to the operator (`09`).
 
 ### 8.4 Export (F09)
@@ -1003,22 +1038,23 @@ tests) for 7 days. Expected size is 1–3 MB per learner-year.
 | File | Contents |
 | --- | --- |
 | `manifest.json`, `README.txt` | Format version, generation time (UTC), the learner's time zone, record counts; field and evidence-state explanations |
-| `profile.json` | Email, account dates, preferences, goals with notes |
+| `profile.json` | Email, account dates, preferences, goals with notes, consent history, pilot cohort and arm |
 | `roadmaps.json` | Enrolments (slug, version), topic progress (`topic_key`, title, path), milestone and migration summaries |
 | `sessions.json`, `attempts.json` | Sessions and assistance; full responses with outcome, basis, assistance, item key and version, prompt title |
 | `evidence.json`, `reviews.json` | All evidence rows, including voided ones with reasons, plus a summary per skill; review schedule |
-| `artifacts.json` and `artifacts/` | Artifact metadata, bodies and files |
+| `artifacts.json` and `artifacts/` | Artifact metadata, bodies and files; content reports with notes |
 | `drafts.json`, `notifications.json` | Open or suspended drafts; reminder settings and a delivery log |
 | `analytics_events.json` | The learner's pseudonymous events. **Proposal:** include them, because they are linkable while the account exists |
 
-Excluded: credential and token hashes, `idempotency_keys`, tombstones, and
+Excluded: credential and token hashes, `idempotency_keys`, deletion records, suppression hashes, and
 authored content bodies and answer keys. Content is referenced by key and
 version instead.
 
 ## 9. Free-text answers (F12)
 
 **Where free text lives:** `attempts.response`, `session_drafts.payload`,
-`artifacts.body` and its files, and `goals.note`. Nowhere else.
+`artifacts.body` and its files, `goals.note` and `content_reports.note`.
+Nowhere else.
 
 **It never reaches `analytics_events`.** Four guards:
 
@@ -1032,13 +1068,15 @@ version instead.
 4. A planned automated test sends a canary string through every learner-text
    field and asserts it never appears in events, logs or stored responses.
 
-**Limits and retention.** CHECK constraints cap responses at 32 KB, drafts and
-artifact bodies at 64 KB, and goal notes at 280 characters. Text is stored raw
-and escaped when rendered (`09`). It is kept for the life of the account
+**Limits and retention.** Each free-text answer is capped at 32 KB and each
+attempt at 64 KB; CHECK constraints cap drafts and artifact bodies at 64 KB,
+goal notes at 280 characters and report notes at 1,000. Text is stored raw
+and escaped when rendered (`09`). It is kept for the life of the account during the pilot
 because the evidence view, feedback and export need it; drafts are purged 30
 days after their session closes. Everything is deleted with the account. Text
-is not used to train models without separate consent (PRD §12). No consent
-column exists, so the default is no; F13 would add one.
+is not used to train models without separate consent (PRD §12). Consent
+lives only in `consent_records`, which has no such purpose yet, so the
+default is no; F13 would add one.
 
 ## 10. Hot queries and the indexes that serve them
 
@@ -1054,13 +1092,13 @@ latest minors are then not database queries.
 | Q4 | Today: due reviews, capped (§5.6) | `ix_review_due` (partial on `active`) |
 | Q5 | Today: absence detection (last practice) | `ix_sessions_user_activity` |
 | Q6 | Today: weekly progress (completed sessions this local week) | `ix_sessions_user_done_day` |
-| Q7 | Reminder candidates per tick, all time zones: `email_enabled AND next_reminder_at <= now() ORDER BY next_reminder_at LIMIT 200` | `ix_notif_next`. Because the value is a precomputed UTC instant, one range scan covers every zone, and DST is handled when the next value is computed |
+| Q7 | Reminder candidates per 15-minute tick, all time zones: `email_enabled AND next_reminder_at <= now() ORDER BY next_reminder_at LIMIT 200 FOR UPDATE SKIP LOCKED` | `ix_notif_next`. Because the value is a precomputed UTC instant, one range scan covers every zone, and DST is handled when the next value is computed |
 | Q8, Q9 | Reminder suppression ("practised today?") and the slot claim | `ix_sessions_user_done_day`; UK `(user_id, kind, local_date)` |
 | Q10 | Evidence view (§6.2) plus recent artifacts | `ix_evidence_user_skill_time`; artifacts `(user_id, submitted_at)` |
 | Q11 | Roadmap progress: completed required topics ÷ `required_topic_count` | UK `(enrolment_id, topic_id)`, `roadmap_topics` PK, immutable denominator |
 | Q12 | Analytics: activation, week-4 retention, return after absence, delayed retention (PRD §13) | `(subject_id, occurred_at)` for per-subject windows; `(event_name, occurred_at)` for cohorts |
-| Q13, Q14 | Idempotency lookup; account deletion cascade | UK `(user_id, scope, key)`; an index starting with `user_id` on every learner table |
-| Q15 | Purges: expired keys, closed drafts, stale guests | `(expires_at)`; drafts joined to session status; `ix_users_guest_seen` |
+| Q13, Q14 | Idempotency lookup; account deletion cascade and analytics purge | UK `(user_id, scope, key)`; an index starting with `user_id` on every learner table; `(subject_id, occurred_at)` |
+| Q15 | Purges: expired keys, closed drafts, old deliveries and events | `(expires_at)`; drafts joined to session status; `(claimed_at)`, `(event_name, occurred_at)` |
 
 Each Today input is an index lookup over a few hundred rows at most, well
 within the 500 ms p95 budget (PRD §12). At 5,000 learners (about 15 million
@@ -1089,8 +1127,8 @@ binary uploads. Bytes per row include rough row overhead and the §3 indexes.
 
 The catalogue adds about 2 MB per full release (about 260 versions at about
 8 KB) and stays under about 10 MB a year, because minor releases add only the
-changed rows. Allow about 50 MB of fixed overhead, including the job queue
-(`01`/`02`).
+changed rows. Allow about 50 MB of fixed overhead, including the framework's
+job tables (`jobs`, `failed_jobs`, `job_batches`; `01`).
 
 | Learners | Upper bound: all fully active for a year | Realistic: about 30% active on average (Hypothesis) |
 | --- | --- | --- |
@@ -1102,76 +1140,56 @@ Growth is linear per year. Attempts and analytics are each about 40% of the
 total; analytics is the first candidate to roll up or expire. At these sizes,
 backup and restore time (`09`) matters more than storage cost.
 
-## 12. If the database were SQLite
+## 12. SQLite is not a constraint
 
-The logical model is unchanged, because every pattern uses only unique
-constraints, conditional updates and CHECKs. The physical differences:
-
-| Feature | Postgres-compatible (as written) | SQLite |
-| --- | --- | --- |
-| `jsonb` | Binary JSON | `TEXT` with `CHECK (json_valid(col))`; read with the JSON functions. No JSON indexes are needed |
-| `timestamptz`, `date`, `time` | Native | Fixed-format ISO-8601 `TEXT` in UTC, or integer epoch milliseconds. The app supplies all timestamps and does interval arithmetic |
-| `uuid`, `bool` | Native | `TEXT` (36 bytes, about +15% size) or a 16-byte `BLOB`; `INTEGER` 0/1 with a CHECK. Use `STRICT` tables |
-| Partial unique indexes | Open session, current enrolment, active goal, in-flight export | Supported. Upserts must repeat the index `WHERE` in the conflict target, as in the Postgres-compatible form |
-| CHECK, composite and deferred FKs | Enforced | Enforced, but FK checking must be switched on per connection. Changing a CHECK later needs a table rebuild |
-| Catalogue immutability | Role grants plus a trigger | No roles: triggers (`RAISE(ABORT)`) and app discipline only |
-| Concurrency | Many concurrent writers, row-level locking | **One writer at a time**; write-ahead logging keeps readers unblocked. Our patterns still hold because writes serialise. Needs a busy timeout, short transactions, and chunked long jobs (export, analytics re-key). The web process and the worker share one host with the file (`01`) |
-| `RETURNING`, `ON CONFLICT` | Used | Available in recent releases; confirm the pinned version, or fall back to the changed-row count |
-| `FILTER`, `IS DISTINCT FROM` | Avoided | Use `CASE` (as in §6.2) and `IS NOT` |
-| Analytics volume | Same database | Optionally a separate attached file, so the main file and its backups stay small |
+PostgreSQL is chosen (`01`). Earlier drafts kept every pattern portable to
+SQLite; that is no longer a goal. The schema uses PostgreSQL where it helps:
+`jsonb`, partial unique indexes, integrity-only triggers and
+`FOR UPDATE SKIP LOCKED`. It still avoids native enum types (§6.1).
 
 ## 13. Deliberately not modelled yet
 
-AI tutor usage, cost and consent (F13). Briefings (F14), companion state (F15)
-and custom roadmaps (R08). Learner-reported content errors (PRD §16; free
-text, owned by `06`'s workflow) and a human-review queue. The weekly burden
-survey, proposed as an analytics event with a scale value (`10`).
-Authentication details (`02`, `09`) and job-queue tables (`01`, `02`).
+AI tutor usage and cost (F13; its consent would be a new `consent_records`
+purpose). Briefings (F14), companion state (F15) and custom roadmaps (R08). A
+human-review queue. The weekly burden survey, proposed as an analytics event
+with a scale value (`10`). Further authentication detail (`02`, `09`). Feature
+flags (configuration) and job tables (the framework's own) are deliberately
+not domain tables.
 
 ## Open questions for discussion
 
-1. **Guest storage.** *Default:* a server-side `users` row with
-   `kind = 'guest'`, bound to a cookie and purged after 30 days of inactivity
-   (§7).
-2. **Analytics on deletion.** *Default:* keep the events but re-key
-   `subject_id` and `session_ref` to fresh random values (§8.3).
-3. **Deletion grace period.** *Default:* 7 days, cancellable, then a hard
-   delete. `09` sets backup retention; 30 days or less is suggested.
-4. **Free-text retention.** *Default:* keep for the life of the account during
-   the pilot. Before launch, revisit deleting response text after 24 months
-   while keeping outcomes.
-5. **Raw analytics retention.** *Default:* 24 months, then delete. Aggregates
-   live in the reports owned by `10`.
-6. **Composite owner FKs.** *Default:* adopt them. Fall back to single-column
+1. **Composite owner FKs.** *Default:* adopt them. Fall back to single-column
    FKs plus authorisation tests only if the chosen framework fights them.
-7. **Draft and review states in the runtime database.** *Default:* no. Store
+2. **Free-text retention after the pilot.** During the pilot it is kept for
+   the life of the account. *Default:* before launch, revisit deleting
+   response text after 24 months while keeping outcomes.
+3. **Draft and review states in the runtime database.** *Default:* no. Store
    only `published` and `retired`; `draft` and `in_review` stay in the content
    repository (`06`).
-8. **Evidence corrections.** *Default:* `voided_at` and `void_reason` are the
-   only mutable fields, rather than separate correction rows.
-9. **Email dispatch idempotency.** *Default:* the unique
-   `notification_deliveries` row is the dispatch key and sending is
-   at-most-once. Update the conventions list to match.
-10. **Open sessions.** *Default:* one per learner. Starting another suspends
-    it and keeps its draft.
-11. **Export includes the learner's analytics events.** *Default:* yes, while
-    they are linkable.
-12. **Primary key format.** *Default:* time-ordered UUIDs generated by the
-    application; `bigint` only for `analytics_events`.
+4. **Evidence corrections.** *Default:* `voided_at` and `void_reason` stay the
+   only mutable evidence fields, used only for a deleted artifact or a
+   duplicate. Defective content is annotated at read time, never voided.
+5. **Export includes the learner's analytics events.** *Default:* yes, while
+   they are linkable.
+6. **Primary key format.** *Default:* time-ordered UUIDs generated by the
+   application, including `analytics_events.event_id`.
+7. **Content reports after account deletion.** *Default:* delete them with the
+   account; the fix is already recorded in the content repository (`06`).
 
 ## PRD traceability
 
 | PRD | Covered by |
 | --- | --- |
 | F01 | `learning_preferences`, `goals`; diagnostic results stored as attempts with purpose `diagnostic`; skipped means no evidence |
+| §5 (guest first value) | Device-only guest work and claim capped at `practised` (§7) |
 | F02 | Today inputs Q1–Q6 (§10) |
 | F03 | `learning_sessions`, `session_drafts` (§5.5) |
 | F04 | `attempts` (exact version, outcome, assistance), `session_assistance`, `skill_evidence` CHECKs |
 | F05, F06 | `review_schedule`; cap at read time (§5.6); suspended sessions; absence query |
 | F07 | `labs`, `artifacts` |
 | F08 | Append-only `skill_evidence` with dates and limitations (§6.2) |
-| F09 | Idempotency (§5.3, §5.4); deletion and export (§8); auth tables; drafts across devices |
-| F10 | `notification_preferences`, `notification_deliveries`, Q7–Q9 |
+| F09 | Idempotency (§5.3, §5.4); deletion, ledger and export (§8); auth tables; drafts across devices (§5.5) |
+| F10 | `notification_preferences`, `consent_records`, `notification_deliveries`, `email_suppressions`, Q7–Q9 |
 | F11 | `content_versions` metadata, `content_releases` |
 | F12 | `analytics_events`; free-text guards (§9) |
 | F13–F15, R08 | Not modelled (§13) |
@@ -1184,4 +1202,5 @@ Authentication details (`02`, `09`) and job-queue tables (`01`, `02`).
 | §8A | Topic kinds, progress formula, evidence reuse (§4.4), cycles rejected at publish |
 | §11 | Owner scoping, exact versions, idempotency, UTC |
 | §12 | Owner FKs, draft conflicts, deletion within 30 days, pseudonymous analytics, retired content keeps evidence |
-| §13 | Event fields and metric queries (Q12) |
+| §13 | Event fields and metric queries (Q12); `invites`, `pilot_participants` for cohorts and arms |
+| §16 | `content_reports` |

@@ -10,7 +10,9 @@ use Illuminate\Support\Facades\DB;
 final class ProfileService
 {
     public const STACKS = ['laravel', 'php', 'node', 'python', 'dotnet', 'java', 'ruby', 'go', 'other'];
+
     public const GOALS = ['performance', 'reliability', 'architecture', 'general', 'custom'];
+
     public const MODES = ['small', 'practise', 'build'];
 
     /** ISO weekday numbers (Mon=1..Sun=7) <-> the stored bitmask (bit 0 = Monday). */

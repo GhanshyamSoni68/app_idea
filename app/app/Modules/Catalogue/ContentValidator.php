@@ -9,6 +9,7 @@ namespace App\Modules\Catalogue;
 final class ContentValidator
 {
     public const ITEM_TYPES = ['single_choice', 'multi_select', 'ordering', 'self_check'];
+
     private const ID_PATTERN = '/^[a-z][a-z0-9-]*(\.[a-z][a-z0-9-]*)+$/';
 
     /** @var list<array{severity:string,code:string,path:string,message:string}> */

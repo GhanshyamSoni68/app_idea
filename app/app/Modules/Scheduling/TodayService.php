@@ -8,6 +8,7 @@ use App\Modules\Roadmap\RoadmapService;
 use App\Support\Clock;
 use App\Support\Learner;
 use App\Support\LearnerDay;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -149,7 +150,7 @@ final class TodayService
                 'mission_key' => $item->mission_key,
                 'minutes' => (float) ($item->body['time_estimate_minutes'] ?? $cfg['est_review_item_minutes']),
                 'title' => $topic->title ?? $this->content->skillKey($track->skill_id),
-                'days_since' => LearnerDay::diffDays(LearnerDay::of(\Carbon\CarbonImmutable::parse($track->updated_at), $learner->timeZone), $day),
+                'days_since' => LearnerDay::diffDays(LearnerDay::of(CarbonImmutable::parse($track->updated_at), $learner->timeZone), $day),
             ];
         }
 
@@ -415,7 +416,7 @@ final class TodayService
     private function resumeCandidate(Learner $learner, string $mode): ?object
     {
         $s = DB::selectOne(
-            "SELECT * FROM learning_sessions WHERE user_id = ? AND status IN ('open', 'suspended') ORDER BY last_activity_at DESC LIMIT 1",
+            "SELECT * FROM learning_sessions WHERE user_id = ? AND status IN ('open', 'suspended') ORDER BY (status = 'open') DESC, last_activity_at DESC, id LIMIT 1",
             [$learner->id],
         );
         if (! $s) {

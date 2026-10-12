@@ -2,9 +2,9 @@
 
 namespace App\Modules\Assessment;
 
-use App\Support\Clock;
 use App\Support\Ids;
 use App\Support\LearnerDay;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\DB;
 final class EvidenceService
 {
     private const RANK = ['introduced' => 1, 'practised' => 2, 'demonstrated' => 3, 'retained' => 4];
+
     private const DEMONSTRATING_PURPOSES = ['retrieval', 'topic_check', 'challenge', 'lab'];
 
     /**
@@ -86,8 +87,8 @@ final class EvidenceService
         if (! $earlier || $earlier->content_version_id === $attempt->content_version_id) {
             return false;
         }
-        $then = LearnerDay::of(\Carbon\CarbonImmutable::parse($earlier->observed_at), $timeZone);
-        $now = LearnerDay::of(\Carbon\CarbonImmutable::parse($attempt->submitted_at), $timeZone);
+        $then = LearnerDay::of(CarbonImmutable::parse($earlier->observed_at), $timeZone);
+        $now = LearnerDay::of(CarbonImmutable::parse($attempt->submitted_at), $timeZone);
 
         return LearnerDay::diffDays($then, $now) >= (int) config('devstep.retained_min_delay_days');
     }
@@ -113,9 +114,9 @@ final class EvidenceService
     public function view(string $userId): array
     {
         $rows = DB::select(
-            "SELECT se.*, s.skill_key, s.title, a.outcome AS attempt_outcome
+            'SELECT se.*, s.skill_key, s.title, a.outcome AS attempt_outcome
              FROM skill_evidence se JOIN skills s ON s.id = se.skill_id LEFT JOIN attempts a ON a.id = se.attempt_id
-             WHERE se.user_id = ? AND se.voided_at IS NULL ORDER BY se.observed_at ASC",
+             WHERE se.user_id = ? AND se.voided_at IS NULL ORDER BY se.observed_at ASC',
             [$userId],
         );
         $bySkill = [];

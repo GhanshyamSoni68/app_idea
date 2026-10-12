@@ -6,6 +6,7 @@ use App\Modules\Analytics\EventRecorder;
 use App\Support\ApiException;
 use App\Support\Clock;
 use App\Support\Ids;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -55,8 +56,8 @@ final class RoadmapService
                 [$id, $userId, $version->roadmap_id, $version->id, $now, $now, $now],
             );
             DB::insert(
-                "INSERT INTO topic_progress (id, user_id, enrolment_id, roadmap_version_id, topic_id)
-                 SELECT gen_random_uuid(), ?, ?, ?, id FROM roadmap_topics WHERE roadmap_version_id = ?",
+                'INSERT INTO topic_progress (id, user_id, enrolment_id, roadmap_version_id, topic_id)
+                 SELECT gen_random_uuid(), ?, ?, ?, id FROM roadmap_topics WHERE roadmap_version_id = ?',
                 [$userId, $id, $version->id, $version->id],
             );
             $enrolment = DB::selectOne('SELECT * FROM roadmap_enrolments WHERE id = ?', [$id]);
@@ -267,7 +268,7 @@ final class RoadmapService
      * Exactly-once completion by the standard path (docs/04 §5.2): one conditional UPDATE decides. Then the
      * milestone is checked with the same pattern. Events go out after commit with deterministic IDs.
      *
-     * @return array{topic_id:string, from_state:string, to_state:string}|null  null when it was already completed
+     * @return array{topic_id:string, from_state:string, to_state:string}|null null when it was already completed
      */
     public function completeTopic(object $enrolment, object $topic, string $path, ?string $attemptId, string $subjectId, string $basis = 'rules_met'): ?array
     {
@@ -304,7 +305,7 @@ final class RoadmapService
             [$now, json_encode(['completed_required' => $p['completed_required'], 'total_required' => $p['total_required'], 'note' => 'Coverage with checked understanding; not verified implementation proficiency.']), $now, $enrolment->id],
         );
         if ($won === 1) {
-            $days = (int) \Carbon\CarbonImmutable::parse($enrolment->enrolled_at)->diffInDays($now);
+            $days = (int) CarbonImmutable::parse($enrolment->enrolled_at)->diffInDays($now);
             DB::afterCommit(fn () => EventRecorder::server('roadmap_completed', $subjectId, [
                 'roadmap_enrolment_id' => $enrolment->id, 'roadmap_version_id' => $enrolment->roadmap_version_id, 'elapsed_days' => $days,
             ], ['roadmap_version_id' => $enrolment->roadmap_version_id], $enrolment->id));

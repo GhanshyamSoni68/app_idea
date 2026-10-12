@@ -12,8 +12,11 @@ namespace App\Modules\Analytics;
 final class EventRegistry
 {
     public const OUTCOMES = ['correct', 'partially_correct', 'incorrect', 'self_met', 'self_not_met'];
+
     public const ASSISTANCE = ['none', 'hint', 'worked_example', 'solution_revealed'];
+
     public const MODES = ['small', 'practise', 'build'];
+
     public const ORIGINS = ['today', 'smaller_mode', 'return_screen', 'roadmap', 'reminder_link'];
 
     /** @return array<string, array{source: string, props: array<string, mixed>, guest?: array<int, string>}> */

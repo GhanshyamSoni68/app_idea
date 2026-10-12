@@ -55,7 +55,7 @@ final class ContentPublisher
             $existing = DB::selectOne('SELECT id FROM skills WHERE skill_key = ?', [$key]);
             if ($existing) {
                 $ids[$key] = $existing->id;
-                DB::update('UPDATE skills SET title = ?, is_secondary = ? WHERE id = ?', [$skill['title'], (bool) ($skill['secondary'] ?? false), $existing->id], );
+                DB::update('UPDATE skills SET title = ?, is_secondary = ? WHERE id = ?', [$skill['title'], (bool) ($skill['secondary'] ?? false), $existing->id]);
 
                 continue;
             }

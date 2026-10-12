@@ -9,6 +9,7 @@ use App\Support\ApiException;
 use App\Support\Clock;
 use App\Support\Learner;
 use App\Support\LearnerDay;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -68,7 +69,7 @@ final class CompletionService
         $allAnswered = $attemptCount >= collect($plan['steps'])->where('kind', 'response')->count();
         DB::afterCommit(fn () => EventRecorder::server('session_completed', $learner->subjectId, [
             'items_attempted' => min($attemptCount, 100), 'items_met' => min($metCount, 100), 'review_items_served' => min($reviewItems, 10),
-            'duration_s' => (int) min(604800, \Carbon\CarbonImmutable::parse($won->started_at)->diffInSeconds($now)),
+            'duration_s' => (int) min(604800, CarbonImmutable::parse($won->started_at)->diffInSeconds($now)),
             'completion_reason' => $allAnswered ? 'finished' : 'stopped_at_point',
         ], ['session_ref' => $sessionId, 'mode' => $won->mode, 'local_date' => $learner->day(), 'content_version_id' => $won->content_version_id], $sessionId));
 
@@ -125,8 +126,8 @@ final class CompletionService
         $day = $learner->day();
         for ($i = 1; $i <= 7; $i++) {
             $candidate = LearnerDay::addDays($day, $i);
-            if (in_array((int) \Carbon\CarbonImmutable::parse($candidate)->isoWeekday(), $prefs['available_days'], true)) {
-                return ['local_date' => $candidate, 'weekday' => \Carbon\CarbonImmutable::parse($candidate)->format('l')];
+            if (in_array((int) CarbonImmutable::parse($candidate)->isoWeekday(), $prefs['available_days'], true)) {
+                return ['local_date' => $candidate, 'weekday' => CarbonImmutable::parse($candidate)->format('l')];
             }
         }
 

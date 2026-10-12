@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Route;
 Route::get('/up', function () {
     try {
         DB::select('select 1');
-    } catch (\Throwable) {
+    } catch (Throwable) {
         return response()->json(['status' => 'unavailable'], 503);
     }
 

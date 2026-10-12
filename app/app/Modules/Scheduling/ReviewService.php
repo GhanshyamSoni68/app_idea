@@ -6,6 +6,7 @@ use App\Modules\Assessment\Evaluator;
 use App\Modules\Catalogue\ContentRepository;
 use App\Support\Ids;
 use App\Support\LearnerDay;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -171,7 +172,7 @@ final class ReviewService
         if ($track->demonstrated_at === null || $track->retained_at !== null) {
             return false;
         }
-        $demoDay = LearnerDay::of(\Carbon\CarbonImmutable::parse($track->demonstrated_at), $timeZone);
+        $demoDay = LearnerDay::of(CarbonImmutable::parse($track->demonstrated_at), $timeZone);
 
         return LearnerDay::diffDays($demoDay, $day) >= (int) config('devstep.retained_min_delay_days');
     }

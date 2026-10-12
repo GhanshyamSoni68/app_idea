@@ -3,6 +3,7 @@
 namespace App\Modules\Learning;
 
 use App\Modules\Analytics\EventRecorder;
+use App\Modules\Analytics\EventRegistry;
 use App\Modules\Assessment\Evaluator;
 use App\Modules\Catalogue\ContentRepository;
 use App\Modules\Catalogue\LearnerProjection;
@@ -12,6 +13,7 @@ use App\Support\ApiException;
 use App\Support\Clock;
 use App\Support\Ids;
 use App\Support\Learner;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -102,9 +104,9 @@ final class SessionService
 
     private function resumedEvent(Learner $learner, object $session, string $origin): void
     {
-        $gap = (int) \Carbon\CarbonImmutable::parse($session->last_activity_at)->diffInMinutes(Clock::now());
+        $gap = (int) CarbonImmutable::parse($session->last_activity_at)->diffInMinutes(Clock::now());
         DB::afterCommit(fn () => EventRecorder::server('session_resumed', $learner->subjectId, [
-            'gap_minutes' => min($gap, 43200), 'resume_origin' => in_array($origin, \App\Modules\Analytics\EventRegistry::ORIGINS, true) ? $origin : 'today',
+            'gap_minutes' => min($gap, 43200), 'resume_origin' => in_array($origin, EventRegistry::ORIGINS, true) ? $origin : 'today',
         ], ['session_ref' => $session->id, 'mode' => $session->mode]));
     }
 

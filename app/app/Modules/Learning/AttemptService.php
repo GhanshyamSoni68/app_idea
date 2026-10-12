@@ -11,6 +11,7 @@ use App\Support\ApiException;
 use App\Support\Clock;
 use App\Support\Ids;
 use App\Support\Learner;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -87,7 +88,7 @@ final class AttemptService
             if ($firstInSession) {
                 EventRecorder::server('first_answer_submitted', $learner->subjectId, [
                     'assessment_item_id' => $item->id,
-                    'seconds_since_session_start' => (int) min(86400, \Carbon\CarbonImmutable::parse($session->started_at)->diffInSeconds($now)),
+                    'seconds_since_session_start' => (int) min(86400, CarbonImmutable::parse($session->started_at)->diffInSeconds($now)),
                 ], $ctx, $attempt->session_id);
             }
             EventRecorder::server('attempt_evaluated', $learner->subjectId, [

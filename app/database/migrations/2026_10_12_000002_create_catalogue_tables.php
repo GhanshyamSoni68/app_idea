@@ -186,7 +186,7 @@ CREATE TABLE labs (
 );
 
 -- Published content is insert-only: only retirement fields may change (docs/04 §4.1).
-CREATE FUNCTION content_versions_immutable() RETURNS trigger AS $$
+CREATE OR REPLACE FUNCTION content_versions_immutable() RETURNS trigger AS $$
 BEGIN
     IF NEW.id <> OLD.id OR NEW.content_kind <> OLD.content_kind OR NEW.content_key <> OLD.content_key
        OR NEW.version_major <> OLD.version_major OR NEW.version_minor <> OLD.version_minor

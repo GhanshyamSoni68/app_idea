@@ -200,7 +200,7 @@ CREATE TABLE topic_progress (
 );
 
 -- A completed topic never reverts (R02, TP-2).
-CREATE FUNCTION topic_progress_completed_terminal() RETURNS trigger AS $$
+CREATE OR REPLACE FUNCTION topic_progress_completed_terminal() RETURNS trigger AS $$
 BEGIN
     IF OLD.state = 'completed' AND NEW.state <> 'completed' THEN
         RAISE EXCEPTION 'a completed topic cannot leave completed';
@@ -212,7 +212,7 @@ CREATE TRIGGER trg_topic_progress_terminal BEFORE UPDATE ON topic_progress
     FOR EACH ROW EXECUTE FUNCTION topic_progress_completed_terminal();
 
 -- skill_evidence is append-only; only voiding may change a row (docs/04 §6.2).
-CREATE FUNCTION skill_evidence_append_only() RETURNS trigger AS $$
+CREATE OR REPLACE FUNCTION skill_evidence_append_only() RETURNS trigger AS $$
 BEGIN
     IF TG_OP = 'DELETE' THEN
         RETURN OLD;  -- cascades from account deletion are allowed

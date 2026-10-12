@@ -1,0 +1,22 @@
+id: sys.request-path.alt-a
+role: alternate
+check_eligible: true
+type: single_choice
+evidence_basis: auto_scored
+time_estimate_minutes: 2
+changed_conditions_of: sys.request-path.primary-1
+scenario_key: sys.sc.status-update
+scenario: A technician updates a job's status from a phone with a PATCH request. Another technician has the same job open on a second device.
+prompt: Where is the new status stored, and what does the second device see on refresh?
+options:
+  - key: a
+    text: In the first technician's browser, so the second device sees the old status.
+    misconception: sys.mc.browser-to-db
+    feedback: The browser does not own the data. The status is saved by the application.
+  - key: b
+    correct: true
+    text: In the database, saved by the application, so the second device sees the new status on refresh.
+    feedback: Yes. State lives in the database, and any device that asks the application gets the saved status.
+hints:
+  - Who writes to the database: the browser or the application?
+reveal: The application saves the status in the database, so the second device sees it on refresh.

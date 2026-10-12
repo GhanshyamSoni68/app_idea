@@ -1,0 +1,66 @@
+roadmap: crud-to-reliable
+version: 1
+change_class: initial
+title: From CRUD to Reliable Systems
+outcome: >-
+  Practise, and be checked on, how to investigate and improve the performance and
+  reliability of an ordinary CRUD web application, and how to decide when the
+  architecture should not change.
+estimated_effort: "About six weeks at the default pace (3 x 10-minute sessions a week)"
+estimated_effort_hours: 12
+coverage_note: >-
+  Completing the core roadmap shows the topics were covered and understanding was
+  checked. It is not verified implementation proficiency.
+modules:
+  - id: sys
+    title: Understand a system
+    topics:
+      - { id: sys.request-path, title: Trace a request end to end, kind: required, minutes: 8, mission: sys.request-path }
+      - { id: sys.requirements, title: Requirements and constraints, kind: required, minutes: 8, mission: sys.requirements }
+      - { id: sys.boundaries, title: Component boundaries, kind: required, minutes: 9, mission: sys.boundaries,
+          prerequisites: [{ topic: sys.request-path }, { topic: sys.requirements }] }
+  - id: perf
+    title: Investigate performance
+    topics:
+      - { id: perf.latency-evidence, title: Latency evidence, kind: required, minutes: 8, mission: perf.latency-evidence,
+          prerequisites: [{ topic: sys.request-path }, { topic: sys.requirements }] }
+      - { id: perf.query-plans, title: Read a query plan, kind: required, minutes: 10, mission: perf.query-plans,
+          prerequisites: [{ topic: perf.latency-evidence }] }
+      - { id: perf.indexes, title: Indexes and pagination, kind: required, minutes: 9, mission: perf.indexes,
+          prerequisites: [{ topic: perf.query-plans, strict: true }] }
+  - id: cache
+    title: Introduce caching
+    topics:
+      - { id: cache.suitability, title: Suitable cached data, kind: required, minutes: 8, mission: cache.suitability,
+          prerequisites: [{ topic: sys.requirements }, { topic: perf.latency-evidence }] }
+      - { id: cache.invalidation, title: Invalidation, kind: required, minutes: 8, mission: cache.invalidation,
+          prerequisites: [{ topic: cache.suitability }] }
+      - { id: cache.boundaries, title: Stale results and access boundaries, kind: required, minutes: 8, mission: cache.boundaries,
+          prerequisites: [{ topic: cache.invalidation }] }
+  - id: async
+    title: Background work
+    topics:
+      - { id: async.queue-use, title: Queue use cases, kind: required, minutes: 8, mission: async.queue-use,
+          prerequisites: [{ topic: sys.boundaries }] }
+      - { id: async.retries, title: Retries, kind: required, minutes: 8, mission: async.retries,
+          prerequisites: [{ topic: async.queue-use }] }
+      - { id: async.idempotency, title: Duplicate processing and idempotency, kind: required, minutes: 8, mission: async.idempotency,
+          prerequisites: [{ topic: async.retries, strict: true }] }
+  - id: rel
+    title: Reliability and growth
+    topics:
+      - { id: rel.stateless, title: Stateless requests, kind: required, minutes: 8, mission: rel.stateless,
+          prerequisites: [{ topic: cache.suitability }] }
+      - { id: rel.load-evidence, title: Concurrency and load evidence, kind: required, minutes: 9, mission: rel.load-evidence,
+          prerequisites: [{ topic: perf.query-plans }, { topic: async.idempotency }, { topic: rel.stateless }] }
+      - { id: rel.observability, title: Logs and metrics, kind: required, minutes: 8, mission: rel.observability,
+          prerequisites: [{ topic: perf.latency-evidence }, { topic: rel.stateless }] }
+  - id: arch
+    title: Choose architecture
+    topics:
+      - { id: arch.modular-monolith, title: Modular monolith, kind: required, minutes: 8, mission: arch.modular-monolith,
+          prerequisites: [{ topic: sys.boundaries }] }
+      - { id: arch.service-boundaries, title: Service boundaries, kind: required, minutes: 8, mission: arch.service-boundaries,
+          prerequisites: [{ topic: arch.modular-monolith }] }
+      - { id: arch.extraction-costs, title: Extraction costs and trade-offs, kind: required, minutes: 9, mission: arch.extraction-costs,
+          prerequisites: [{ topic: async.idempotency }, { topic: rel.observability }, { topic: arch.service-boundaries, strict: true }] }

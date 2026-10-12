@@ -1,0 +1,2 @@
+# One rubric scale for every criterion (docs/06 §5.2): not_yet = 0, partly = 1, met = 2.
+scale: { not_yet: 0, partly: 1, met: 2 }

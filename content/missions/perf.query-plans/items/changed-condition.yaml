@@ -1,0 +1,25 @@
+id: perf.query-plans.changed-condition
+role: primary
+type: single_choice
+evidence_basis: auto_scored
+time_estimate_minutes: 2
+scenario_key: perf.sc.overdue-urgent
+scenario: >-
+  Suppose the same query ran for the smallest client, whose rows are about 0.1% of the table
+  and whose overdue urgent jobs are a larger share of that client's rows.
+prompt: How might the plan change, and why?
+options:
+  - key: a
+    text: It will not change, because the plan depends only on the query text.
+    feedback: The planner uses statistics about the data, not only the query text. Different data can give a different plan.
+  - key: b
+    correct: true
+    text: It might use a different scan type, because the planner estimates how many rows match and chooses the cheapest way to read them.
+    feedback: Yes. When a query needs a larger share of the rows it reads, a sequential scan can be the cheapest choice, and with a tiny table the plan can differ again.
+  - key: c
+    text: The cost will be in milliseconds, so it will be fast.
+    misconception: perf.mc.cost-is-ms
+    feedback: Cost is in arbitrary planner units, never milliseconds.
+hints:
+  - The planner picks the cheapest way to read the rows it expects to need.
+reveal: The plan can differ, because the planner chooses a scan type from its estimate of how many rows match.

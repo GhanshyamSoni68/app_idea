@@ -1,0 +1,30 @@
+id: perf.query-plans.alt-a
+role: alternate
+check_eligible: true
+type: single_choice
+evidence_basis: auto_scored
+time_estimate_minutes: 2
+changed_conditions_of: perf.query-plans.primary-2
+scenario_key: perf.sc.stale-stats
+scenario: |
+  A shipping app's "late parcels" list slows down after a bulk import. The plan (fictional, PostgreSQL 18):
+
+      1  Seq Scan on parcels  (cost=0.0..21000.0 rows=200 width=40) (actual time=0.1..880.3 rows=198400 loops=1)
+      2        Filter: (state = 'late')
+      3        Rows Removed by Filter: 801600
+prompt: The planner expected 200 rows and got 198,400. What is the best first experiment?
+options:
+  - key: a
+    text: Add an index on state and keep the old statistics.
+    feedback: If the planner's estimate is this wrong, it may choose a poor plan with or without the index. Check the statistics first.
+  - key: b
+    correct: true
+    text: Refresh the table's statistics, then run the same query again and compare the two plans.
+    feedback: Yes. An estimate this far off suggests stale statistics after the bulk import. One change, same query, same data, then compare.
+  - key: c
+    text: Double the application servers.
+    misconception: perf.mc.scale-out-first
+    feedback: The query still reads the same rows on each request.
+hints:
+  - Look at the gap between the estimate and the actual rows.
+reveal: Refresh the statistics and compare the two plans.

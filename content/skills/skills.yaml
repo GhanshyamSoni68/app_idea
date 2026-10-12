@@ -1,0 +1,61 @@
+# Skills and skill prerequisites (docs/07-curriculum-plan.md §4). IDs are stable and never reused.
+skills:
+  - { id: sys.request-path,        title: "Trace a request end to end" }
+  - { id: sys.requirements,        title: "Requirements and constraints" }
+  - { id: sys.boundaries,          title: "Component boundaries" }
+  - { id: sys.decision-records,    title: "Decision records", secondary: true }
+  - { id: perf.latency-evidence,   title: "Latency evidence" }
+  - { id: perf.query-plans,        title: "Read a query plan" }
+  - { id: perf.experiments,        title: "Reproducible experiments", secondary: true }
+  - { id: perf.indexes,            title: "Choose an index" }
+  - { id: perf.pagination,         title: "Pagination", secondary: true }
+  - { id: cache.suitability,       title: "Is it safe to cache?" }
+  - { id: cache.invalidation,      title: "Cache invalidation" }
+  - { id: cache.boundaries,        title: "Cache audience boundaries" }
+  - { id: async.queue-use,         title: "What belongs in the background" }
+  - { id: async.retries,           title: "Retries and backoff" }
+  - { id: async.idempotency,       title: "Idempotent processing" }
+  - { id: rel.stateless,           title: "Stateless requests" }
+  - { id: rel.concurrency,         title: "Concurrency hazards", secondary: true }
+  - { id: rel.load-evidence,       title: "Load evidence" }
+  - { id: rel.observability,       title: "Localise an incident" }
+  - { id: arch.modular-monolith,   title: "Modular monolith" }
+  - { id: arch.service-boundaries, title: "Service boundaries" }
+  - { id: arch.extraction-costs,   title: "Extraction costs" }
+  - { id: arch.trade-offs,         title: "Defend an architecture choice", secondary: true }
+
+# Each edge: prerequisite -> skill (docs/07 §4.2). Every edge goes from a lower to a higher S-number.
+prerequisites:
+  - [sys.request-path, sys.boundaries]
+  - [sys.request-path, perf.latency-evidence]
+  - [sys.request-path, async.queue-use]
+  - [sys.request-path, rel.stateless]
+  - [sys.requirements, sys.decision-records]
+  - [sys.requirements, perf.latency-evidence]
+  - [sys.requirements, cache.suitability]
+  - [sys.boundaries, sys.decision-records]
+  - [sys.boundaries, async.queue-use]
+  - [sys.boundaries, arch.modular-monolith]
+  - [sys.decision-records, arch.trade-offs]
+  - [perf.latency-evidence, perf.query-plans]
+  - [perf.latency-evidence, perf.experiments]
+  - [perf.latency-evidence, cache.suitability]
+  - [perf.latency-evidence, rel.observability]
+  - [perf.query-plans, perf.indexes]
+  - [perf.query-plans, perf.experiments]
+  - [perf.indexes, perf.pagination]
+  - [perf.experiments, rel.load-evidence]
+  - [cache.suitability, cache.invalidation]
+  - [cache.suitability, rel.stateless]
+  - [cache.invalidation, cache.boundaries]
+  - [async.queue-use, async.retries]
+  - [async.retries, async.idempotency]
+  - [async.idempotency, rel.concurrency]
+  - [async.idempotency, arch.extraction-costs]
+  - [rel.stateless, rel.concurrency]
+  - [rel.stateless, rel.observability]
+  - [rel.concurrency, rel.load-evidence]
+  - [rel.observability, arch.extraction-costs]
+  - [arch.modular-monolith, arch.service-boundaries]
+  - [arch.service-boundaries, arch.extraction-costs]
+  - [arch.extraction-costs, arch.trade-offs]

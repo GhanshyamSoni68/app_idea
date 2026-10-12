@@ -1,0 +1,23 @@
+id: perf.query-plans.alt-b
+role: alternate
+retention_reserved: true
+type: self_check
+evidence_basis: self_assessed
+time_estimate_minutes: 2
+changed_conditions_of: perf.query-plans.primary-2
+scenario_key: perf.sc.report-loop
+scenario: >-
+  A report query already uses an index, yet one plan node ran 12,000 times (loops=12000) and the
+  report still takes six seconds. Each loop takes about 0.5 ms.
+prompt: In two or three sentences, say what you would check next and why.
+rubric:
+  - { id: names-evidence, weight: essential, text: "Points to a specific plan figure, such as the loop count." }
+  - { id: proposes-test, weight: essential, text: "Proposes one experiment that could show the guess is wrong." }
+  - { id: states-limit, weight: supporting, text: "States one assumption or limitation." }
+exemplar: >-
+  The loop count, not the index, dominates: 12,000 loops at 0.5 ms is about six seconds. I would check
+  whether the join can be done in one pass instead of once per row, by comparing the plan with and without
+  the per-row lookup on the same data. This assumes the same data size in both runs.
+hints:
+  - Look at how many times each node ran, not only its cost.
+reveal: The loop count dominates (12,000 x 0.5 ms is about 6 seconds). Compare a single-pass version on the same data.

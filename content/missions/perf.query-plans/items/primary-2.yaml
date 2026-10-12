@@ -1,0 +1,31 @@
+id: perf.query-plans.primary-2
+role: primary
+type: single_choice
+evidence_basis: auto_scored
+time_estimate_minutes: 2
+scenario_key: perf.sc.overdue-urgent
+scenario: >-
+  The scan reads about 1.2 million rows and keeps 1,480 (line 7: Rows Removed by Filter).
+  The planner expected 21,840 rows (line 5).
+prompt: Which experiment would you run first?
+options:
+  - key: a
+    text: Add a second application server and time the card again.
+    misconception: perf.mc.scale-out-first
+    feedback: The database still reads about 1.2 million rows for every request. More application servers do not change that.
+  - key: b
+    correct: true
+    text: Try an index that matches the filter, then compare the before and after plans on the same data.
+    feedback: Yes. The cost is in rows read versus rows kept. A before and after comparison on the same seeded data tests that guess, and you should name what it does not show.
+  - key: c
+    text: Cache the whole dashboard page for every user.
+    misconception: perf.mc.cache-hides-cause
+    feedback: That hides the symptom, and a page shared across users risks showing one site's orders to another.
+  - key: d
+    text: Treat the cost number of 48,210 as milliseconds and decide it is fast enough.
+    misconception: perf.mc.cost-is-ms
+    feedback: Cost is in arbitrary planner units. The actual time of 1,893 ms is the measurement.
+hints:
+  - Compare how many rows the scan read with how many it kept.
+  - Which option changes the rows the database has to read, rather than how many requests run at once?
+reveal: Try an index that matches the filter, then compare plans on the same data. A revealed answer never counts as demonstration.

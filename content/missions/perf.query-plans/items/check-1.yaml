@@ -1,0 +1,31 @@
+id: perf.query-plans.check-1
+role: topic_check
+check_eligible: true
+type: single_choice
+evidence_basis: auto_scored
+time_estimate_minutes: 2
+scenario_key: perf.sc.ticket-search
+scenario: |
+  A helpdesk app's ticket search is slow. This is the plan (fictional figures, PostgreSQL 18):
+
+      1  Nested Loop  (cost=0.4..9800.0 rows=12 width=60) (actual time=0.2..640.5 rows=4210 loops=1)
+      2    ->  Index Scan using customers_pkey on customers  (cost=0.2..8.2 rows=1 width=20) (actual time=0.1..0.1 rows=1 loops=1)
+      3    ->  Seq Scan on tickets  (cost=0.0..9700.0 rows=12 width=40) (actual time=0.1..639.9 rows=4210 loops=1)
+      4          Filter: (customer_id = 77)
+      5          Rows Removed by Filter: 995790
+prompt: Which statement about this plan is correct?
+options:
+  - key: a
+    text: The Index Scan on customers is the costly node, because it runs first.
+    feedback: It finishes in 0.1 ms. The time is in line 3.
+  - key: b
+    correct: true
+    text: The Seq Scan on tickets (line 3) dominates, and the planner expected 12 rows but found 4,210, so its estimate was far off.
+    feedback: Yes. The scan accounts for almost all of the time, and the estimate (12) is far from the actual rows (4,210).
+  - key: c
+    text: The cost of 9,800 means the query takes 9.8 seconds.
+    misconception: perf.mc.cost-is-ms
+    feedback: Cost is in arbitrary planner units, not milliseconds. The actual time is about 640 ms.
+hints:
+  - Compare line 3's actual time with the total.
+reveal: The Seq Scan on tickets dominates, and its row estimate (12) is far from the actual rows (4,210).

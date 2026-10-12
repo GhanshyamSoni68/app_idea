@@ -1,0 +1,25 @@
+id: sys.request-path.check-1
+role: topic_check
+check_eligible: true
+type: single_choice
+evidence_basis: auto_scored
+time_estimate_minutes: 2
+scenario_key: sys.sc.photo-upload
+scenario: >-
+  A technician uploads a photo of a repair from their phone. The app saves the file, returns `200 OK`,
+  and a background job later creates a thumbnail. The next day the thumbnail is missing, but the original photo opens fine.
+prompt: Where would you look first?
+options:
+  - key: a
+    text: The browser's request, because the upload may not have reached the server.
+    feedback: The original photo opens, so the upload worked.
+  - key: b
+    correct: true
+    text: The background thumbnail job and its log.
+    feedback: Yes. The synchronous part worked, so the missing thumbnail points at the background hop.
+  - key: c
+    text: The database schema.
+    feedback: Nothing suggests a schema problem, and the original photo is stored correctly.
+hints:
+  - Which part worked, and which part is still missing?
+reveal: The background thumbnail job and its log.

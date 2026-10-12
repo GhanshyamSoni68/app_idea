@@ -1,0 +1,29 @@
+id: sys.request-path.primary-1
+role: primary
+type: ordering
+evidence_basis: auto_scored
+time_estimate_minutes: 2
+scenario_key: sys.sc.submit-work-order
+scenario: Put the hops of a work-order submission in the order they happen.
+prompt: Arrange the eight hops from first to last.
+options:
+  - { key: browser, text: "The browser sends POST /work-orders" }
+  - { key: checks, text: "The web server checks the login and the form fields" }
+  - { key: save, text: "The application saves the work order in the database" }
+  - { key: enqueue, text: "The application puts a 'send confirmation' job on the queue" }
+  - { key: respond, text: "The web server sends 201 Created to the browser" }
+  - { key: worker, text: "A worker takes the job from the queue" }
+  - { key: mail-ask, text: "The worker asks the mail service to send the email" }
+  - { key: mail-send, text: "The mail service delivers the message" }
+answer_order: [browser, checks, save, enqueue, respond, worker, mail-ask, mail-send]
+feedback_correct: >-
+  Yes. The first five hops are synchronous: the user waits for them. The response returns at hop five,
+  and hops six to eight happen in the background.
+feedback_incorrect: >-
+  Not quite. Check where the response returns: the user waits only for the hops before it. The queue job is
+  put on the queue before the response, but the worker takes it afterwards.
+misconception: sys.mc.done-at-response
+hints:
+  - Which hops must finish before the user sees a response?
+  - The job is put on the queue before the response, but the worker takes it after.
+reveal: "Order: browser, checks, save, enqueue, respond, worker, mail-ask, mail-send."

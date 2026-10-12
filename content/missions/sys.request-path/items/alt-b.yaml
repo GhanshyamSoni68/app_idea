@@ -1,0 +1,23 @@
+id: sys.request-path.alt-b
+role: alternate
+retention_reserved: true
+type: single_choice
+evidence_basis: auto_scored
+time_estimate_minutes: 2
+changed_conditions_of: sys.request-path.primary-2
+scenario_key: sys.sc.reserve-book
+scenario: >-
+  A library app lets a member reserve a book. The app saves the reservation and returns `201 Created`, then a
+  background worker notifies the member. The member says no notification arrived.
+prompt: Where do you look first for the missing notification?
+options:
+  - key: a
+    text: The reservation request in the browser.
+    feedback: The 201 response shows the request worked.
+  - key: b
+    correct: true
+    text: The worker's log for the notification job.
+    feedback: Yes. The synchronous part worked, so look at the background hop and its log first.
+hints:
+  - The response returned successfully. What happens after that?
+reveal: The worker's log for the notification job.

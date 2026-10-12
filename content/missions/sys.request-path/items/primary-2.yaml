@@ -1,0 +1,28 @@
+id: sys.request-path.primary-2
+role: primary
+type: single_choice
+evidence_basis: auto_scored
+time_estimate_minutes: 2
+scenario_key: sys.sc.submit-work-order
+scenario: |
+  The response was `201 Created`. The worker log for that job says:
+
+      03:12:01 worker  picked up job send_confirmation id=881
+      03:12:01 worker  POST mail-service /send ... connection timed out after 10s
+      03:12:11 worker  job send_confirmation id=881 failed, will retry
+prompt: Which hop most likely failed?
+options:
+  - key: a
+    text: The browser's request to the web server
+    feedback: The response was 201 Created, so the request reached the server and worked.
+  - key: b
+    text: Saving the work order in the database
+    feedback: A 201 response means the order was saved before the response.
+  - key: c
+    correct: true
+    text: The worker's call to the mail service
+    feedback: Yes. The log shows the worker timing out when it called the mail service, which is a background hop that happens after the response.
+hints:
+  - Which hops are ruled out by the 201 response?
+  - Read the worker log lines in order.
+reveal: The worker's call to the mail service timed out (a background hop).

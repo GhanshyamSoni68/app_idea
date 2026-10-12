@@ -1,0 +1,23 @@
+id: perf.query-plans.primary-1
+role: primary
+type: single_choice
+evidence_basis: auto_scored
+time_estimate_minutes: 1
+scenario_key: perf.sc.overdue-urgent
+scenario: See the plan above. The query returns 38 rows in about 1,893 ms.
+prompt: Which node accounts for almost all of the 1,893 ms?
+options:
+  - key: a
+    text: The Sort (line 1)
+    feedback: The Sort starts at 1,893.2 ms, only a fraction of a millisecond after its child finished. It adds almost nothing of its own.
+  - key: b
+    text: The HashAggregate (line 3)
+    feedback: The HashAggregate finishes at 1,893.1 ms, but its child, the scan, finished at 1,871.4 ms. It adds about 20 ms.
+  - key: c
+    correct: true
+    text: The Seq Scan on work_orders (line 5)
+    feedback: Yes. The scan ends at 1,871.4 ms, so about 1,871 of the 1,893 ms is spent reading the table.
+hints:
+  - Each parent node's time includes its children. Subtract the child's time from the parent's.
+  - Compare when the scan finishes with when the HashAggregate finishes.
+reveal: The Seq Scan on work_orders (line 5) takes about 1,871 ms of the 1,893 ms. A revealed answer never counts as demonstration.

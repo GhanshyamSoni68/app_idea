@@ -105,6 +105,22 @@ Reverse any of them by changing this table first, then the owning document.
 | Dates | The indicative dates in the Summary; owned by `12` and mirrored in `10` | 12 |
 | Costs | `01` is infrastructure only; people costs are in `12` | 01, 12 |
 
+## 3a. Build log: rulings made while implementing the slice
+
+The founder chose to start building before the planning gate. These calls were made in code and are recorded here so they can be reversed deliberately.
+
+| Area | What was built, and the ruling | Owner |
+| --- | --- | --- |
+| Evidence timing | `practised` evidence and review scheduling are written when feedback is **acknowledged** (the learner moves past the feedback step, or completes the session), not at submission. The attempt response therefore returns `evidence_changes: []`; the session summary reports what was earned | 05, 02 |
+| Self-check exemplar | The exemplar of a `self_check` item is part of its learner projection, because the learner compares their own text with it before rating. The UI gates it behind writing a response first. It is `self_assessed` evidence and labelled so | 02, 06 |
+| Guest hints and reveal | Two added public endpoints, `POST /v1/guest/hints` and `POST /v1/guest/reveal`, serve sample hints statelessly; the browser records usage in its own bundle | 02 |
+| Missions | The planner supports **single-segment** missions only (steps summing to about 8 minutes or fewer). Multi-segment missions with a resume position inside one topic are not built yet | 05, 06 |
+| Publishing in development | `content:publish --dev` downgrades review-state and missing-mission findings to warnings. It is refused in production, where an unreviewed mission cannot be published | 06 |
+| Content release rows | Re-publishing unchanged content writes an empty `content_releases` row; harmless, to tidy later | 04 |
+| Today in `build` mode | Planned as `practise` until labs exist | 05 |
+
+**Not built yet** (still in `12-delivery-plan.md`): email verification and password recovery, GitHub OAuth, reminders, export and deletion, labs, the diagnostic, recovery after a long absence, challenge-out and defer, roadmap version migration, pause and resume, pilot arms, metric queries, and operational readiness.
+
 ## 4. What to do in the next two weeks
 
 None of this needs code.

@@ -493,6 +493,7 @@ gives one active roadmap at a time (§8A); `(user_id, enrolled_at)`.
 | `completion_path` | text | yes | CHECK `standard`, `challenge_out`, `carried_over`, `reused_evidence`. There is no defer value (R03) |
 | `completion_attempt_id`, `carried_from_progress_id` | uuid | yes | Composite FKs to `attempts` and to self |
 | `started_at`, `completed_at`, `deferred_at` | timestamptz | yes | |
+| `mission_activity_done_at`, `mission_activity_done_on` | timestamptz, date | yes | *(added)* C1 + C2 of the completion rule, sticky once set; the learner day anchors the topic-check delay |
 | `refresh_suggested_at`, `refresh_reason` | timestamptz, text | yes | Set together. Reason is CHECK `objective_changed`: a carried completion whose objective changed in the new version keeps its credit and shows "Refresh suggested" (§4.3). Cleared when a later check on the new objective is met |
 
 Constraints: UK `(enrolment_id, topic_id)`;
@@ -584,6 +585,8 @@ invariant query reports violations. Index:
 | `source_enrolment_id` | uuid | yes | Supports "continue reviews from the previous roadmap?" |
 
 Index: `ix_review_due (user_id, due_on) WHERE status = 'active'`.
+
+*Added while building the slice (engine bookkeeping from `05` RV-2):* `check_pending_topic_id` (FK `roadmap_topics`), `consecutive_not_met`, `consecutive_check_failures`, `consecutive_skips`, `skipped_on date`, and `used_items jsonb` (item, first and last served, times, outcomes).
 
 | Table | Key columns, constraints and indexes |
 | --- | --- |

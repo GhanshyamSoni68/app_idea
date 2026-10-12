@@ -108,6 +108,17 @@ class AuthorisationMatrixTest extends TestCase
         $this->assertSame(1, DB::table('users')->count());
     }
 
+    public function test_me_reports_the_account_and_onboarding_state(): void
+    {
+        $this->actingAs($this->newUser('ada@example.com', 'Europe/London'));
+        $this->getJson('/v1/me')->assertOk()
+            ->assertJsonPath('user.email', 'ada@example.com')
+            ->assertJsonPath('user.onboarding_completed', true)
+            ->assertJsonPath('user.time_zone', 'Europe/London');
+        $this->actingAs($this->newUser('new@example.com', onboard: false));
+        $this->getJson('/v1/me')->assertOk()->assertJsonPath('user.onboarding_completed', false);
+    }
+
     public function test_sign_in_and_out(): void
     {
         $this->newUser('ada@example.com');

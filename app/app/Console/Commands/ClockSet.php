@@ -8,7 +8,7 @@ use Illuminate\Console\Command;
 
 class ClockSet extends Command
 {
-    protected $signature = 'clock:set {instant : RFC 3339 instant, or +1day / +2hours} {--reset : Remove the override}';
+    protected $signature = 'clock:set {instant? : RFC 3339 instant, or +1day / +2hours} {--reset : Remove the override}';
 
     protected $description = 'Control the application clock outside production (docs/12 EP01)';
 
@@ -27,6 +27,11 @@ class ClockSet extends Command
             return 0;
         }
         $arg = (string) $this->argument('instant');
+        if ($arg === '') {
+            $this->error('Give an instant, or use --reset.');
+
+            return 2;
+        }
         $instant = str_starts_with($arg, '+')
             ? CarbonImmutable::parse($arg, 'UTC')->setTimestamp(Clock::now()->getTimestamp())->modify($arg)
             : CarbonImmutable::parse($arg, 'UTC');

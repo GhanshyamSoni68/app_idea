@@ -39,6 +39,9 @@ return [
     'sample_mission' => 'perf.query-plans',
     'launch_roadmap' => 'crud-to-reliable',
 
+    // Where "Ask to join the pilot" points (the recruitment form). Null shows plain guidance instead.
+    'pilot_form_url' => env('DEVSTEP_PILOT_FORM_URL'),
+
     // Idempotency keys expire after 7 days (docs/04 §5.4).
     'idempotency_ttl_days' => 7,
 

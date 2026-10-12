@@ -160,7 +160,8 @@ final class SessionService
 
     private function projectStep(array $ps, $stepAttempts): array
     {
-        $out = ['index' => $ps['index'], 'key' => $ps['key'], 'kind' => $ps['kind'], 'purpose' => $ps['purpose'], 'stop_after' => $ps['stop_after'], 'title' => $ps['title'] ?? null, 'body' => '', 'item' => null, 'attempt' => null];
+        $out = ['index' => $ps['index'], 'key' => $ps['key'], 'kind' => $ps['kind'], 'purpose' => $ps['purpose'], 'stop_after' => $ps['stop_after'], 'title' => $ps['title'] ?? null, 'body' => '', 'item' => null, 'attempt' => null,
+            'content_version_id' => $ps['mission_cv'] ?? $ps['item_cv']];
         if ($ps['mission_cv']) {
             $mission = $this->content->version($ps['mission_cv']);
             $section = $mission->body['sections'][$ps['key']] ?? null;

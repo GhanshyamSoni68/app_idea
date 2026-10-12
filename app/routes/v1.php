@@ -27,7 +27,7 @@ Route::prefix('v1')->group(function () {
 
     // Signed-in learner: every record is scoped to the owner taken from the session.
     Route::middleware(['auth', 'throttle:api'])->group(function () {
-        Route::get('me', [AuthController::class, 'me']);
+        Route::get('me', [AuthController::class, 'show']);
         Route::get('me/preferences', [ProfileController::class, 'show']);
         Route::put('me/preferences', [ProfileController::class, 'update']);
         Route::put('me/goal', [ProfileController::class, 'goal']);

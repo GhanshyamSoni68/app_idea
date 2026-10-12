@@ -97,11 +97,17 @@ class AuthController extends Controller
         return response()->json(['signed_out' => true]);
     }
 
-    public function me(Request|User $subject): JsonResponse|array
+    public function show(Request $request): JsonResponse
     {
-        $user = $subject instanceof Request ? $subject->user() : $subject;
+        return response()->json(['user' => $this->me($request->user())]);
+    }
+
+    /** @return array<string, mixed> */
+    private function me(User $user): array
+    {
         $prefs = $this->profile->preferences((string) $user->id);
-        $payload = [
+
+        return [
             'id' => $user->id,
             'email' => $user->email,
             'email_verified' => $user->email_verified_at !== null,
@@ -110,7 +116,5 @@ class AuthController extends Controller
             'deletion' => ['pending' => $user->status === 'pending_deletion'],
             'subject_id' => $user->analytics_subject_id,
         ];
-
-        return $subject instanceof Request ? response()->json(['user' => $payload]) : $payload;
     }
 }

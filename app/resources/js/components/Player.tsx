@@ -4,6 +4,9 @@ import { helpUsed, OUTCOME_LABEL } from '../lib/format';
 import { Markdown } from '../lib/markdown';
 import type { AttemptResult, Item } from '../types';
 import { type Answer, answerReady, effectiveAnswer, ItemInput } from './ItemInput';
+import { Avatar, Remark } from './Mascot';
+import { StepBar } from './Progress';
+import { say } from '../lib/stepSays';
 import { Banner, Dialog, useFocusOnChange } from './ui';
 
 export interface PlayerStep {
@@ -139,6 +142,7 @@ export function Player({ steps, startIndex, title, context, modeLabel, engine, i
                 <button type="button" className="btn secondary" onClick={() => void engine.saveAndExit()}>Save and exit</button>
                 <span aria-live="off">Step {index + 1} of {steps.length}</span>
             </div>
+            <StepBar index={index} total={steps.length} />
             <p className="player-ctx">{context ?? title}{context ? ` · ${modeLabel}` : ''}</p>
             {banners}
             <h1 id="step-title" tabIndex={-1} ref={headingRef}>{step.title ?? title}</h1>
@@ -166,8 +170,11 @@ export function Player({ steps, startIndex, title, context, modeLabel, engine, i
                             <div aria-live="polite">
                                 {hintState?.texts.map((t, i) => (
                                     <div className="hint" key={i}>
-                                        <strong>Hint {i + 1} of {totalHints}</strong>
-                                        <Markdown source={t} />
+                                        <Avatar size={36} />
+                                        <div>
+                                            <strong>Hint {i + 1} of {totalHints}</strong>
+                                            <Markdown source={t} />
+                                        </div>
                                     </div>
                                 ))}
                                 {revealed[step.key] && (
@@ -194,7 +201,8 @@ export function Player({ steps, startIndex, title, context, modeLabel, engine, i
 
                     {result && outcome && (
                         <div className={`feedback ${outcome.tone}`} role="region" aria-labelledby="fb-title">
-                            <h2 id="fb-title" tabIndex={-1} ref={feedbackRef}><span aria-hidden="true">{outcome.glyph} </span>{outcome.word}</h2>
+                            <h2 id="fb-title" tabIndex={-1} ref={feedbackRef}><span className="badge" aria-hidden="true">{outcome.glyph}</span>{outcome.word}</h2>
+                            <Remark>{say(result.evidence_basis === 'self_assessed' ? 'feedback_self' : outcome.tone === 'ok' ? 'feedback_ok' : 'feedback_notyet', step.key)}</Remark>
                             <div aria-live="polite">
                                 <Markdown source={result.feedback.text} />
                                 {result.feedback.correct_order && (

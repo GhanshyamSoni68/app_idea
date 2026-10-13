@@ -3,7 +3,9 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { api, ApiError, uuid } from '../api';
 import type { Answer } from '../components/ItemInput';
 import { type PlayerEngine, Player } from '../components/Player';
+import { Bubble, Mascot } from '../components/Mascot';
 import { Banner, LevelMarker, ProgressCount, useFocusOnChange } from '../components/ui';
+import { type Context, say } from '../lib/stepSays';
 import { assistanceLabel, BASIS_LABEL, formatDate, LEVEL_EXPLAIN, MODE_LABEL } from '../lib/format';
 import type { CompleteResult, SessionPayload } from '../types';
 
@@ -164,6 +166,15 @@ function Loaded({ payload }: { payload: SessionPayload }) {
     );
 }
 
+function celebrationContext(r: CompleteResult): Context {
+    if (r.milestone) return 'complete_roadmap';
+    if (r.challenge) return r.challenge.passed ? 'challenge_pass' : 'challenge_try';
+    if (r.topic_changes.length > 0) return 'complete_topic';
+    if (r.summary.evidence_changes.some((e) => e.level === 'demonstrated' || e.level === 'retained')) return 'complete_demonstrated';
+
+    return 'complete_practised';
+}
+
 export function SessionDone() {
     const { id = '' } = useParams();
     const loc = useLocation();
@@ -178,14 +189,26 @@ export function SessionDone() {
     }, [id, r]);
 
     if (error) return <Banner tone="attention" role="alert" title="Summary unavailable.">{error} <Link to="/today">Back to Today</Link></Banner>;
-    if (!r) return <p role="status">Loading…</p>;
+    if (!r) return <div className="loading" role="status"><Mascot mood="hello" size={110} />Loading…</div>;
 
-    const demonstrated = r.summary.evidence_changes.filter((e) => e.level === 'demonstrated' || e.level === 'retained');
+    // One line per skill, at the highest level this session reached (two items can evidence the same skill).
+    const RANK = { introduced: 1, practised: 2, demonstrated: 3, retained: 4 } as const;
+    const bySkill = new Map<string, (typeof r.summary.evidence_changes)[number]>();
+    for (const e of r.summary.evidence_changes) {
+        const have = bySkill.get(e.skill_id);
+        if (!have || RANK[e.level] > RANK[have.level]) bySkill.set(e.skill_id, e);
+    }
+    const evidence = [...bySkill.values()];
+    const demonstrated = evidence.filter((e) => e.level === 'demonstrated' || e.level === 'retained');
     const p = r.roadmap_progress;
 
     return (
         <div className="stack">
-            <h1 ref={h} tabIndex={-1}>Session complete</h1>
+            <div className="celebrate">
+                <Mascot mood="cheer" size={170} />
+                <h1 ref={h} tabIndex={-1}>Session complete</h1>
+                <Bubble>{say(celebrationContext(r), r.session_id)}</Bubble>
+            </div>
             {r.challenge && (r.challenge.passed
                 ? <Banner title="Challenge passed.">{r.topic_changes[0]?.title ?? 'The topic'} is completed. This shows you can already apply it.</Banner>
                 : <Banner title="Good to know where to start.">The mission for this topic is next, and nothing is lost. The short check after it will complete the topic.</Banner>)}
@@ -194,10 +217,10 @@ export function SessionDone() {
                 : <p>You worked through {r.summary.attempts} {r.summary.attempts === 1 ? 'question' : 'questions'}. That is practice.</p>}
             <p><strong>You can stop here.</strong></p>
 
-            {r.summary.evidence_changes.length > 0 && (
+            {evidence.length > 0 && (
                 <section aria-labelledby="ev">
                     <h2 id="ev">Evidence recorded</h2>
-                    {r.summary.evidence_changes.map((e, i) => (
+                    {evidence.map((e, i) => (
                         <div className="skill" key={i}>
                             <LevelMarker level={e.level} /> · <strong>{e.title}</strong>
                             <div className="small muted">{LEVEL_EXPLAIN[e.level]} {BASIS_LABEL[e.basis]}. {assistanceLabel(e.assistance)}.</div>

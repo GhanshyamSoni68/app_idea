@@ -1,5 +1,6 @@
 import { type ReactNode, useEffect, useRef } from 'react';
 import { LEVEL_GLYPH, LEVEL_LABEL } from '../lib/format';
+import { ProgressBar } from './Progress';
 import type { Level } from '../types';
 
 export function Banner({ tone = 'info', title, children, role }: { tone?: 'info' | 'attention'; title?: string; children: ReactNode; role?: 'status' | 'alert' }) {
@@ -28,7 +29,7 @@ export function ProgressCount({ done, total, percent, label = 'required topics' 
             <span>
                 <strong>{done} of {total}</strong> {label} · {percent}%
             </span>
-            <progress value={done} max={Math.max(total, 1)} aria-label={`${done} of ${total} ${label}`} />
+            <ProgressBar value={done} max={Math.max(total, 1)} label={`${done} of ${total} ${label}`} />
         </div>
     );
 }

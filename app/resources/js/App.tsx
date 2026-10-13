@@ -1,11 +1,13 @@
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { BrowserRouter, Link, Navigate, NavLink, Route, Routes } from 'react-router-dom';
 import { api, uuid } from './api';
+import { EvidenceIcon, RoadmapIcon, TodayIcon } from './components/icons';
+import { Avatar, Mascot } from './components/Mascot';
 import { Banner } from './components/ui';
 import { useOnline } from './lib/pwa';
 import { AuthProvider, useAuth } from './lib/auth';
 import { claimBody, clearGuest, hasGuestWork, loadGuest, saveGuest } from './lib/guestStore';
-import { ForgotPage, PendingDeletion, ResetPage, VerifyBanner, VerifyPage } from './pages/Account';
+import { ForgotPage, PendingDeletion, ResetPage, VerifyPage } from './pages/Account';
 import { Onboarding, SignIn, SignUp } from './pages/Auth';
 import { GuestSample, GuestStart, Landing, SampleDone } from './pages/Guest';
 import { EvidencePage, RoadmapPage } from './pages/Lists';
@@ -20,10 +22,10 @@ function Shell({ children, signedIn }: { children: ReactNode; signedIn: boolean 
         <div className="shell">
             <a className="skip" href="#main">Skip to main content</a>
             <header className="topbar">
-                <Link className="brand" to={signedIn ? '/today' : '/'}>DevStep</Link>
+                <Link className="brand" to={signedIn ? '/today' : '/'}><Avatar size={38} /><span className="wordmark">Dev<b>Step</b></span></Link>
                 {signedIn && (
                     <nav className="main" aria-label="Main">
-                        <NavLink to="/today">Today</NavLink><NavLink to="/roadmap">Roadmap</NavLink><NavLink to="/evidence">Evidence</NavLink>
+                        <NavLink to="/today"><TodayIcon />Today</NavLink><NavLink to="/roadmap"><RoadmapIcon />Roadmap</NavLink><NavLink to="/evidence"><EvidenceIcon />Evidence</NavLink>
                     </nav>
                 )}
                 <Link to="/settings">Settings</Link>
@@ -38,7 +40,7 @@ function Shell({ children, signedIn }: { children: ReactNode; signedIn: boolean 
             </main>
             {signedIn && (
                 <nav className="tabbar" aria-label="Main">
-                    <NavLink to="/today">Today</NavLink><NavLink to="/roadmap">Roadmap</NavLink><NavLink to="/evidence">Evidence</NavLink>
+                    <NavLink to="/today"><TodayIcon />Today</NavLink><NavLink to="/roadmap"><RoadmapIcon />Roadmap</NavLink><NavLink to="/evidence"><EvidenceIcon />Evidence</NavLink>
                 </nav>
             )}
         </div>
@@ -89,7 +91,6 @@ function Authed() {
                     They are still safe in this browser. <button type="button" className="link" onClick={() => void claim.retry()}>Try again</button>
                 </Banner>
             )}
-            <VerifyBanner />
             <Routes>
                 <Route path="/verify" element={<VerifyPage />} />
                 <Route path="/onboarding" element={<Onboarding />} />
@@ -115,11 +116,12 @@ function SignedInRoutes({ subjectId }: { subjectId: string }) {
 
 function Root() {
     const { me, loading, offline, refresh } = useAuth();
-    if (loading) return <Shell signedIn={false}><p role="status">Loading…</p></Shell>;
+    if (loading) return <Shell signedIn={false}><div className="loading" role="status"><Mascot mood="hello" size={110} />Loading…</div></Shell>;
     if (!me && offline) {
         return (
             <Shell signedIn={false}>
-                <div className="stack">
+                <div className="stack empty">
+                    <Mascot mood="rest" size={150} />
                     <h1 tabIndex={-1}>You are offline</h1>
                     <p>DevStep could not reach your account. You are not signed out, and anything you wrote is kept on this device.</p>
                     <button type="button" className="btn" onClick={() => void refresh()}>Try again</button>

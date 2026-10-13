@@ -1102,6 +1102,8 @@ Hypothesis to test in discovery: learners practise on the phone between desktop 
 
 ## 11. Companion and progress illustration
 
+> **Update:** the founder chose to build a mascot, Step, as a stateless guide. It follows the rules in the table below and is specified in `15-mascot-and-brand.md`. The cosmetic-progress part of F15 (the workshop) is still not built.
+
 The companion is F15, P1. The MVP needs only a simple progress illustration, and expensive animation is not a launch dependency. *(PRD §6, §7)*
 
 **What the MVP shows instead** *(Proposal)*

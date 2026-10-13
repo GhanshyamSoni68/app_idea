@@ -2,7 +2,9 @@ import { type FormEvent, useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { api, ApiError } from '../api';
 import { OnboardingForm } from '../components/OnboardingForm';
+import { Remark } from '../components/Mascot';
 import { Banner, useFocusOnChange } from '../components/ui';
+import { say } from '../lib/stepSays';
 import { useAuth } from '../lib/auth';
 import { hasGuestWork, loadGuest } from '../lib/guestStore';
 import type { Me } from '../types';
@@ -45,6 +47,7 @@ export function SignUp() {
     return (
         <form onSubmit={submit} className="stack" noValidate>
             <h1 ref={h} tabIndex={-1}>Create your account</h1>
+            <Remark>{say('signup')}</Remark>
             {guest && <Banner title="Your sample answers move with you.">They are checked again and recorded as practice.</Banner>}
             <Errors error={error} />
             <div>
@@ -92,6 +95,7 @@ export function SignIn() {
     return (
         <form onSubmit={submit} className="stack" noValidate>
             <h1 ref={h} tabIndex={-1}>Sign in</h1>
+            <Remark>{say('signin')}</Remark>
             {justReset && <Banner role="status" title="Password changed.">Sign in with your new password. You were signed out everywhere.</Banner>}
             <Errors error={error} />
             <div>

@@ -3,7 +3,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import { api, ApiError, track, uuid } from '../api';
 import { OnboardingForm } from '../components/OnboardingForm';
 import { type PlayerEngine, Player, type PlayerStep } from '../components/Player';
+import { Mascot, Say } from '../components/Mascot';
 import { Banner, useFocusOnChange } from '../components/ui';
+import { say } from '../lib/stepSays';
 import { GUEST_TTL_DAYS, type GuestAttempt, isPersistent, loadGuest, saveGuest } from '../lib/guestStore';
 import type { AttemptResult, SampleMission } from '../types';
 
@@ -12,12 +14,22 @@ const PILOT_URL: string | null = (window as unknown as { __DEVSTEP__?: { pilotFo
 export function Landing() {
     const h = useFocusOnChange('landing');
     return (
-        <div className="stack hero">
-            <h1 ref={h} tabIndex={-1}>Know what to practise next, start with the time you have, and see evidence that you are improving.</h1>
-            <p>DevStep is a guided practice routine for working developers. You get one small, concrete task at a time, tied to one continuing engineering scenario, and it comes back until you can apply it without help.</p>
-            <p><Link className="btn" to="/start">Try a sample scenario</Link></p>
-            <p className="muted">About 8 minutes. No account needed. What you do stays in this browser on this device.</p>
-            <p>Already have an account? <Link to="/sign-in">Sign in</Link></p>
+        <div className="stack">
+            <div className="hero">
+                <div className="art"><Mascot mood="hello" size={230} /></div>
+                <div className="stack">
+                    <h1 ref={h} tabIndex={-1}>Know what to practise next, and see proof you are improving.</h1>
+                    <p className="lead">{say('landing')} Start with the time you have, even three minutes.</p>
+                    <p><Link className="btn" to="/start">Try a sample scenario</Link></p>
+                    <p className="muted small">About 8 minutes. No account needed. What you do stays in this browser on this device.</p>
+                    <p>Already have an account? <Link to="/sign-in">Sign in</Link></p>
+                </div>
+            </div>
+            <ul className="perks">
+                <li><span className="ico" aria-hidden="true">1</span><span>One small, concrete task at a time, tied to one continuing engineering scenario.</span></li>
+                <li><span className="ico" aria-hidden="true">2</span><span>Questions come back until you can apply the idea without help.</span></li>
+                <li><span className="ico" aria-hidden="true">3</span><span>Honest evidence: what you showed, with dates, and what it does not prove.</span></li>
+            </ul>
             <Banner title="Pilot invite needed to keep your progress.">DevStep is in a small invited pilot. You can try the sample now and join later if you have an invite.</Banner>
         </div>
     );
@@ -29,7 +41,7 @@ export function GuestStart() {
     return (
         <div className="stack">
             <h1 ref={h} tabIndex={-1}>A few quick questions</h1>
-            <p className="muted">They shape what you are offered. Nothing is rated, and you can change every answer later.</p>
+            <Say mood="think" size={96}>{say('onboarding')}</Say>
             <OnboardingForm submitLabel="Continue to the sample" onDone={(o) => {
                 const b = loadGuest();
                 saveGuest({ ...b, onboarding: o });
@@ -157,8 +169,11 @@ export function SampleDone() {
     const done = Object.keys(b.sample?.attempts ?? {}).length;
     return (
         <div className="stack">
-            <h1 ref={h} tabIndex={-1}>Sample complete</h1>
-            <p>One real scenario, {done} decisions and their feedback. That is practice. You can stop here.</p>
+            <div className="celebrate">
+                <Mascot mood="cheer" size={170} />
+                <h1 ref={h} tabIndex={-1}>Sample complete</h1>
+            </div>
+            <p>One real scenario, {done} decisions and their feedback. {say('sample_done')} You can stop here.</p>
             <div className="card">
                 <h2>Where this is saved</h2>
                 <p>Only in this browser on this device until you create an account. If you do not, it is deleted from this browser after {GUEST_TTL_DAYS} days. Clearing browser data or closing a private window loses it sooner.</p>

@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, ApiError } from '../api';
+import { Avatar, Mascot, Say } from '../components/Mascot';
 import { Banner, Dialog, LevelMarker, ProgressCount, useFocusOnChange } from '../components/ui';
+import { say } from '../lib/stepSays';
 import { assistanceLabel, BASIS_LABEL, formatDate, LEVEL_EXPLAIN, LIMITATION_LABEL, TOPIC_STATE } from '../lib/format';
 import type { EvidenceItem, Level, RoadmapTopic, RoadmapView } from '../types';
 
@@ -54,16 +56,18 @@ export function RoadmapPage() {
     };
 
     if (error) return <Banner role="alert" tone="attention" title="Roadmap">{error}</Banner>;
-    if (!view) return <p role="status">Loading the roadmap…</p>;
+    if (!view) return <div className="loading" role="status"><Mascot mood="hello" size={110} />Loading the roadmap…</div>;
 
     const paused = view.enrolment.status === 'paused';
     // The module holding the first unfinished required topic is open; later modules say Preview (docs/08 W09).
+    const hereId = view.modules.flatMap((m) => m.topics).find((t) => t.kind === 'required' && t.state !== 'completed' && t.has_content)?.id;
     const current = view.modules.findIndex((m) => m.topics.some((t) => t.kind === 'required' && t.state !== 'completed'));
 
     return (
         <div className="stack">
             <h1 ref={h} tabIndex={-1}>Roadmap</h1>
-            <div>
+            <Say mood={paused ? 'rest' : 'think'} size={100}>{say(paused ? 'paused_roadmap' : 'roadmap')}</Say>
+            <div className="card path-head">
                 <h2>{view.roadmap.title}</h2>
                 <p className="muted small">Version {view.roadmap.version} · {view.roadmap.estimated_effort}</p>
                 <ProgressCount done={view.progress.completed_required} total={view.progress.total_required} percent={view.progress.percent} />
@@ -82,14 +86,17 @@ export function RoadmapPage() {
 
                 return (
                     <details className="module" key={m.module_key} open={mi === Math.max(current, 0)}>
-                        <summary>{mi + 1} {m.title} <span className="muted small">{done}/{total}{mi > current && current >= 0 && done === 0 ? ' · Preview' : ''}</span></summary>
+                        <summary><span className="num" aria-hidden="true">{mi + 1}</span>{m.title} <span className="muted small">{done}/{total}{mi > current && current >= 0 && done === 0 ? ' · Preview' : ''}</span></summary>
+                        <ol className="topics">
                         {m.topics.map((t) => {
                             const st = TOPIC_STATE[t.state];
 
                             return (
-                                <div className="topic" key={t.id}>
+                                <li className={`topic ${t.state}`} key={t.id}>
+                                    <span className="node" aria-hidden="true">{t.state === 'completed' ? '✓' : t.state === 'in_progress' ? '…' : t.state === 'deferred' ? '–' : ''}</span>
+                                    <div>
                                     <div className="t-head">
-                                        <span aria-hidden="true">{st.glyph}</span>
+                                        {t.id === hereId && <Avatar size={30} />}
                                         <strong>{t.title}</strong>
                                         <span className="muted small">{st.label}{t.completion_path === 'challenge_out' ? ' by challenge' : ''}</span>
                                         {t.kind === 'optional' && <span className="tag">Optional</span>}
@@ -108,9 +115,11 @@ export function RoadmapPage() {
                                                 : <button type="button" className="link" disabled={busy} onClick={() => void act(() => api.post(`/topics/${t.id}/defer`), `Deferred, no credit. Come back or take the challenge any time.`)}>Defer</button>}
                                         </div>
                                     )}
-                                </div>
+                                    </div>
+                                </li>
                             );
                         })}
+                        </ol>
                     </details>
                 );
             })}
@@ -139,13 +148,20 @@ export function EvidencePage() {
     }, []);
 
     if (error) return <Banner role="alert" tone="attention" title="Evidence">{error}</Banner>;
-    if (!items) return <p role="status">Loading…</p>;
+    if (!items) return <div className="loading" role="status"><Mascot mood="hello" size={110} />Loading…</div>;
 
     return (
         <div className="stack">
             <h1 ref={h} tabIndex={-1}>Evidence</h1>
+            {items.length > 0 && <Say mood="wave" size={90}>{say('evidence')}</Say>}
             <p className="muted">What you can show, with dates and limits. It is separate from roadmap completion, and levels never go down.</p>
-            {items.length === 0 && <Banner title="Nothing yet.">Evidence appears here once you have attempted a task and reviewed its feedback. Reading alone never raises a level.</Banner>}
+            {items.length === 0 && (
+                <div className="empty card">
+                    <Mascot mood="think" size={130} />
+                    <p><strong>Nothing here yet.</strong></p>
+                    <p className="muted">Evidence appears once you have attempted a task and reviewed its feedback. Reading alone never raises a level.</p>
+                </div>
+            )}
             {ORDER.map((level) => {
                 const group = items.filter((i) => i.level === level);
                 if (group.length === 0) return null;

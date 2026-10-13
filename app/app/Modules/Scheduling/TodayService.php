@@ -560,7 +560,9 @@ final class TodayService
             }
         }
 
-        return ['practice_days_target' => $target, 'practice_days_done' => count($days), 'week_start' => $start];
+        ksort($days);
+
+        return ['practice_days_target' => $target, 'practice_days_done' => count($days), 'week_start' => $start, 'practice_dates' => array_keys($days)];
     }
 
     private function resumeCandidate(Learner $learner, string $mode): ?object

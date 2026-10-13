@@ -42,6 +42,7 @@ and vendor prices are marked `unverified` until someone checks the live page.
 | 12 | [Delivery plan](docs/12-delivery-plan.md) | Planning gate, phases, timeline, epics, critical path, risks |
 | 13 | [Decisions and open questions](docs/13-decisions-and-open-questions.md) | Consolidated decision log for discussion |
 | 14 | [App phase](docs/14-app-phase.md) | Installable web app (built), store apps and native features (gated), caching privacy rules, accessibility gate |
+| 15 | [Step and the brand](docs/15-mascot-and-brand.md) | The mascot: role, guilt-free voice, learner controls, visual system, artwork pipeline |
 
 ## Reading by question
 

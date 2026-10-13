@@ -138,6 +138,8 @@ try {
 
     // The check completed the topic exactly once: 1 of 18 required topics.
     await page2.getByRole('navigation', { name: 'Main' }).first().getByRole('link', { name: 'Roadmap' }).click();
+    await page2.getByRole('heading', { name: 'Roadmap', exact: true }).waitFor();
+    await page2.getByRole('progressbar', { name: 'required topics' }).waitFor(); // the Roadmap itself, not Today's link
     await page2.getByText('1 of 18').first().waitFor();
     await page2.screenshot({ path: `${OUT}/07-roadmap.png`, fullPage: true });
     step('Roadmap shows 1 of 18 required topics (5%), rounded down, with the count beside it');

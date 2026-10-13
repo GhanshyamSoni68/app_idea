@@ -1,7 +1,10 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Say } from '../components/Mascot';
 import { useFocusOnChange } from '../components/ui';
-import { DeleteSection, ExportSection } from './Account';
+import { setMascotMode, useMascotMode, type MascotMode } from '../lib/mascotPrefs';
+import { MASCOT_NAME, say } from '../lib/stepSays';
+import { DeleteSection, ExportSection, VerifyBanner } from './Account';
 import { useAuth } from '../lib/auth';
 import { clearGuest } from '../lib/guestStore';
 import { isIosSafari, useInstallPrompt } from '../lib/pwa';
@@ -11,6 +14,7 @@ export function SettingsPage() {
     const nav = useNavigate();
     const { me, signOut } = useAuth();
     const install = useInstallPrompt();
+    const mascot = useMascotMode();
     const [theme, setTheme] = useState<string>(() => { try { return localStorage.getItem('devstep.theme') ?? 'system'; } catch { return 'system'; } });
 
     const apply = (t: string) => {
@@ -22,6 +26,15 @@ export function SettingsPage() {
     return (
         <div className="stack">
             <h1 ref={h} tabIndex={-1}>Settings</h1>
+            <VerifyBanner />
+            <Say mood="wave" size={96}>{say('settings')}</Say>
+            <fieldset>
+                <legend>How much of {MASCOT_NAME} do you want to see?</legend>
+                {([['on', `${MASCOT_NAME} with a little movement`], ['quiet', `${MASCOT_NAME}, perfectly still`], ['off', `Hide ${MASCOT_NAME}`]] as [MascotMode, string][]).map(([v, label]) => (
+                    <label className="choice" key={v}><input type="radio" name="mascot" checked={mascot === v} onChange={() => setMascotMode(v)} /><span>{label}</span></label>
+                ))}
+                <p className="small muted">Your device's reduced-motion setting is always respected. {MASCOT_NAME} never affects your evidence or progress.</p>
+            </fieldset>
             <fieldset>
                 <legend>Theme</legend>
                 {[['system', 'Match my device'], ['light', 'Light'], ['dark', 'Dark']].map(([v, label]) => (

@@ -1,8 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="DevStep">
-  <rect width="512" height="512" fill="#1f4fd8"/>
-  <g fill="#fff">
-    <rect x="96" y="304" width="96" height="112" rx="14"/>
-    <rect x="208" y="224" width="96" height="192" rx="14"/>
-    <rect x="320" y="128" width="96" height="288" rx="14"/>
-  </g>
-</svg>

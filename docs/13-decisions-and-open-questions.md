@@ -119,6 +119,7 @@ The founder chose to start building before the planning gate. These calls were m
 | Content release rows | Re-publishing unchanged content writes an empty `content_releases` row; harmless, to tidy later | 04 |
 | Today in `build` mode | Planned as `practise` until labs exist | 05 |
 | App phase | Phase A (installable web app with a privacy-safe service worker) is built; store apps and native features stay locked behind pilot evidence. See `14-app-phase.md`. `02` §6.9's "service worker is an option" is now taken | 14, 02 |
+| Mascot | Founder decision: build **Step**, a stateless mascot guide used across the product, with a guilt-free voice enforced by a unit test, a settings control (movement, still, hidden) and reduced-motion support. Brings F15's guide forward; cosmetic progress stays locked. See `15-mascot-and-brand.md`. Artwork provenance, the name and licence are open (`15` §9) | 15, 08, 12 |
 | Accessibility gate | axe-core audit of every screen in light and dark fails the build on serious or critical findings; the manual release check (`08` A-21) remains required | 14, 08 |
 
 **Built since:** pause and resume (reviews are suspended while paused and shifted forward by the days paused on resume), manual defer and bring-back, challenge-out (one attempt per topic, no hints, judged as a whole when the session completes), the DEFERRED_BLOCKER fallback, and the return-after-absence refresher (RETURN_REFRESHER, offered once per absence, no count of missed days).

@@ -30,3 +30,7 @@ release check in `docs/08` A-21 (keyboard, screen reader, 200% zoom, 320 px, red
 ## Account lifecycle
 
 `npm run test:e2e:account` signs up, verifies the email from the emailed link (read from the dev mail log), resets the password, downloads the export, cancels a deletion, then lets a deletion run to a real purge by moving the clock past the 7-day grace.
+
+## Mascot
+
+`npm run test:e2e:mascot` checks the learner's control over Step (movement, still, hidden), that reduced motion always wins, that the mascot images stay under a weight budget, and audits the screens with axe-core with Step on and off. See `docs/15-mascot-and-brand.md`.

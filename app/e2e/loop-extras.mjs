@@ -89,6 +89,8 @@ try {
     step('challenge passed: topic completed by challenge, no hints offered');
 
     await page.getByRole('navigation', { name: 'Main' }).last().getByRole('link', { name: 'Roadmap' }).click();
+    await page.getByRole('heading', { name: 'Roadmap', exact: true }).waitFor();
+    await page.getByRole('progressbar', { name: 'required topics' }).waitFor();
     await page.getByText('1 of 18').first().waitFor();
     assert((await row('Trace a request end to end').innerText()).includes('by challenge'), 'roadmap says completed by challenge');
     assert(await row('Trace a request end to end').getByRole('button', { name: 'I already know this' }).count() === 0, 'one attempt per topic');

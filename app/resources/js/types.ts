@@ -96,7 +96,7 @@ export interface Today {
     secondary_actions: Action[];
     smaller_option: Action | null;
     reviews_included: number;
-    weekly_progress: { practice_days_target: number; practice_days_done: number; week_start: string };
+    weekly_progress: { practice_days_target: number; practice_days_done: number; week_start: string; practice_dates: string[] };
     enrolment: { id: string; roadmap_slug: string; status: string; completed_required: number; total_required: number } | null;
 }
 

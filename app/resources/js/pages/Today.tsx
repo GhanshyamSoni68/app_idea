@@ -1,12 +1,28 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api, ApiError, track } from '../api';
+import { Mascot, Say } from '../components/Mascot';
 import { Banner, useFocusOnChange } from '../components/ui';
+import { VerifyBanner } from './Account';
+import { WeekDots } from '../components/WeekDots';
+import { type Context, say } from '../lib/stepSays';
+import type { Today as TodayType } from '../types';
 import { MODE_LABEL } from '../lib/format';
 import { Markdown } from '../lib/markdown';
 import type { Action, Mode, Today as TodayData } from '../types';
 
 interface RoadmapPreview { title: string; outcome: string; estimated_effort: string; required_topic_count: number; coverage_note: string }
+
+const GREETING: Record<TodayType['situation'], { mood: 'wave' | 'hello' | 'rest' | 'cheer' | 'think'; context: Context }> = {
+    first_run: { mood: 'hello', context: 'today_first' },
+    ready: { mood: 'wave', context: 'today_ready' },
+    resume: { mood: 'wave', context: 'today_resume' },
+    returning: { mood: 'hello', context: 'today_returning' },
+    done_for_today: { mood: 'cheer', context: 'today_done' },
+    paused: { mood: 'rest', context: 'today_paused' },
+    nothing_ready: { mood: 'rest', context: 'today_nothing' },
+    roadmap_complete: { mood: 'cheer', context: 'complete_roadmap' },
+};
 
 export function TodayPage({ subjectId }: { subjectId: string }) {
     const nav = useNavigate();
@@ -78,7 +94,7 @@ export function TodayPage({ subjectId }: { subjectId: string }) {
     };
 
     if (error && !data) return <Banner tone="attention" role="alert" title="Today could not be loaded.">{error}</Banner>;
-    if (!data) return <p role="status">Loading Today…</p>;
+    if (!data) return <div className="loading" role="status"><Mascot mood="hello" size={110} />Loading Today…</div>;
 
     const a = data.primary_action;
     const wp = data.weekly_progress;
@@ -86,6 +102,8 @@ export function TodayPage({ subjectId }: { subjectId: string }) {
     return (
         <div className="stack">
             <h1 ref={h} tabIndex={-1}>Today</h1>
+            <VerifyBanner />
+            <Say mood={GREETING[data.situation].mood} size={104}>{say(GREETING[data.situation].context, data.local_date)}</Say>
             {error && <p className="err" role="alert">{error}</p>}
 
             {data.situation === 'first_run' && (
@@ -161,10 +179,10 @@ export function TodayPage({ subjectId }: { subjectId: string }) {
             ))}
 
             {data.enrolment && (
-                <p className="muted">
-                    This week: {wp.practice_days_done} of {wp.practice_days_target} practice days. Any practice counts, even 3 minutes.
-                    {' '}<Link to="/roadmap">{data.enrolment.completed_required} of {data.enrolment.total_required} required topics</Link>
-                </p>
+                <div className="card">
+                    <WeekDots weekStart={wp.week_start} dates={wp.practice_dates} today={data.local_date} target={wp.practice_days_target} />
+                    <p className="caption" style={{ marginTop: 10 }}><Link to="/roadmap">{data.enrolment.completed_required} of {data.enrolment.total_required} required topics</Link></p>
+                </div>
             )}
         </div>
     );

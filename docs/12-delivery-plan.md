@@ -294,7 +294,7 @@ includes the slice. Where a row names two phases, the later phase completes it.
 | --- | --- | --- | --- | --- |
 | F13 | Bounded AI tutor | P1 | Pilot shows learners stalling after authored hints (hint-then-abandon pattern) or asking for explanations the hints lack. The authored fallback works. Per-user and global spending caps and a cost model are set (PRD §14). AI processing is disclosed (PRD §12). | After the pilot decision |
 | F14 | Technology relevance briefing | P1 | The core loop retains learners, and interviews show they want help deciding what to ignore. Someone has the capacity to curate and review one item a week. | After the pilot decision |
-| F15 | Optional companion | P1 | Return and burden guardrails are healthy, and users say the simple progress illustration is not enough. It must never affect skill ratings or punish inactivity (PRD §6). | After the pilot decision |
+| F15 | Optional companion | P1 | **Step, the mascot, is built** as a stateless, hideable guide (`15-mascot-and-brand.md`, founder decision). The cosmetic-progress part (a workshop, unlocks) stays locked until return and burden guardrails are healthy and users say Step alone is not enough. It must never affect skill ratings or punish inactivity (PRD §6). | Cosmetic progress: after the pilot decision |
 | R07 | Additional roadmaps | P1 | The first path meets its learning thresholds. There is demand evidence for one specific next roadmap. A reviewer for that domain is available. | After the pilot decision |
 | R08 | Custom roadmap | Later | Several reviewed roadmaps with compatible objectives exist, and users ask to recombine them. Arbitrary AI-generated curricula remain excluded. | Later |
 
@@ -544,7 +544,7 @@ by PRD decision. The rest are **Proposals** for tempting work to defer.
 | Redis, extra caching or separate services | PRD §11 | A modular monolith with a database queue is enough for a pilot. | A measured breach of a PRD §12 performance budget at pilot load. |
 | Object storage and file uploads | PRD §11 | Lab evidence is captured as structured text. | Lab evidence genuinely needs files. |
 | Push, SMS or chat reminders | PRD §6, F10 | One opt-in email channel is enough to test reminders. | Pilot shows reminders are valued but email goes unseen. |
-| Companion, mascot or animation | PRD §6, F15 | Not a launch dependency. | The F15 unlock conditions (§4.2). |
+| Companion progression, cosmetics or unlocks (Step the mascot itself is built) | PRD §6, F15 | Not a launch dependency. Step is presentation only. | The F15 unlock conditions (§4.2). |
 | BI or analytics vendor dashboards | Proposal | SQL queries cover a 30–50-person pilot. | Running the metrics by hand takes more than about an hour a week. |
 | Marketing site, SEO, brand identity | PRD header (working name only) | Recruitment is by invitation; sign-up needs an invite code. A plain domain for email is bought in Phase 1. | Public recruitment beyond the pilot. Check name availability before any brand work. |
 | More login methods (passkeys, other OAuth providers) | Proposal | Email and password with verification, plus GitHub OAuth, cover the pilot (`09-security-privacy-ops.md`). | Pilot sign-up drop-off at the login step. |

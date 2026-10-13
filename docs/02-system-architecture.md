@@ -518,7 +518,7 @@ stateDiagram-v2
 | Catalogue reads in the app | In-process memo keyed by version ID | Safe because versions are immutable. Nothing mutable is cached. |
 | App cache (Redis or similar) | None | Revisit only when Today p95 nears budget after query tuning (AD-03). |
 
-An offline-capable app shell (service worker) is an option for `01`/`08`, not a requirement.
+An offline-capable app shell (service worker) is built, with a strict no-authenticated-caching rule (`14-app-phase.md` §3).
 
 ### 6.11 Observability hooks
 

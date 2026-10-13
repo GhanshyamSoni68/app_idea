@@ -118,6 +118,8 @@ The founder chose to start building before the planning gate. These calls were m
 | Publishing in development | `content:publish --dev` downgrades review-state and missing-mission findings to warnings. It is refused in production, where an unreviewed mission cannot be published | 06 |
 | Content release rows | Re-publishing unchanged content writes an empty `content_releases` row; harmless, to tidy later | 04 |
 | Today in `build` mode | Planned as `practise` until labs exist | 05 |
+| App phase | Phase A (installable web app with a privacy-safe service worker) is built; store apps and native features stay locked behind pilot evidence. See `14-app-phase.md`. `02` §6.9's "service worker is an option" is now taken | 14, 02 |
+| Accessibility gate | axe-core audit of every screen in light and dark fails the build on serious or critical findings; the manual release check (`08` A-21) remains required | 14, 08 |
 
 **Not built yet** (still in `12-delivery-plan.md`): email verification and password recovery, GitHub OAuth, reminders, export and deletion, labs, the diagnostic, recovery after a long absence, challenge-out and defer, roadmap version migration, pause and resume, pilot arms, metric queries, and operational readiness.
 

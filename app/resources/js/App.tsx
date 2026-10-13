@@ -2,6 +2,7 @@ import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { BrowserRouter, Link, Navigate, NavLink, Route, Routes } from 'react-router-dom';
 import { api, uuid } from './api';
 import { Banner } from './components/ui';
+import { useOnline } from './lib/pwa';
 import { AuthProvider, useAuth } from './lib/auth';
 import { claimBody, clearGuest, hasGuestWork, loadGuest, saveGuest } from './lib/guestStore';
 import { Onboarding, SignIn, SignUp } from './pages/Auth';
@@ -12,6 +13,8 @@ import { SettingsPage } from './pages/Settings';
 import { TodayPage } from './pages/Today';
 
 function Shell({ children, signedIn }: { children: ReactNode; signedIn: boolean }) {
+    const online = useOnline();
+
     return (
         <div className="shell">
             <a className="skip" href="#main">Skip to main content</a>
@@ -24,7 +27,14 @@ function Shell({ children, signedIn }: { children: ReactNode; signedIn: boolean 
                 )}
                 <Link to="/settings">Settings</Link>
             </header>
-            <main id="main" tabIndex={-1}>{children}</main>
+            <main id="main" tabIndex={-1}>
+                {!online && (
+                    <div style={{ marginBottom: 16 }}>
+                        <Banner tone="attention" role="status" title="You are offline.">You can keep reading and writing. Checking answers needs a connection, and your work stays on this device until you are back online.</Banner>
+                    </div>
+                )}
+                {children}
+            </main>
             {signedIn && (
                 <nav className="tabbar" aria-label="Main">
                     <NavLink to="/today">Today</NavLink><NavLink to="/roadmap">Roadmap</NavLink><NavLink to="/evidence">Evidence</NavLink>
@@ -100,8 +110,19 @@ function SignedInRoutes({ subjectId }: { subjectId: string }) {
 }
 
 function Root() {
-    const { me, loading } = useAuth();
+    const { me, loading, offline, refresh } = useAuth();
     if (loading) return <Shell signedIn={false}><p role="status">Loading…</p></Shell>;
+    if (!me && offline) {
+        return (
+            <Shell signedIn={false}>
+                <div className="stack">
+                    <h1 tabIndex={-1}>You are offline</h1>
+                    <p>DevStep could not reach your account. You are not signed out, and anything you wrote is kept on this device.</p>
+                    <button type="button" className="btn" onClick={() => void refresh()}>Try again</button>
+                </div>
+            </Shell>
+        );
+    }
 
     const guestRoutes = (
         <Shell signedIn={false}>

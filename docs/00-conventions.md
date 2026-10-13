@@ -171,3 +171,4 @@ final list). All under `/v1`, JSON, authenticated unless noted.
 | `11-market-and-positioning.md` | Competitive refresh and positioning |
 | `12-delivery-plan.md` | Phases, epics, milestones, risks |
 | `13-decisions-and-open-questions.md` | Consolidated decision log for discussion |
+| `14-app-phase.md` | Installable web app, gated store apps, caching privacy rules, accessibility gate |

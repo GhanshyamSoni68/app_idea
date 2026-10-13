@@ -1,7 +1,8 @@
 # DevStep — planning workspace
 
-**Status: planning only. No application code exists, and none should be written
-until the planning gate in [`docs/12-delivery-plan.md`](docs/12-delivery-plan.md) §1 passes.**
+**Status: planning docs plus a working thin vertical slice in [`app/`](app/README.md) and sample content in [`content/`](content/).**
+The founder chose to start building before the planning gate in [`docs/12-delivery-plan.md`](docs/12-delivery-plan.md) §1; the
+decisions taken while building are in [`docs/13-decisions-and-open-questions.md`](docs/13-decisions-and-open-questions.md) §3a.
 
 DevStep is a guided practice companion for working developers. It turns one
 career goal into a small next action, ties those actions to one continuing
@@ -40,6 +41,7 @@ and vendor prices are marked `unverified` until someone checks the live page.
 | 11 | [Market and positioning](docs/11-market-and-positioning.md) | Competitive refresh, the wedge, the free substitute, what to pursue |
 | 12 | [Delivery plan](docs/12-delivery-plan.md) | Planning gate, phases, timeline, epics, critical path, risks |
 | 13 | [Decisions and open questions](docs/13-decisions-and-open-questions.md) | Consolidated decision log for discussion |
+| 14 | [App phase](docs/14-app-phase.md) | Installable web app (built), store apps and native features (gated), caching privacy rules, accessibility gate |
 
 ## Reading by question
 

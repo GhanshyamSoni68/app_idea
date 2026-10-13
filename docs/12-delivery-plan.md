@@ -526,7 +526,7 @@ by PRD decision. The rest are **Proposals** for tempting work to defer.
 
 | Item | Source | Why not now | Trigger or evidence to reconsider |
 | --- | --- | --- | --- |
-| Native mobile apps | PRD §7, §14 | The responsive web app covers phone practice. | Pilot shows phone sessions are a large share and that web friction hurts return. |
+| Native mobile apps | PRD §7, §14 | The responsive web app, now installable (`14-app-phase.md` Phase A), covers phone practice. | The Phase B unlock evidence in `14-app-phase.md` §6: phone sessions are a large share, and web friction measurably hurts return. |
 | Social feed | PRD §7 | It adds obligation and comparison. | Completers ask for peer accountability. Test it first with an outside group chat. |
 | Public leaderboards | PRD §7, §6 | They conflict with the no-comparison principle. | Only by an explicit founder decision recorded in `13-decisions-and-open-questions.md`. |
 | Live tutoring marketplace | PRD §7 | It is a different, two-sided business. | A paid personal progress review (PRD §15) shows demand. |
@@ -548,7 +548,7 @@ by PRD decision. The rest are **Proposals** for tempting work to defer.
 | BI or analytics vendor dashboards | Proposal | SQL queries cover a 30–50-person pilot. | Running the metrics by hand takes more than about an hour a week. |
 | Marketing site, SEO, brand identity | PRD header (working name only) | Recruitment is by invitation; sign-up needs an invite code. A plain domain for email is bought in Phase 1. | Public recruitment beyond the pilot. Check name availability before any brand work. |
 | More login methods (passkeys, other OAuth providers) | Proposal | Email and password with verification, plus GitHub OAuth, cover the pilot (`09-security-privacy-ops.md`). | Pilot sign-up drop-off at the login step. |
-| Offline mode beyond local draft recovery | PRD §12 | Draft recovery is already required. | Evidence of practice with no connection, for example while commuting. |
+| Offline mode beyond local draft recovery and the cached app shell | PRD §12 | Draft recovery and an offline-capable shell are built (`14-app-phase.md` §4). Authenticated content is never cached. | Evidence of practice with no connection, for example while commuting. |
 | Localisation | Proposal | English-only pilot. | A target segment needs another language. |
 
 **Never, under the current principles:** streak-loss punishment, red overdue

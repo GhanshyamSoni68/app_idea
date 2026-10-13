@@ -9,26 +9,39 @@ import think360 from '../../mascot/step-think-360.webp';
 import think720 from '../../mascot/step-think-720.webp';
 import focus360 from '../../mascot/step-focus-360.webp';
 import focus720 from '../../mascot/step-focus-720.webp';
+import idea360 from '../../mascot/step-idea-360.webp';
+import idea720 from '../../mascot/step-idea-720.webp';
+import guide360 from '../../mascot/step-guide-360.webp';
+import guide720 from '../../mascot/step-guide-720.webp';
+import rest360 from '../../mascot/step-rest-360.webp';
+import rest720 from '../../mascot/step-rest-720.webp';
+import code360 from '../../mascot/step-code-360.webp';
+import code720 from '../../mascot/step-code-720.webp';
 import { prefersStill, useMascotMode } from '../lib/mascotPrefs';
 import { MASCOT_NAME } from '../lib/stepSays';
 
-// Step, the DevStep companion (docs/15). Four supplied poses (wave, cheer, think, focus) plus motion. A fifth pose,
-// sad, is kept as source only: the PRD (§6) rules out a companion that shows sadness, so no state maps to it.
+// Step, the DevStep companion (docs/15). Supplied poses (wave, cheer, think, focus, idea, guide, rest, code) plus
+// motion. A sad pose is kept as source only: the PRD (§6) rules out a companion that shows sadness, so no state maps
+// to it.
 // Decorative by default: anything Step "says" is real text next to it, so nothing depends on seeing the image.
 // Motion stops for reduced-motion, "quiet" and "off".
 
-export type Mood = 'wave' | 'hello' | 'cheer' | 'think' | 'focus' | 'rest';
+export type Mood = 'wave' | 'hello' | 'cheer' | 'think' | 'focus' | 'idea' | 'guide' | 'rest' | 'code';
 
-type Pose = 'wave' | 'cheer' | 'think' | 'focus';
+type Pose = 'wave' | 'cheer' | 'think' | 'focus' | 'idea' | 'guide' | 'rest' | 'code';
 
 const POSES: Record<Pose, { small: string; large: string }> = {
     wave: { small: wave360, large: wave720 },
     cheer: { small: cheer360, large: cheer720 },
     think: { small: think360, large: think720 },
     focus: { small: focus360, large: focus720 },
+    idea: { small: idea360, large: idea720 },
+    guide: { small: guide360, large: guide720 },
+    rest: { small: rest360, large: rest720 },
+    code: { small: code360, large: code720 },
 };
 
-const POSE_FOR: Record<Mood, Pose> = { wave: 'wave', hello: 'wave', rest: 'wave', cheer: 'cheer', think: 'think', focus: 'focus' };
+const POSE_FOR: Record<Mood, Pose> = { wave: 'wave', hello: 'wave', rest: 'rest', cheer: 'cheer', think: 'think', focus: 'focus', idea: 'idea', guide: 'guide', code: 'code' };
 
 interface MascotProps {
     mood?: Mood;

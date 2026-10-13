@@ -143,7 +143,7 @@ legend { font-weight: 800; padding: 0; margin-bottom: 10px; font-size: 1.1rem; }
 /* ---------- Step (mascot) ---------- */
 .mascot { position: relative; display: inline-block; width: var(--size); height: var(--size); flex: none; transform-origin: 50% 92%; }
 .mascot img { display: block; width: 100%; height: 100%; object-fit: contain; user-select: none; -webkit-user-drag: none; filter: drop-shadow(0 10px 8px rgba(11, 30, 90, 0.22)); }
-.avatar { border-radius: 50%; background: var(--cream); border: 2px solid var(--border); object-fit: cover; flex: none; }
+.avatar { object-fit: contain; flex: none; filter: drop-shadow(0 2px 3px rgba(11, 30, 90, 0.25)); }
 .say { display: flex; align-items: center; gap: 12px; }
 .say.stack-layout { flex-direction: column; text-align: center; }
 .say.no-mascot .bubble::before { display: none; }
@@ -165,6 +165,8 @@ legend { font-weight: 800; padding: 0; margin-bottom: 10px; font-size: 1.1rem; }
     .mascot:not(.still).mood-cheer { animation: hop 900ms var(--ease) 2, sway 2.8s 1.8s ease-in-out infinite alternate; }
     .mascot:not(.still).mood-think { animation: ponder 3.4s ease-in-out infinite alternate; }
     .mascot:not(.still).mood-rest { animation: breathe 4.5s ease-in-out infinite; }
+    .mascot:not(.still).mood-guide, .mascot:not(.still).mood-idea { animation: sway 2.8s ease-in-out infinite alternate; }
+    .mascot:not(.still).mood-code { animation: breathe 4.5s ease-in-out infinite; }
     .mascot:not(.still).mood-focus { animation: ready 2.6s ease-in-out infinite; }
     .mascot:not(.still)     .mascot:not(.still)     .confetti i { animation: burst 1.4s var(--ease) forwards; animation-delay: calc(var(--i) * 30ms); } /* forwards, not both: during the delay the base opacity 0 applies, so nothing sits on Step's face */
 }
@@ -271,3 +273,5 @@ dialog::backdrop { background: rgba(8, 12, 30, 0.55); }
 .say-mini .avatar { width: 40px; height: 40px; }
 .weekcard { display: grid; gap: 10px; }
 .weekcard .caption { margin: 0; color: var(--text-2); font-weight: 700; font-size: 0.95rem; }
+.q-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.q-head h2 { margin: 0; }

@@ -14,13 +14,13 @@ import type { Action, Mode, Today as TodayData } from '../types';
 interface RoadmapPreview { title: string; outcome: string; estimated_effort: string; required_topic_count: number; coverage_note: string }
 
 const GREETING: Record<TodayType['situation'], { mood: Mood; context: Context }> = {
-    first_run: { mood: 'hello', context: 'today_first' },
+    first_run: { mood: 'guide', context: 'today_first' },
     ready: { mood: 'focus', context: 'today_ready' },
     resume: { mood: 'focus', context: 'today_resume' },
     returning: { mood: 'hello', context: 'today_returning' },
     done_for_today: { mood: 'cheer', context: 'today_done' },
     paused: { mood: 'rest', context: 'today_paused' },
-    nothing_ready: { mood: 'think', context: 'today_nothing' },
+    nothing_ready: { mood: 'rest', context: 'today_nothing' },
     roadmap_complete: { mood: 'cheer', context: 'complete_roadmap' },
 };
 

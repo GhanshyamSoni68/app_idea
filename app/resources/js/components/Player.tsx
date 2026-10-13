@@ -4,7 +4,7 @@ import { helpUsed, OUTCOME_LABEL } from '../lib/format';
 import { Markdown } from '../lib/markdown';
 import type { AttemptResult, Item } from '../types';
 import { type Answer, answerReady, effectiveAnswer, ItemInput } from './ItemInput';
-import { Avatar, Remark } from './Mascot';
+import { Avatar, Mascot, Remark } from './Mascot';
 import { StepBar } from './Progress';
 import { say } from '../lib/stepSays';
 import { Banner, Dialog, useFocusOnChange } from './ui';
@@ -161,7 +161,7 @@ export function Player({ steps, startIndex, title, context, modeLabel, engine, i
             {step.kind === 'response' && step.item && (
                 <div className="stack" style={{ marginTop: 16 }}>
                     {step.item.scenario && <Markdown source={step.item.scenario} />}
-                    <h2>Question</h2>
+                    <div className="q-head"><h2>Question</h2><Mascot mood="code" size={72} /></div>
                     <Markdown source={step.item.prompt} />
                     <ItemInput item={step.item} value={answer} onChange={setAnswer} disabled={!!result} />
 

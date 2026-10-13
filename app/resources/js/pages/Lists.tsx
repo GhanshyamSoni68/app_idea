@@ -66,7 +66,7 @@ export function RoadmapPage() {
     return (
         <div className="stack">
             <h1 ref={h} tabIndex={-1}>Roadmap</h1>
-            <Say mood={paused ? 'rest' : 'think'} size={100}>{say(paused ? 'paused_roadmap' : 'roadmap')}</Say>
+            <Say mood={paused ? 'rest' : 'guide'} size={100}>{say(paused ? 'paused_roadmap' : 'roadmap')}</Say>
             <div className="card path-head">
                 <h2>{view.roadmap.title}</h2>
                 <p className="muted small">Version {view.roadmap.version} · {view.roadmap.estimated_effort}</p>
@@ -153,7 +153,7 @@ export function EvidencePage() {
     return (
         <div className="stack">
             <h1 ref={h} tabIndex={-1}>Evidence</h1>
-            {items.length > 0 && <Say mood="wave" size={90}>{say('evidence')}</Say>}
+            {items.length > 0 && <Say mood="idea" size={96}>{say('evidence')}</Say>}
             <p className="muted">What you can show, with dates and limits. It is separate from roadmap completion, and levels never go down.</p>
             {items.length === 0 && (
                 <div className="empty card">

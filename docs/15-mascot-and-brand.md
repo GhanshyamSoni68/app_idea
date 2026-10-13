@@ -9,7 +9,7 @@ Status: Proposal — built; for discussion (decision recorded in `13` §3a)
 - **Decision (founder, recorded):** build a mascot, **Step**, and use it throughout the product. This brings forward the P1 "optional companion" (F15), which `12` §4.2 had locked until pilot evidence. **Open question 1** keeps the name as a working name. **Decision**
 - **Step is a guide with no state.** It has no mood that depends on the learner, no health, no items, no counters, and no memory of absence. It cannot be neglected, so it cannot be sad. That makes the PRD §6 rules true by construction. **Proposal, built**
 - **The polish comes from craft, not pressure.** Rounded type, a palette taken from the artwork, chunky pressable buttons, a path-style roadmap, a weekly practice row, and a celebration at stopping points. The Duolingo mechanics that rely on guilt (streak loss, "we miss you", hearts, leaderboards) are explicitly rejected (§6). **Proposal, built**
-- **One artwork, many moods.** The supplied render is used as is. Moods (wave, hello, cheer, think, rest) are motion and small props around the same figure, never a redrawn face, so Step stays recognisable. **Proposal, built**
+- **Supplied poses plus motion.** Four of the five supplied renders are used as they are: wave, cheer, think and focus (the determined one). Moods map onto them: wave, hello and rest use *wave*; cheer uses *cheer* with confetti; think uses *think*; focus uses *focus*. Motion (sway, pop, hop, a small "ready" nudge) sits on top of the pose. Nothing is redrawn, so Step stays recognisable. **The fifth pose, sad, is kept as source only (`resources/mascot/source/step-sad.png`) and is not wired to any state**: the PRD §6 rules out a companion that shows sadness, and a sad face on an error or after an absence is exactly that. **Proposal, built**
 - **The learner is in control.** Settings offers Step with a little movement, perfectly still, or hidden. The OS reduced-motion setting always wins. What Step says is real text beside the figure, so nothing depends on seeing it. **PRD §2, §10; built and tested**
 - **Step's words are enforced by a test.** Every line is scanned for guilt, fear, comparison, missed-day counts, mastery claims, exclamation marks and emoji. **Proposal, built**
 - **Light:** the mascot images total about 27 KB on the first screen; icons and the favicon use Step's portrait. **Built**
@@ -40,7 +40,7 @@ Status: Proposal — built; for discussion (decision recorded in `13` §3a)
 | --- | --- | --- |
 | Landing | hello, large | Introduces itself (`landing`) |
 | Guest onboarding | think | Reassures that nothing is a test (`onboarding`) |
-| Today | by situation: wave, hello, cheer, rest | One next step (`today_ready`), resume, returning, done, paused, nothing due |
+| Today | by situation: focus (ready, resume), wave, hello, cheer (done), think (nothing due), rest (paused) | One next step (`today_ready`), resume, returning, done, paused, nothing due |
 | Player: hints | avatar | Hint panels carry Step's face |
 | Player: feedback | avatar remark | Calm reaction by outcome (`feedback_ok`, `feedback_notyet`, `feedback_self`) |
 | Stopping point | cheer, large, confetti | One line chosen by what happened: practised, demonstrated, topic complete, roadmap complete, challenge passed or not |
@@ -48,7 +48,7 @@ Status: Proposal — built; for discussion (decision recorded in `13` §3a)
 | Roadmap | think or rest; avatar marks the current topic | The path, one topic at a time |
 | Evidence | wave, or think when empty | What you can show (`evidence`) |
 | Settings | wave | Controls for Step (§5) |
-| Offline, loading | rest, hello | Offline notice, loading states |
+| Offline, loading | think (offline: puzzled, never sad), hello | Offline notice, loading states |
 | Icons and favicon | head portrait | App icon, favicon, apple-touch icon |
 
 Not used on: the pending-deletion screen, error summaries and anything legal or serious. Tone matters more than presence there.
@@ -81,7 +81,7 @@ This extends the rule table in `08` §11.
 
 | Never | Because |
 | --- | --- |
-| Look sad, sleepy-as-punishment, hungry, lonely or hurt; show absence | PRD §6. Step's "rest" mood is only used for a paused roadmap, being offline, or nothing being due, and it is calm, not sad. |
+| Look sad, sleepy-as-punishment, hungry, lonely or hurt; show absence | PRD §6. Step's "rest" mood (calm breathing, the wave pose) is only used for a paused roadmap, and "think" for offline or nothing being due; both are calm, not sad. The supplied sad pose is not used anywhere. |
 | Streaks, streak freezes, "lose your streak", counters of missed days | PRD §6; `12` §9 "Never". The weekly row is dots for days practised: a missed day is an empty circle and nothing breaks. |
 | Hearts, lives, energy or anything that blocks learning | Breaks "no mandatory browsing" and autonomy (PRD §6, F02). |
 | "We miss you", guilt notifications, or any message of its own | Reminders are opt-in, one per day, and plain (PRD §6, F10). |
@@ -106,7 +106,7 @@ This extends the rule table in `08` §11.
 
 | Item | Detail |
 | --- | --- |
-| Source | `app/resources/mascot/step-source.png`: the supplied render, already a transparent cutout. Alpha is normalised so the body is solid. |
+| Source | `app/resources/mascot/source/`: the supplied renders, already transparent cutouts (wave, cheer, think, focus, and sad, which is unused). The app serves `step-<pose>-360.webp` and `-720.webp`, about 20 and 45 KB each; only the pose on screen is fetched. |
 | Delivered | Two sizes of the full figure (360 and 720 px WebP, chosen by `srcset`), and a circular head portrait (128 and 256 px WebP) for avatars. Files are imported through the build, so they are fingerprinted and safe to cache indefinitely (the host decides the cache lifetime). |
 | Icons | `npm run icons` renders the app, maskable and apple-touch icons from the portrait on the brand cream. The maskable icon keeps Step inside the safe zone. |
 | Poses | There is one pose. Moods are motion and props. This is the main limit of the current approach (Open question 3). |

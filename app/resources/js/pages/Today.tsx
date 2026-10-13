@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api, ApiError, track } from '../api';
-import { Mascot, Say } from '../components/Mascot';
+import { Mascot, type Mood, Say } from '../components/Mascot';
 import { Banner, useFocusOnChange } from '../components/ui';
 import { VerifyBanner } from './Account';
 import { WeekDots } from '../components/WeekDots';
@@ -13,14 +13,14 @@ import type { Action, Mode, Today as TodayData } from '../types';
 
 interface RoadmapPreview { title: string; outcome: string; estimated_effort: string; required_topic_count: number; coverage_note: string }
 
-const GREETING: Record<TodayType['situation'], { mood: 'wave' | 'hello' | 'rest' | 'cheer' | 'think'; context: Context }> = {
+const GREETING: Record<TodayType['situation'], { mood: Mood; context: Context }> = {
     first_run: { mood: 'hello', context: 'today_first' },
-    ready: { mood: 'wave', context: 'today_ready' },
-    resume: { mood: 'wave', context: 'today_resume' },
+    ready: { mood: 'focus', context: 'today_ready' },
+    resume: { mood: 'focus', context: 'today_resume' },
     returning: { mood: 'hello', context: 'today_returning' },
     done_for_today: { mood: 'cheer', context: 'today_done' },
     paused: { mood: 'rest', context: 'today_paused' },
-    nothing_ready: { mood: 'rest', context: 'today_nothing' },
+    nothing_ready: { mood: 'think', context: 'today_nothing' },
     roadmap_complete: { mood: 'cheer', context: 'complete_roadmap' },
 };
 

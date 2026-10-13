@@ -1,16 +1,34 @@
 import type { CSSProperties, ReactNode } from 'react';
 import head128 from '../../mascot/step-head-128.webp';
 import head256 from '../../mascot/step-head-256.webp';
-import step360 from '../../mascot/step-360.webp';
-import step720 from '../../mascot/step-720.webp';
+import wave360 from '../../mascot/step-wave-360.webp';
+import wave720 from '../../mascot/step-wave-720.webp';
+import cheer360 from '../../mascot/step-cheer-360.webp';
+import cheer720 from '../../mascot/step-cheer-720.webp';
+import think360 from '../../mascot/step-think-360.webp';
+import think720 from '../../mascot/step-think-720.webp';
+import focus360 from '../../mascot/step-focus-360.webp';
+import focus720 from '../../mascot/step-focus-720.webp';
 import { prefersStill, useMascotMode } from '../lib/mascotPrefs';
 import { MASCOT_NAME } from '../lib/stepSays';
 
-// Step, the DevStep companion (docs/15). One artwork, many moods: the moods are motion and small props around the
-// same figure, never a different face, so Step stays recognisable. Decorative by default: anything Step "says" is
-// real text next to it, so nothing depends on seeing the image. Motion stops for reduced-motion, "quiet" and "off".
+// Step, the DevStep companion (docs/15). Four supplied poses (wave, cheer, think, focus) plus motion. A fifth pose,
+// sad, is kept as source only: the PRD (§6) rules out a companion that shows sadness, so no state maps to it.
+// Decorative by default: anything Step "says" is real text next to it, so nothing depends on seeing the image.
+// Motion stops for reduced-motion, "quiet" and "off".
 
-export type Mood = 'wave' | 'hello' | 'cheer' | 'think' | 'rest';
+export type Mood = 'wave' | 'hello' | 'cheer' | 'think' | 'focus' | 'rest';
+
+type Pose = 'wave' | 'cheer' | 'think' | 'focus';
+
+const POSES: Record<Pose, { small: string; large: string }> = {
+    wave: { small: wave360, large: wave720 },
+    cheer: { small: cheer360, large: cheer720 },
+    think: { small: think360, large: think720 },
+    focus: { small: focus360, large: focus720 },
+};
+
+const POSE_FOR: Record<Mood, Pose> = { wave: 'wave', hello: 'wave', rest: 'wave', cheer: 'cheer', think: 'think', focus: 'focus' };
 
 interface MascotProps {
     mood?: Mood;
@@ -25,12 +43,13 @@ export function Mascot({ mood = 'wave', size = 160, label, className = '' }: Mas
     const mode = useMascotMode();
     if (mode === 'off') return null;
     const still = prefersStill(mode);
+    const pose = POSES[POSE_FOR[mood]];
 
     return (
         <span className={`mascot mood-${mood}${still ? ' still' : ''} ${className}`} style={{ '--size': `${size}px` } as CSSProperties} aria-hidden={label ? undefined : true}>
             <img
-                src={step720}
-                srcSet={`${step360} 360w, ${step720} 720w`}
+                src={pose.large}
+                srcSet={`${pose.small} 360w, ${pose.large} 720w`}
                 sizes={`${size}px`}
                 width={size}
                 height={size}
@@ -45,8 +64,6 @@ export function Mascot({ mood = 'wave', size = 160, label, className = '' }: Mas
                     ))}
                 </span>
             )}
-            {mood === 'think' && <span className="props think-dots" aria-hidden="true"><i /><i /><i /></span>}
-            {mood === 'rest' && <span className="props zzz" aria-hidden="true"><i>z</i><i>z</i><i>z</i></span>}
         </span>
     );
 }

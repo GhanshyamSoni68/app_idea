@@ -156,33 +156,24 @@ legend { font-weight: 800; padding: 0; margin-bottom: 10px; font-size: 1.1rem; }
 .stack-layout .bubble::before { left: 50%; top: -9px; transform: translateX(-50%) rotate(135deg); }
 .bubble p { margin: 0; font-weight: 700; }
 .bubble-name { display: block; font-size: 0.75rem; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.7; margin-bottom: 2px; }
-.props i, .confetti i { position: absolute; display: block; font-style: normal; }
-.think-dots { position: absolute; right: 2%; top: 4%; width: 30%; height: 20%; }
-.think-dots i { width: 9%; aspect-ratio: 1; border-radius: 50%; background: var(--sun); border: 2px solid var(--sun-edge); }
-.think-dots i:nth-child(1) { left: 0; bottom: 0; } .think-dots i:nth-child(2) { left: 28%; bottom: 25%; width: 13%; } .think-dots i:nth-child(3) { left: 62%; bottom: 55%; width: 20%; }
-.zzz { position: absolute; right: 8%; top: 6%; width: 30%; height: 30%; }
-.zzz i { font-weight: 900; color: var(--quiet); right: 0; top: 0; font-size: calc(var(--size) * 0.1); }
-.zzz i:nth-child(2) { right: 18%; top: 22%; font-size: calc(var(--size) * 0.13); } .zzz i:nth-child(3) { right: 36%; top: 44%; font-size: calc(var(--size) * 0.16); }
+.confetti i { position: absolute; display: block; font-style: normal; }
 .confetti { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
 .confetti i { left: 46%; top: 6%; width: 8px; height: 14px; border-radius: 3px; background: hsl(calc(var(--i) * 47), 85%, 58%); opacity: 0; }
-.mascot.mood-rest img { filter: drop-shadow(0 10px 8px rgba(11, 30, 90, 0.22)) saturate(0.85) brightness(0.96); }
 @media (prefers-reduced-motion: no-preference) {
     .mascot:not(.still).mood-wave { animation: sway 2.8s ease-in-out infinite alternate; }
     .mascot:not(.still).mood-hello { animation: pop 700ms var(--ease) both, sway 2.8s 700ms ease-in-out infinite alternate; }
     .mascot:not(.still).mood-cheer { animation: hop 900ms var(--ease) 2, sway 2.8s 1.8s ease-in-out infinite alternate; }
     .mascot:not(.still).mood-think { animation: ponder 3.4s ease-in-out infinite alternate; }
     .mascot:not(.still).mood-rest { animation: breathe 4.5s ease-in-out infinite; }
-    .mascot:not(.still) .zzz i { animation: zfloat 3s ease-in-out infinite; } .mascot:not(.still) .zzz i:nth-child(2) { animation-delay: 0.6s; } .mascot:not(.still) .zzz i:nth-child(3) { animation-delay: 1.2s; }
-    .mascot:not(.still) .think-dots i { animation: blink 1.8s ease-in-out infinite; } .mascot:not(.still) .think-dots i:nth-child(2) { animation-delay: 0.3s; } .mascot:not(.still) .think-dots i:nth-child(3) { animation-delay: 0.6s; }
-    .confetti i { animation: burst 1.4s var(--ease) forwards; animation-delay: calc(var(--i) * 30ms); } /* forwards, not both: during the delay the base opacity 0 applies, so nothing sits on Step's face */
+    .mascot:not(.still).mood-focus { animation: ready 2.6s ease-in-out infinite; }
+    .mascot:not(.still)     .mascot:not(.still)     .confetti i { animation: burst 1.4s var(--ease) forwards; animation-delay: calc(var(--i) * 30ms); } /* forwards, not both: during the delay the base opacity 0 applies, so nothing sits on Step's face */
 }
 @keyframes sway { from { transform: rotate(-2.2deg) translateY(0); } to { transform: rotate(2.2deg) translateY(-5px); } }
 @keyframes pop { 0% { transform: scale(0.5) rotate(-8deg); opacity: 0; } 60% { transform: scale(1.08) rotate(3deg); opacity: 1; } 100% { transform: scale(1) rotate(0); } }
 @keyframes hop { 0%, 100% { transform: translateY(0) scale(1, 1); } 20% { transform: translateY(0) scale(1.06, 0.92); } 50% { transform: translateY(-22px) scale(0.97, 1.05); } 80% { transform: translateY(0) scale(1.05, 0.94); } }
 @keyframes ponder { from { transform: rotate(-4deg); } to { transform: rotate(3deg) translateY(-3px); } }
 @keyframes breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.025); } }
-@keyframes zfloat { 0% { transform: translateY(6px); opacity: 0; } 30% { opacity: 1; } 100% { transform: translateY(-14px); opacity: 0; } }
-@keyframes blink { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
+@keyframes ready { 0%, 100% { transform: translateY(0) rotate(0); } 12% { transform: translateY(-6px) rotate(-1.5deg); } 24% { transform: translateY(0) rotate(0); } }
 @keyframes burst { 0% { opacity: 0; transform: translate(0, 0) rotate(0); } 15% { opacity: 1; } 100% { opacity: 0; transform: translate(var(--dx), var(--dy)) rotate(var(--rot)); } }
 
 /* ---------- Landing and hero ---------- */

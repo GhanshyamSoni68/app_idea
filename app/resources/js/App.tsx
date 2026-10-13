@@ -121,7 +121,7 @@ function Root() {
         return (
             <Shell signedIn={false}>
                 <div className="stack empty">
-                    <Mascot mood="rest" size={150} />
+                    <Mascot mood="think" size={150} />
                     <h1 tabIndex={-1}>You are offline</h1>
                     <p>DevStep could not reach your account. You are not signed out, and anything you wrote is kept on this device.</p>
                     <button type="button" className="btn" onClick={() => void refresh()}>Try again</button>

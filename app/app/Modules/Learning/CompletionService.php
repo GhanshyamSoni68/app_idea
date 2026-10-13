@@ -24,6 +24,7 @@ final class CompletionService
         private AttemptService $attempts,
         private RoadmapService $roadmap,
         private ProfileService $profile,
+        private ChallengeService $challenge,
     ) {}
 
     /** @return array{0:int, 1:array<string, mixed>} */
@@ -61,7 +62,8 @@ final class CompletionService
 
         $plan = json_decode($won->plan, true);
         $changes = $this->attempts->acknowledgeThrough($learner, $won, count($plan['steps']));
-        $summary = $this->summary($learner, $won, $enrolment, $changes);
+        $verdict = ($won->purpose === 'challenge' && $enrolment) ? $this->challenge->finalise($learner, $won, $enrolment) : null;
+        $summary = $this->summary($learner, $won, $enrolment, $changes, challenge: $verdict);
 
         $metCount = (int) DB::scalar("SELECT count(*) FROM attempts WHERE session_id = ? AND outcome IN ('correct', 'self_met') AND attempt_no = 1", [$sessionId]);
         $attemptCount = (int) DB::scalar('SELECT count(*) FROM attempts WHERE session_id = ? AND attempt_no = 1', [$sessionId]);
@@ -77,7 +79,7 @@ final class CompletionService
     }
 
     /** @return array<string, mixed> */
-    private function summary(Learner $learner, object $session, ?object $enrolment, array $changes, bool $alreadyCompleted = false): array
+    private function summary(Learner $learner, object $session, ?object $enrolment, array $changes, bool $alreadyCompleted = false, ?array $challenge = null): array
     {
         $progress = $enrolment ? $this->roadmap->progress($enrolment) : null;
         // Read what this session earned from the database, so evidence recorded when the learner moved past
@@ -110,6 +112,7 @@ final class CompletionService
                 'effort_highlights' => $highlights,
             ],
             'topic_changes' => $topicChanges,
+            'challenge' => $challenge ?? ($session->purpose === 'challenge' ? ['passed' => (bool) count($topicChanges)] : null),
             'roadmap_progress' => $progress,
             'milestone' => $milestone,
             'next_suggestion' => $this->nextDay($learner),

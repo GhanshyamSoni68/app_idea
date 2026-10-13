@@ -26,13 +26,28 @@ export function TodayPage({ subjectId }: { subjectId: string }) {
     useEffect(() => { void load(); }, [load]);
 
     useEffect(() => {
+        if (data?.situation === 'returning') track('return_screen_seen', { days_inactive: Math.min(365, data.welcome_back?.days_away ?? 0), offered_small: true }, subjectId);
         if (data?.situation === 'first_run') {
             api.get<{ roadmap: RoadmapPreview }>('/roadmaps/crud-to-reliable').then((r) => setPreview(r.roadmap)).catch(() => undefined);
         }
         if (data) track('recommendation_seen', { recommendation_id: 'present', recommendation_kind: ['resume', 'review', 'mission'].includes(data.primary_action.kind) ? data.primary_action.kind : 'none', offered_smaller: !!data.smaller_option }, subjectId);
     }, [data?.situation, data?.primary_action?.recommendation_id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    const start = async (a: Action | null, mode: Mode) => {
+    const setPaused = async (paused: boolean) => {
+        if (!data?.enrolment) return;
+        setBusy(true);
+        setError(null);
+        try {
+            await api.patch(`/enrolments/${data.enrolment.id}`, { status: paused ? 'paused' : 'active' });
+            await load();
+        } catch (e) {
+            setError(e instanceof ApiError ? e.message : 'We could not change that.');
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const start = async (a: Action | null, mode: Mode, origin?: string) => {
         setBusy(true);
         setError(null);
         try {
@@ -42,7 +57,7 @@ export function TodayPage({ subjectId }: { subjectId: string }) {
 
                 return;
             }
-            const r = await api.post<{ session: { id: string } }>('/sessions', { mode, recommendation_id: a?.recommendation_id ?? undefined, if_open: 'suspend', origin: mode === 'small' ? 'smaller_mode' : 'today' });
+            const r = await api.post<{ session: { id: string } }>('/sessions', { mode, recommendation_id: a?.recommendation_id ?? undefined, if_open: 'suspend', origin: origin ?? (mode === 'small' ? 'smaller_mode' : 'today') });
             nav(`/session/${r.session.id}`);
         } catch (e) {
             setError(e instanceof ApiError ? e.message : 'We could not start that.');
@@ -88,7 +103,25 @@ export function TodayPage({ subjectId }: { subjectId: string }) {
             )}
 
             {data.situation === 'paused' && (
-                <div className="card primary"><h2>{a.title}</h2><p>{a.rationale}</p></div>
+                <div className="card primary stack">
+                    <h2>{a.title}</h2>
+                    <p>{a.rationale} Your progress and drafts are kept, and nothing is waiting to be caught up.</p>
+                    <button type="button" className="btn block" disabled={busy} onClick={() => void setPaused(false)}>Resume</button>
+                </div>
+            )}
+
+            {data.situation === 'returning' && data.welcome_back && (
+                <div className="card primary stack">
+                    <h2>Welcome back</h2>
+                    <p>Continue your last task or try a three-minute refresher. Your plan moved on; there is nothing to catch up.</p>
+                    <p className="small muted">Last time: {data.welcome_back.last_work.title}</p>
+                    <button type="button" className="btn block" disabled={busy} onClick={() => void start(a, 'small', 'return_screen')}>Try the 3-minute refresher</button>
+                    {data.secondary_actions[0] && (
+                        <button type="button" className="btn secondary block" disabled={busy} onClick={() => void start(data.secondary_actions[0], data.secondary_actions[0].mode ?? 'practise')}>
+                            {data.secondary_actions[0].kind === 'resume' ? 'Continue' : "Today's plan"}: {data.secondary_actions[0].title}
+                        </button>
+                    )}
+                </div>
             )}
 
             {['ready', 'resume'].includes(data.situation) && (
@@ -120,10 +153,10 @@ export function TodayPage({ subjectId }: { subjectId: string }) {
                 <div className="card primary"><h2>{a.title}</h2><p>{a.rationale}</p></div>
             )}
 
-            {data.smaller_option && data.situation === 'ready' && (
+            {data.smaller_option && ['ready'].includes(data.situation) && (
                 <p><button type="button" className="btn secondary" disabled={busy} onClick={() => void start(data.smaller_option, 'small')}>Start small · about {data.smaller_option.estimated_minutes} min</button></p>
             )}
-            {data.secondary_actions.map((s) => (
+            {data.situation !== 'returning' && data.secondary_actions.map((s) => (
                 <p key={s.session_id ?? s.title}><button type="button" className="btn secondary" disabled={busy} onClick={() => void start(s, s.mode ?? 'practise')}>Continue: {s.title}</button></p>
             ))}
 

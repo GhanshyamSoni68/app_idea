@@ -121,7 +121,11 @@ The founder chose to start building before the planning gate. These calls were m
 | App phase | Phase A (installable web app with a privacy-safe service worker) is built; store apps and native features stay locked behind pilot evidence. See `14-app-phase.md`. `02` §6.9's "service worker is an option" is now taken | 14, 02 |
 | Accessibility gate | axe-core audit of every screen in light and dark fails the build on serious or critical findings; the manual release check (`08` A-21) remains required | 14, 08 |
 
-**Not built yet** (still in `12-delivery-plan.md`): email verification and password recovery, GitHub OAuth, reminders, export and deletion, labs, the diagnostic, recovery after a long absence, challenge-out and defer, roadmap version migration, pause and resume, pilot arms, metric queries, and operational readiness.
+**Built since:** pause and resume (reviews are suspended while paused and shifted forward by the days paused on resume), manual defer and bring-back, challenge-out (one attempt per topic, no hints, judged as a whole when the session completes), the DEFERRED_BLOCKER fallback, and the return-after-absence refresher (RETURN_REFRESHER, offered once per absence, no count of missed days).
+
+**Rulings made while building those:** a challenge's evidence is written at completion, not per answer, so a failed challenge can never demonstrate (even the item that was met); a challenge that is not finished counts as not passed; `bring back` is an added endpoint, `DELETE /v1/topics/{id}/defer`; the return refresher is the most recently practised skill's next item, so the usual caps and ladder apply and nothing doubles.
+
+**Not built yet** (still in `12-delivery-plan.md`): email verification and password recovery, GitHub OAuth, reminders, export and deletion, labs, the diagnostic, roadmap version migration, pilot arms, metric queries, and operational readiness.
 
 ## 4. What to do in the next two weeks
 

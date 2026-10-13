@@ -93,7 +93,9 @@ final class AttemptService
             }
             EventRecorder::server('attempt_evaluated', $learner->subjectId, [
                 'attempt_id' => $attempt->id, 'assessment_item_id' => $item->id, 'skill_id' => $item->skill_id,
-                'attempt_purpose' => in_array($step['purpose'], ['in_mission', 'small_variant', 'topic_check'], true) ? ($step['purpose'] === 'in_mission' ? 'mission' : $step['purpose']) : 'review',
+                'attempt_purpose' => match ($step['purpose']) {
+                    'in_mission' => 'mission', 'small_variant' => 'small_variant', 'topic_check' => 'topic_check', 'challenge' => 'challenge_out', default => 'review'
+                },
                 'outcome' => $eval['outcome'], 'assistance' => $assistance['assistance'], 'hint_count' => $assistance['hint_count'],
                 'evidence_basis' => $eval['basis'],
             ], $ctx, $attempt->id);

@@ -157,6 +157,8 @@ function Loaded({ payload }: { payload: SessionPayload }) {
             engine={engine}
             initialAnswers={answers}
             banners={banners}
+            assistance={payload.session.purpose !== 'challenge'}
+            finishLabel={payload.session.purpose === 'challenge' ? 'Finish the challenge' : 'Finish'}
             draftStatus={<span role={problem ? 'status' : undefined}>{STATUS_TEXT[status]}</span>}
         />
     );
@@ -184,6 +186,9 @@ export function SessionDone() {
     return (
         <div className="stack">
             <h1 ref={h} tabIndex={-1}>Session complete</h1>
+            {r.challenge && (r.challenge.passed
+                ? <Banner title="Challenge passed.">{r.topic_changes[0]?.title ?? 'The topic'} is completed. This shows you can already apply it.</Banner>
+                : <Banner title="Good to know where to start.">The mission for this topic is next, and nothing is lost. The short check after it will complete the topic.</Banner>)}
             {demonstrated.length > 0
                 ? <p>On a new task, without hints or the solution, you showed: {demonstrated.map((d) => d.title).join(', ')}.</p>
                 : <p>You worked through {r.summary.attempts} {r.summary.attempts === 1 ? 'question' : 'questions'}. That is practice.</p>}

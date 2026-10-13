@@ -5,6 +5,7 @@ namespace App\Http\Controllers\V1;
 use App\Http\Controllers\Controller;
 use App\Modules\Analytics\EventRecorder;
 use App\Modules\Assessment\EvidenceService;
+use App\Modules\Learning\ChallengeService;
 use App\Modules\Roadmap\RoadmapService;
 use App\Modules\Scheduling\TodayService;
 use App\Support\ApiException;
@@ -17,7 +18,7 @@ use Illuminate\Validation\Rule;
 /** Today, evidence, enrolments and the roadmap catalogue. */
 class LearnerController extends Controller
 {
-    public function __construct(private TodayService $today, private EvidenceService $evidence, private RoadmapService $roadmap) {}
+    public function __construct(private TodayService $today, private EvidenceService $evidence, private RoadmapService $roadmap, private ChallengeService $challenges) {}
 
     public function today(Request $request): JsonResponse
     {
@@ -50,7 +51,51 @@ class LearnerController extends Controller
 
     public function enrolment(Request $request, string $id): JsonResponse
     {
-        return response()->json($this->roadmap->view($this->roadmap->find((string) $request->user()->id, $id)));
+        $enrolment = $this->roadmap->find((string) $request->user()->id, $id);
+        $view = $this->roadmap->view($enrolment);
+        $learner = Learner::of($request->user());
+        // Whether "I already know this" is still offered for each topic (CH-1, CH-5).
+        foreach ($view['modules'] as &$module) {
+            foreach ($module['topics'] as &$t) {
+                $row = DB::selectOne('SELECT t.*, tp.state FROM roadmap_topics t JOIN topic_progress tp ON tp.topic_id = t.id AND tp.enrolment_id = ? WHERE t.id = ?', [$enrolment->id, $t['id']]);
+                $t['challenge_available'] = $enrolment->status === 'active' && $this->challenges->availability($learner, $enrolment, $row);
+            }
+        }
+        unset($module, $t);
+
+        return response()->json($view);
+    }
+
+    /** Pause or resume (R05). Pausing also pauses reviews; resuming shifts them, so nothing piles up. */
+    public function patchEnrolment(Request $request, string $id): JsonResponse
+    {
+        $data = $request->validate(['status' => ['required', Rule::in(['active', 'paused'])]]);
+        $user = $request->user();
+        $learner = Learner::of($user);
+        $enrolment = $this->roadmap->find($learner->id, $id);
+        $updated = $this->roadmap->setPaused($enrolment, $data['status'] === 'paused', $learner->subjectId, $learner->timeZone);
+
+        return response()->json(['enrolment' => ['id' => $updated->id, 'status' => $updated->status, 'progress' => $this->roadmap->progress($updated)]]);
+    }
+
+    public function defer(Request $request, string $id): JsonResponse
+    {
+        $user = $request->user();
+        $row = $this->roadmap->defer((string) $user->id, (string) $user->analytics_subject_id, $id);
+
+        return response()->json(['topic' => ['id' => $id, 'state' => $row->state, 'credit' => false]]);
+    }
+
+    public function bringBack(Request $request, string $id): JsonResponse
+    {
+        $row = $this->roadmap->bringBack((string) $request->user()->id, $id);
+
+        return response()->json(['topic' => ['id' => $id, 'state' => $row->state]]);
+    }
+
+    public function challenge(Request $request, string $id): JsonResponse
+    {
+        return response()->json($this->challenges->start(Learner::of($request->user()), $id), 201);
     }
 
     /** Public roadmap catalogue (docs/02): outcome, required topics, effort, and the coverage note (R01). */

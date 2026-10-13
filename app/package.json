@@ -9,7 +9,8 @@
         "test:unit": "vitest run",
         "test:e2e": "node e2e/demo.mjs",
         "test:e2e:app": "node e2e/app-phase.mjs",
-        "icons": "node e2e/make-icons.mjs"
+        "icons": "node e2e/make-icons.mjs",
+        "test:e2e:loop": "node e2e/loop-extras.mjs"
     },
     "dependencies": {
         "markdown-it": "^15.0.2",

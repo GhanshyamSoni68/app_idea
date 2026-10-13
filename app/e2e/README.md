@@ -22,3 +22,7 @@ light and dark themes. It fails on any serious or critical violation. This suppl
 release check in `docs/08` A-21 (keyboard, screen reader, 200% zoom, 320 px, reduced motion).
 
 `npm run icons` re-renders `public/icons/*.png` from `resources/icons/*.svg`.
+
+## Learning-loop journey
+
+`npm run test:e2e:loop` enrols a fresh learner, defers and brings back a topic, passes a challenge-out, pauses and resumes, jumps the clock ten days, takes the return refresher and finishes with `Retained` evidence earned on the delayed alternate. It also audits those screens with axe-core.

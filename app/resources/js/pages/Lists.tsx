@@ -1,30 +1,62 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api, ApiError } from '../api';
-import { Banner, LevelMarker, ProgressCount, useFocusOnChange } from '../components/ui';
+import { Banner, Dialog, LevelMarker, ProgressCount, useFocusOnChange } from '../components/ui';
 import { assistanceLabel, BASIS_LABEL, formatDate, LEVEL_EXPLAIN, LIMITATION_LABEL, TOPIC_STATE } from '../lib/format';
-import type { EvidenceItem, Level, RoadmapView } from '../types';
+import type { EvidenceItem, Level, RoadmapTopic, RoadmapView } from '../types';
 
 export function RoadmapPage() {
+    const nav = useNavigate();
     const h = useFocusOnChange('roadmap');
     const [view, setView] = useState<RoadmapView | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [notice, setNotice] = useState<string | null>(null);
+    const [busy, setBusy] = useState(false);
+    const [challenge, setChallenge] = useState<RoadmapTopic | null>(null);
 
-    useEffect(() => {
-        (async () => {
-            try {
-                const list = await api.get<{ enrolments: { id: string; status: string }[] }>('/enrolments');
-                const current = list.enrolments.find((e) => ['active', 'paused'].includes(e.status));
-                if (!current) { setError('You have not enrolled in a roadmap yet. Start from Today.'); return; }
-                setView(await api.get<RoadmapView>(`/enrolments/${current.id}`));
-            } catch (e) {
-                setError(e instanceof ApiError ? e.message : 'The roadmap could not be loaded.');
-            }
-        })();
+    const load = useCallback(async () => {
+        try {
+            const list = await api.get<{ enrolments: { id: string; status: string }[] }>('/enrolments');
+            const current = list.enrolments.find((e) => ['active', 'paused'].includes(e.status));
+            if (!current) { setError('You have not enrolled in a roadmap yet. Start from Today.'); return; }
+            setView(await api.get<RoadmapView>(`/enrolments/${current.id}`));
+        } catch (e) {
+            setError(e instanceof ApiError ? e.message : 'The roadmap could not be loaded.');
+        }
     }, []);
+    useEffect(() => { void load(); }, [load]);
+
+    const act = async (fn: () => Promise<unknown>, message: string) => {
+        setBusy(true);
+        setNotice(null);
+        try {
+            await fn();
+            setNotice(message);
+            await load();
+        } catch (e) {
+            setNotice(e instanceof ApiError ? e.message : 'We could not do that.');
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const startChallenge = async () => {
+        if (!challenge) return;
+        setBusy(true);
+        try {
+            const r = await api.post<{ session: { id: string } }>(`/topics/${challenge.id}/challenge`);
+            nav(`/session/${r.session.id}`);
+        } catch (e) {
+            setNotice(e instanceof ApiError ? e.message : 'We could not start the challenge.');
+            setChallenge(null);
+            setBusy(false);
+        }
+    };
 
     if (error) return <Banner role="alert" tone="attention" title="Roadmap">{error}</Banner>;
     if (!view) return <p role="status">Loading the roadmap…</p>;
 
+    const paused = view.enrolment.status === 'paused';
     // The module holding the first unfinished required topic is open; later modules say Preview (docs/08 W09).
     const current = view.modules.findIndex((m) => m.topics.some((t) => t.kind === 'required' && t.state !== 'completed'));
 
@@ -36,7 +68,14 @@ export function RoadmapPage() {
                 <p className="muted small">Version {view.roadmap.version} · {view.roadmap.estimated_effort}</p>
                 <ProgressCount done={view.progress.completed_required} total={view.progress.total_required} percent={view.progress.percent} />
                 <p className="small muted">{view.roadmap.coverage_note} Skills are in Evidence.</p>
+                <div className="row">
+                    {paused
+                        ? <button type="button" className="btn" disabled={busy} onClick={() => void act(() => api.patch(`/enrolments/${view.enrolment.id}`, { status: 'active' }), 'Resumed. Your reviews moved forward, so nothing is waiting.')}>Resume roadmap</button>
+                        : <button type="button" className="btn secondary" disabled={busy} onClick={() => void act(() => api.patch(`/enrolments/${view.enrolment.id}`, { status: 'paused' }), 'Paused. Your progress and drafts are kept.')}>Pause roadmap</button>}
+                </div>
             </div>
+            {paused && <Banner title="Paused.">Your progress and drafts are kept. Reviews wait with you and nothing piles up.</Banner>}
+            {notice && <p role="status" className="muted">{notice}</p>}
             {view.modules.map((m, mi) => {
                 const done = m.topics.filter((t) => t.kind === 'required' && t.state === 'completed').length;
                 const total = m.topics.filter((t) => t.kind === 'required').length;
@@ -60,12 +99,30 @@ export function RoadmapPage() {
                                         <div className="needs">Builds on: {t.unmet_prerequisites.map((p) => p.title).join(', ')}{t.unmet_prerequisites.some((p) => p.strict) ? ' (finish this first)' : ' (helpful first, not required)'}</div>
                                     )}
                                     {t.state !== 'completed' && <div className="needs">Done when: attempt, feedback review and a topic check on a new scenario.</div>}
+                                    {t.state === 'deferred' && <div className="needs">Deferred, no credit. Come back or take the challenge any time.</div>}
+                                    {t.state !== 'completed' && !paused && (
+                                        <div className="row">
+                                            {t.challenge_available && <button type="button" className="link" disabled={busy} onClick={() => setChallenge(t)}>I already know this</button>}
+                                            {t.state === 'deferred'
+                                                ? <button type="button" className="link" disabled={busy} onClick={() => void act(() => api.del(`/topics/${t.id}/defer`), `${t.title} is back on your list.`)}>Bring back</button>
+                                                : <button type="button" className="link" disabled={busy} onClick={() => void act(() => api.post(`/topics/${t.id}/defer`), `Deferred, no credit. Come back or take the challenge any time.`)}>Defer</button>}
+                                        </div>
+                                    )}
                                 </div>
                             );
                         })}
                     </details>
                 );
             })}
+
+            <Dialog open={challenge !== null} title="Take the challenge?" onClose={() => setChallenge(null)}>
+                <p>Two short questions on new scenarios, no hints, no solution and no timer. If you meet both, {challenge?.title} is completed. If not, nothing is lost: the mission is next, and you will know where to start.</p>
+                <p className="small muted">You get one attempt per topic.</p>
+                <div className="stack">
+                    <button type="button" className="btn block" autoFocus disabled={busy} onClick={() => void startChallenge()}>Start the challenge</button>
+                    <button type="button" className="btn secondary block" onClick={() => setChallenge(null)}>Not now</button>
+                </div>
+            </Dialog>
         </div>
     );
 }

@@ -46,6 +46,10 @@ Route::prefix('v1')->group(function () {
         Route::get('enrolments', [LearnerController::class, 'enrolments']);
         Route::post('enrolments', [LearnerController::class, 'enrol']);
         Route::get('enrolments/{id}', [LearnerController::class, 'enrolment'])->whereUuid('id');
+        Route::patch('enrolments/{id}', [LearnerController::class, 'patchEnrolment'])->whereUuid('id');
+        Route::post('topics/{id}/defer', [LearnerController::class, 'defer'])->whereUuid('id');
+        Route::delete('topics/{id}/defer', [LearnerController::class, 'bringBack'])->whereUuid('id');
+        Route::post('topics/{id}/challenge', [LearnerController::class, 'challenge'])->whereUuid('id');
         Route::get('evidence', [LearnerController::class, 'evidence']);
     });
 });

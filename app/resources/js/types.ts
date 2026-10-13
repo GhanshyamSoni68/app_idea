@@ -89,7 +89,8 @@ export interface Action {
 export interface Today {
     local_date: string;
     time_zone: string;
-    situation: 'first_run' | 'ready' | 'resume' | 'done_for_today' | 'paused' | 'nothing_ready' | 'roadmap_complete';
+    situation: 'first_run' | 'ready' | 'resume' | 'returning' | 'done_for_today' | 'paused' | 'nothing_ready' | 'roadmap_complete';
+    welcome_back: { days_away: number; last_work: { title: string; date: string } } | null;
     primary_action: Action;
     secondary_actions: Action[];
     smaller_option: Action | null;
@@ -126,6 +127,7 @@ export interface RoadmapTopic {
     prerequisites: { topic_key: string; title: string; strict: boolean }[];
     unmet_prerequisites: { topic_key: string; title: string; strict: boolean }[];
     ready: boolean;
+    challenge_available?: boolean;
 }
 export interface RoadmapView {
     enrolment: { id: string; status: string; completed_at: string | null };
@@ -145,6 +147,7 @@ export interface CompleteResult {
         effort_highlights: string[];
     };
     topic_changes: { topic_key: string; title: string; from_state: string; to_state: string }[];
+    challenge: { passed: boolean } | null;
     roadmap_progress: { completed_required: number; total_required: number; percent: number } | null;
     milestone: { completed_at: string; note: string } | null;
     next_suggestion: { local_date: string; weekday: string } | null;

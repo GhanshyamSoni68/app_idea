@@ -46,7 +46,8 @@ final class FeedbackAcknowledger
             $teaching = $mission->body['front']['scenario_key'];
             $day = $learner->dayOf($attempt->submitted_at);
 
-            $change = $this->evidence->recordForAttempt($attempt, $item, $teaching, $learner->timeZone);
+            // A challenge is judged as a whole when the session completes (both items), so its evidence waits.
+            $change = $attempt->purpose === 'challenge' ? null : $this->evidence->recordForAttempt($attempt, $item, $teaching, $learner->timeZone);
             if ($change) {
                 $changes[] = $change;
             }
@@ -75,6 +76,9 @@ final class FeedbackAcknowledger
     {
         $revealed = $attempt->assistance === 'solution_revealed';
         $met = Evaluator::isMet((string) $attempt->outcome);
+        if ($attempt->purpose === 'challenge') {
+            return null;
+        }
         $topic = $enrolment ? $this->roadmap->topicByMission($enrolment, $item->mission_key) : null;
 
         if (in_array($attempt->purpose, ['in_mission', 'small_variant'], true)) {

@@ -25,6 +25,8 @@ Move the app clock outside production: `php artisan clock:set 2026-10-13T09:00:0
 | `php artisan test` | Feature tests on Postgres: the thin-slice demo script, the daily loop, evidence rules, drafts, authorisation matrix |
 | `npm run typecheck && npm run test:unit` | TypeScript and the guest-store and Markdown safety tests |
 | `npm run test:e2e` | The demo script in a real browser, see [`e2e/README.md`](e2e/README.md) |
+| `npm run test:e2e:app` | Installable app, offline behaviour, cache privacy and an axe-core accessibility audit of every screen |
+| `npm run test:e2e:loop` | Challenge-out, defer, pause and resume, and the return refresher ending in `Retained` evidence |
 | `vendor/bin/pint --test` | Formatting |
 | `php artisan content:validate --path=../content --dev` | Content rules (prerequisite cycles, item minimums, leakage, sources) |
 

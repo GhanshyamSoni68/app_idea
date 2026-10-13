@@ -23,9 +23,10 @@ final class EvidenceService
      * @param  object  $attempt  attempts row (session origin or guest_claim)
      * @param  object  $item  ContentRepository::itemMeta() (flags, scenario_key, skill_id, objective)
      * @param  string  $teachingScenario  scenario_key of the mission that teaches this skill
+     * @param  string|null  $cap  'practised' to cap the level (a failed challenge)
      * @return array{skill_id:string, from_level:?string, to_level:string, basis:string}|null
      */
-    public function recordForAttempt(object $attempt, object $item, string $teachingScenario, string $timeZone): ?array
+    public function recordForAttempt(object $attempt, object $item, string $teachingScenario, string $timeZone, ?string $cap = null): ?array
     {
         if (in_array($attempt->purpose, ['diagnostic', 'transfer'], true) || (int) $attempt->attempt_no !== 1) {
             return null; // baseline/measurement answers and retries after feedback earn nothing (docs/05 §6.3)
@@ -61,6 +62,10 @@ final class EvidenceService
             if ($retained) {
                 $level = 'retained';
             }
+        }
+
+        if ($cap === 'practised' && in_array($level, ['demonstrated', 'retained'], true)) {
+            $level = 'practised'; // a failed challenge earns practised only (CH-4)
         }
 
         $before = $this->highestLevel($attempt->user_id, $item->skill_id);

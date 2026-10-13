@@ -78,6 +78,10 @@ final class TodayService
             ];
         }
 
+        if ($requestedMode === null && ! $open && ($returning = $this->returning($learner, $enrolment, $day, $mode))) {
+            return array_merge($base, $returning); // the returning state overrides welcome_back, secondary actions and review count
+        }
+
         $plan = $this->plan($learner, $enrolment, $mode, $day);
         $resume = $this->resumeCandidate($learner, $mode);
         $small = $mode === 'small' ? null : $this->plan($learner, $enrolment, 'small', $day, skipResume: true);
@@ -138,20 +142,7 @@ final class TodayService
             if (! $item) {
                 continue;
             }
-            $topic = $isCheck ? DB::selectOne('SELECT topic_key, title FROM roadmap_topics WHERE id = ?', [$track->check_pending_topic_id]) : null;
-            $reviewActivities[] = [
-                'kind' => 'review',
-                'purpose' => $isCheck ? 'topic_check' : 'retrieval',
-                'reason' => $isCheck ? 'TOPIC_CHECK' : 'REVIEW_DUE',
-                'skill_id' => $track->skill_id,
-                'review_id' => $track->id,
-                'topic_id' => $track->check_pending_topic_id,
-                'item_cv' => $item->id,
-                'mission_key' => $item->mission_key,
-                'minutes' => (float) ($item->body['time_estimate_minutes'] ?? $cfg['est_review_item_minutes']),
-                'title' => $topic->title ?? $this->content->skillKey($track->skill_id),
-                'days_since' => LearnerDay::diffDays(LearnerDay::of(CarbonImmutable::parse($track->updated_at), $learner->timeZone), $day),
-            ];
+            $reviewActivities[] = $this->reviewActivity($track, $item, $isCheck, $day, $learner->timeZone);
         }
 
         if ($mode === 'small') {
@@ -193,7 +184,160 @@ final class TodayService
             return $this->build($reviewActivities, $mode, $enrolment, $learner);
         }
 
+        return $this->deferredBlocker($learner, $enrolment);
+    }
+
+    /** One retrieval item as a plan activity. */
+    private function reviewActivity(object $track, object $item, bool $isCheck, string $day, string $timeZone): array
+    {
+        $topic = $isCheck ? DB::selectOne('SELECT topic_key, title FROM roadmap_topics WHERE id = ?', [$track->check_pending_topic_id]) : null;
+
+        return [
+            'kind' => 'review',
+            'purpose' => $isCheck ? 'topic_check' : 'retrieval',
+            'reason' => $isCheck ? 'TOPIC_CHECK' : 'REVIEW_DUE',
+            'skill_id' => $track->skill_id,
+            'review_id' => $track->id,
+            'topic_id' => $track->check_pending_topic_id,
+            'item_cv' => $item->id,
+            'mission_key' => $item->mission_key,
+            'minutes' => (float) ($item->body['time_estimate_minutes'] ?? config('devstep.est_review_item_minutes')),
+            'title' => $topic->title ?? $this->content->skillKey($track->skill_id),
+            'days_since' => LearnerDay::diffDays(LearnerDay::of(CarbonImmutable::parse($track->updated_at), $timeZone), $day),
+        ];
+    }
+
+    /**
+     * DEFERRED_BLOCKER (docs/05 §3.6): when every remaining required topic is blocked by a deferred one, surface the
+     * earliest deferred topic at most once per `deferred_resurface_days`. Never otherwise: a deferral is respected.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function deferredBlocker(Learner $learner, object $enrolment): ?array
+    {
+        $rows = DB::select(
+            "SELECT t.id, t.topic_key, t.title, t.position, m.title AS module_title, m.position AS module_position, ta.ref_key AS mission_key, ta.ref_major AS mission_major
+             FROM roadmap_topics t JOIN topic_progress tp ON tp.topic_id = t.id AND tp.enrolment_id = ? JOIN roadmap_modules m ON m.id = t.module_id
+             JOIN topic_activities ta ON ta.topic_id = t.id AND ta.role = 'core'
+             WHERE t.roadmap_version_id = ? AND t.kind = 'required' AND tp.state = 'deferred' ORDER BY t.position",
+            [$enrolment->id, $enrolment->roadmap_version_id],
+        );
+        $edges = DB::select('SELECT topic_id, depends_on_topic_id FROM topic_dependencies WHERE roadmap_version_id = ?', [$enrolment->roadmap_version_id]);
+        $open = collect(DB::select(
+            "SELECT t.id FROM roadmap_topics t JOIN topic_progress tp ON tp.topic_id = t.id AND tp.enrolment_id = ? WHERE t.kind = 'required' AND tp.state <> 'completed'",
+            [$enrolment->id],
+        ))->pluck('id')->flip();
+
+        foreach ($rows as $t) {
+            $recent = DB::selectOne(
+                "SELECT 1 FROM learning_sessions WHERE user_id = ? AND topic_id = ? AND started_at > ?::timestamptz - (?::int * interval '1 day')",
+                [$learner->id, $t->id, Clock::now(), (int) config('devstep.deferred_resurface_days')],
+            );
+            $mission = $this->content->latest('mission', $t->mission_key, (int) $t->mission_major);
+            if ($recent || ! $mission) {
+                continue;
+            }
+            $act = $this->missionActivity($mission, $t, 'practise');
+            if (! $act) {
+                continue;
+            }
+            // Count the required topics waiting behind this one, directly or through others.
+            $seen = [];
+            $queue = [$t->id];
+            while ($queue) {
+                $cur = array_pop($queue);
+                foreach ($edges as $e) {
+                    if ($e->depends_on_topic_id === $cur && ! isset($seen[$e->topic_id])) {
+                        $seen[$e->topic_id] = true;
+                        $queue[] = $e->topic_id;
+                    }
+                }
+            }
+            $waiting = count(array_filter(array_keys($seen), fn ($id) => $open->has($id)));
+            $act['reason'] = 'DEFERRED_BLOCKER';
+            $act['rationale'] = $waiting > 0
+                ? "{$t->title} unlocks the next {$waiting} ".($waiting === 1 ? 'topic' : 'topics').'. Learn it or take the challenge.'
+                : "{$t->title} is the last required topic left. Learn it or take the challenge.";
+
+            return $this->build([$act], 'practise', $enrolment, $learner);
+        }
+
         return null;
+    }
+
+    /**
+     * Return after a long absence (docs/05 §10, F06): a brief retrieval check instead of a pile of catch-up. The
+     * welcome never counts missed days. Offered once per absence; the last task stays one tap away.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function returning(Learner $learner, object $enrolment, string $day, string $mode): ?array
+    {
+        $last = DB::selectOne('SELECT a.feedback_viewed_at, a.session_id FROM attempts a WHERE a.user_id = ? AND a.feedback_viewed_at IS NOT NULL ORDER BY a.feedback_viewed_at DESC LIMIT 1', [$learner->id]);
+        if (! $last) {
+            return null;
+        }
+        $lastDay = $learner->dayOf($last->feedback_viewed_at);
+        $gap = LearnerDay::diffDays($lastDay, $day);
+        if ($gap < (int) config('devstep.long_absence_days')) {
+            return null;
+        }
+        $offered = DB::selectOne("SELECT 1 FROM learning_sessions WHERE user_id = ? AND purpose = 'recovery' AND started_at > ?", [$learner->id, $last->feedback_viewed_at]);
+        if ($offered) {
+            return null;
+        }
+        $refresher = $this->refresherPlan($learner, $enrolment, $day);
+        if (! $refresher) {
+            return null;
+        }
+        $lastSession = DB::selectOne('SELECT plan FROM learning_sessions WHERE id = ?', [$last->session_id]);
+        $lastPlan = $lastSession ? json_decode($lastSession->plan, true) : null;
+        $lastTitle = collect($lastPlan['activities'] ?? [])->firstWhere('kind', 'mission')['title'] ?? ($lastPlan['activities'][0]['title'] ?? 'your last task');
+
+        $continue = $this->plan($learner, $enrolment, $mode, $day);
+        $secondary = $continue ? [$this->describe($continue, $mode)] : [];
+
+        return [
+            'situation' => 'returning',
+            'welcome_back' => ['days_away' => $gap, 'last_work' => ['title' => $lastTitle, 'date' => $lastDay]],
+            'primary_action' => $this->describe($refresher, 'small'),
+            'secondary_actions' => $secondary,
+            'reviews_included' => 1,
+        ];
+    }
+
+    /**
+     * A 3-minute refresher: one recall of the most recently practised skill (RETURN_REFRESHER). It is a normal
+     * retrieval item, so the usual caps and ladder rules apply and nothing doubles the next day's work.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function refresherPlan(Learner $learner, ?object $enrolment, ?string $day = null): ?array
+    {
+        $day ??= $learner->day();
+        if (! $enrolment || $enrolment->status !== 'active') {
+            return null;
+        }
+        $track = DB::selectOne(
+            "SELECT rs.* FROM review_schedule rs JOIN skill_evidence se ON se.skill_id = rs.skill_id
+             WHERE rs.user_id = ? AND rs.status = 'active' ORDER BY se.observed_at DESC LIMIT 1",
+            [$learner->id],
+        );
+        if (! $track) {
+            return null;
+        }
+        $isCheck = $track->check_pending_topic_id !== null;
+        $item = $this->reviews->choosePrompt($track, $day, $learner->timeZone, $isCheck);
+        if (! $item) {
+            return null;
+        }
+        $activity = $this->reviewActivity($track, $item, $isCheck, $day, $learner->timeZone);
+        $activity['reason'] = 'RETURN_REFRESHER';
+        $plan = $this->build([$activity], 'small', $enrolment, $learner);
+        $plan['reason'] = 'RETURN_REFRESHER';
+        $plan['purpose'] = 'recovery';
+
+        return $plan;
     }
 
     /** @return array<string, mixed>|null */
@@ -325,6 +469,9 @@ final class TodayService
         if ($plan['reason'] === 'RESUME') {
             return 'Resume: '.($plan['resume_title'] ?? 'your last task');
         }
+        if ($plan['reason'] === 'RETURN_REFRESHER') {
+            return 'A 3-minute refresher';
+        }
         $acts = $plan['activities'];
         $mission = collect($acts)->firstWhere('kind', 'mission');
         $reviews = collect($acts)->where('kind', 'review')->count();
@@ -350,6 +497,9 @@ final class TodayService
             return $mission['rationale'];
         }
         $first = $plan['activities'][0];
+        if ($plan['reason'] === 'RETURN_REFRESHER') {
+            return "Welcome back. A 3-minute recall of {$first['title']} before you continue.";
+        }
         if ($first['reason'] === 'TOPIC_CHECK') {
             return "A short check on a new scenario completes {$first['title']}.";
         }

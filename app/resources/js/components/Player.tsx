@@ -38,9 +38,11 @@ interface Props {
     draftStatus?: ReactNode;
     banners?: ReactNode;
     finishLabel?: string;
+    /** False in a challenge: no hints and no solution (docs/05 §7.4). */
+    assistance?: boolean;
 }
 
-export function Player({ steps, startIndex, title, context, modeLabel, engine, initialAnswers = {}, draftStatus, banners, finishLabel = 'Finish' }: Props) {
+export function Player({ steps, startIndex, title, context, modeLabel, engine, initialAnswers = {}, draftStatus, banners, finishLabel = 'Finish', assistance = true }: Props) {
     const [index, setIndex] = useState(Math.min(startIndex, steps.length - 1));
     const [answers, setAnswers] = useState<Record<string, Answer>>(initialAnswers);
     const [results, setResults] = useState<Record<string, AttemptResult>>(() => Object.fromEntries(steps.filter((s) => s.attempt).map((s) => [s.key, s.attempt!])));
@@ -174,6 +176,7 @@ export function Player({ steps, startIndex, title, context, modeLabel, engine, i
                                     </div>
                                 )}
                             </div>
+                            {assistance ? (<>
                             <div className="row between">
                                 {totalHints > 0 && (hintState?.texts.length ?? 0) < totalHints
                                     ? <button type="button" className="btn secondary" onClick={() => void nextHint()}>{hintState?.texts.length ? `Show hint ${hintState.texts.length + 1}` : 'Need a hint?'}</button>
@@ -181,6 +184,7 @@ export function Player({ steps, startIndex, title, context, modeLabel, engine, i
                                 {!revealed[step.key] && <button type="button" className="link" ref={revealTrigger} onClick={() => setConfirmReveal(true)}>Show solution</button>}
                             </div>
                             <p className="small muted">Hints are optional. Using one is recorded and still counts as practice.</p>
+                            </>) : <p className="small muted">This is a challenge: no hints and no solution, and no timer. Take your time.</p>}
                             {!online && <Banner tone="attention" role="status" title="You are offline.">Answers are checked online, so “Check answer” is paused. Your work is kept on this device.</Banner>}
                             <button type="button" className="btn block" disabled={!answerReady(step.item, answer) || busy !== null || !online} onClick={() => void check()}>
                                 {busy === 'check' ? 'Checking…' : 'Check answer'}

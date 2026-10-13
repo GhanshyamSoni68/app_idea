@@ -6,6 +6,7 @@ use App\Modules\Analytics\EventRecorder;
 use App\Support\ApiException;
 use App\Support\Clock;
 use App\Support\Ids;
+use App\Support\LearnerDay;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 
@@ -68,6 +69,82 @@ final class RoadmapService
 
             return [$enrolment, true];
         });
+    }
+
+    /**
+     * Pause or resume (R05). Pausing keeps topic states and drafts, suspends reviews and sets any open session aside.
+     * Resuming shifts every suspended review forward by the days paused, so no missed-lesson debt appears.
+     */
+    public function setPaused(object $enrolment, bool $paused, string $subjectId, string $timeZone): object
+    {
+        return DB::transaction(function () use ($enrolment, $paused, $subjectId, $timeZone) {
+            $row = DB::selectOne('SELECT * FROM roadmap_enrolments WHERE id = ? AND user_id = ? FOR UPDATE', [$enrolment->id, $enrolment->user_id]);
+            if (! in_array($row->status, ['active', 'paused'], true)) {
+                throw ApiException::conflict('enrolment_not_current', 'That roadmap is no longer current.');
+            }
+            $now = Clock::now();
+            if ($paused && $row->status === 'active') {
+                DB::update("UPDATE roadmap_enrolments SET status = 'paused', paused_at = ?, updated_at = ? WHERE id = ?", [$now, $now, $row->id]);
+                DB::update("UPDATE review_schedule SET status = 'suspended', updated_at = now() WHERE user_id = ? AND status = 'active'", [$row->user_id]);
+                DB::update("UPDATE learning_sessions SET status = 'suspended', last_activity_at = ? WHERE user_id = ? AND status = 'open'", [$now, $row->user_id]);
+                DB::afterCommit(fn () => EventRecorder::server('enrolment_paused', $subjectId, ['roadmap_enrolment_id' => $row->id], ['roadmap_version_id' => $row->roadmap_version_id], $row->id.'|paused|'.$now->timestamp));
+            } elseif (! $paused && $row->status === 'paused') {
+                $then = LearnerDay::of(CarbonImmutable::parse($row->paused_at), $timeZone);
+                $days = max(0, LearnerDay::diffDays($then, LearnerDay::of($now, $timeZone)));
+                DB::update("UPDATE roadmap_enrolments SET status = 'active', paused_at = NULL, updated_at = ? WHERE id = ?", [$now, $row->id]);
+                DB::update("UPDATE review_schedule SET status = 'active', due_on = due_on + ?::int, updated_at = now() WHERE user_id = ? AND status = 'suspended'", [$days, $row->user_id]);
+                DB::afterCommit(fn () => EventRecorder::server('enrolment_resumed', $subjectId, ['roadmap_enrolment_id' => $row->id, 'paused_days' => min($days, 3650)], ['roadmap_version_id' => $row->roadmap_version_id], $row->id.'|resumed|'.$now->timestamp));
+            }
+
+            return DB::selectOne('SELECT * FROM roadmap_enrolments WHERE id = ?', [$row->id]);
+        });
+    }
+
+    /** The learner's topic row in their current enrolment, or 404. Cross-owner ids look like missing ones. */
+    public function ownTopic(string $userId, string $topicId): array
+    {
+        $enrolment = $this->current($userId);
+        $topic = $enrolment ? DB::selectOne(
+            'SELECT t.*, tp.state, tp.mission_activity_done_at FROM roadmap_topics t JOIN topic_progress tp ON tp.topic_id = t.id AND tp.enrolment_id = ? WHERE t.id = ?',
+            [$enrolment->id, $topicId],
+        ) : null;
+        if (! $topic) {
+            throw ApiException::notFound('That topic');
+        }
+
+        return [$enrolment, $topic];
+    }
+
+    /** Manual defer (R03, DF-1..DF-2): moves the topic aside with no completion credit. Never from completed. */
+    public function defer(string $userId, string $subjectId, string $topicId): object
+    {
+        return DB::transaction(function () use ($userId, $subjectId, $topicId) {
+            [$enrolment, $topic] = $this->ownTopic($userId, $topicId);
+            if ($topic->state === 'completed') {
+                throw ApiException::conflict('topic_completed', 'That topic is already completed, so there is nothing to defer.');
+            }
+            if ($topic->state !== 'deferred') {
+                DB::update("UPDATE topic_progress SET state = 'deferred', deferred_at = ? WHERE enrolment_id = ? AND topic_id = ? AND state IN ('not_started', 'in_progress')", [Clock::now(), $enrolment->id, $topicId]);
+                DB::afterCommit(fn () => EventRecorder::server('topic_deferred', $subjectId, [
+                    'topic_id' => $topicId, 'topic_kind' => $topic->kind, 'from_state' => $topic->state,
+                ], ['roadmap_version_id' => $enrolment->roadmap_version_id, 'topic_key' => $topic->topic_key], $enrolment->id.'|'.$topicId.'|'.Clock::now()->timestamp));
+            }
+
+            return DB::selectOne('SELECT state, deferred_at FROM topic_progress WHERE enrolment_id = ? AND topic_id = ?', [$enrolment->id, $topicId]);
+        });
+    }
+
+    /** Bring a deferred topic back (never started returns to not_started; otherwise in_progress). */
+    public function bringBack(string $userId, string $topicId): object
+    {
+        [$enrolment, $topic] = $this->ownTopic($userId, $topicId);
+        DB::update(
+            "UPDATE topic_progress SET state = CASE WHEN mission_activity_done_at IS NOT NULL OR started_at IS NOT NULL THEN 'in_progress' ELSE 'not_started' END, deferred_at = NULL
+             WHERE enrolment_id = ? AND topic_id = ? AND state = 'deferred'",
+            [$enrolment->id, $topic->id],
+        );
+
+        return DB::selectOne('SELECT state FROM topic_progress WHERE enrolment_id = ? AND topic_id = ?', [$enrolment->id, $topic->id]);
     }
 
     /** @return array{completed_required:int,total_required:int,percent:int} */

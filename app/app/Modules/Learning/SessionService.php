@@ -65,7 +65,8 @@ final class SessionService
 
             $enrolment = $this->roadmap->current($learner->id);
             $mode = $in['mode'] ?? 'practise';
-            $plan = $this->today->plan($learner, $enrolment, $mode, skipResume: true);
+            $plan = (($in['origin'] ?? null) === 'return_screen' ? $this->today->refresherPlan($learner, $enrolment) : null)
+                ?? $this->today->plan($learner, $enrolment, $mode, skipResume: true);
             if ($plan === null) {
                 throw ApiException::conflict('nothing_to_start', 'There is nothing ready to start right now. That is fine: a rest day is part of the plan.');
             }

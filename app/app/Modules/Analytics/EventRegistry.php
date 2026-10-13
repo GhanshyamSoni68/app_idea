@@ -123,6 +123,18 @@ final class EventRegistry
                 'roadmap_version_id' => 'uuid',
                 'elapsed_days' => ['int', 0, 3650],
             ]],
+            'enrolment_paused' => ['source' => 'server', 'props' => [
+                'roadmap_enrolment_id' => 'uuid',
+            ]],
+            'enrolment_resumed' => ['source' => 'server', 'props' => [
+                'roadmap_enrolment_id' => 'uuid',
+                'paused_days' => ['int', 0, 3650],
+            ]],
+            'topic_deferred' => ['source' => 'server', 'props' => [
+                'topic_id' => 'uuid',
+                'topic_kind' => ['enum', 'required', 'optional'],
+                'from_state' => ['enum', 'not_started', 'in_progress'],
+            ]],
             'return_screen_seen' => ['source' => 'client', 'props' => [
                 'days_inactive' => ['int', 0, 365],
                 'offered_small' => 'bool',

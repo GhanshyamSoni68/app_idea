@@ -125,7 +125,11 @@ The founder chose to start building before the planning gate. These calls were m
 
 **Rulings made while building those:** a challenge's evidence is written at completion, not per answer, so a failed challenge can never demonstrate (even the item that was met); a challenge that is not finished counts as not passed; `bring back` is an added endpoint, `DELETE /v1/topics/{id}/defer`; the return refresher is the most recently practised skill's next item, so the usual caps and ladder apply and nothing doubles.
 
-**Not built yet** (still in `12-delivery-plan.md`): email verification and password recovery, GitHub OAuth, reminders, export and deletion, labs, the diagnostic, roadmap version migration, pilot arms, metric queries, and operational readiness.
+**Account lifecycle (F09), built:** email verification (a non-blocking banner: learning never waits on email), password recovery (same response for any address; using the link signs out every device), account export (a versioned ZIP generated into Postgres, 24-hour authenticated download, no password hash or answer keys), and deletion (7-day cancellable grace, then a hard delete that also removes the learner's analytics events, with a ledger outside the database that re-applies purges after a restore).
+
+**Rulings made while building it:** deleting needs the current password (docs/09 C04, GitHub-only accounts will need another fresh check); an unverified account may keep practising, but reminders will need a verified address; a pending-deletion account is limited to cancel, export and sign-out with a `403 deletion_pending` elsewhere; all expiry checks use the application `Clock` so they can be tested and time-shifted; a scheduled `accounts:purge` and `housekeeping:purge` run hourly.
+
+**Not built yet** (still in `12-delivery-plan.md`): GitHub OAuth, email change, reminders, labs, the diagnostic, roadmap version migration, pilot arms, metric queries, and operational readiness (backups and a restore drill, monitoring, rate-limit tuning, the manual accessibility pass).
 
 ## 4. What to do in the next two weeks
 

@@ -58,6 +58,7 @@ export const api = {
     put: <T>(path: string, body: unknown) => request<T>('PUT', path, { body }),
     patch: <T>(path: string, body: unknown) => request<T>('PATCH', path, { body }),
     del: <T>(path: string) => request<T>('DELETE', path),
+    del2: <T>(path: string, body: unknown, idempotencyKey?: string) => request<T>('DELETE', path, { body, idempotencyKey }),
 };
 
 /** Fire-and-forget analytics (docs/10 §3.4): IDs, enums and bounded numbers only, never free text. */

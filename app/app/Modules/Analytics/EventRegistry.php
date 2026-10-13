@@ -135,6 +135,8 @@ final class EventRegistry
                 'topic_kind' => ['enum', 'required', 'optional'],
                 'from_state' => ['enum', 'not_started', 'in_progress'],
             ]],
+            'export_requested' => ['source' => 'server', 'props' => []],
+            'account_deletion_requested' => ['source' => 'server', 'props' => []],
             'return_screen_seen' => ['source' => 'client', 'props' => [
                 'days_inactive' => ['int', 0, 365],
                 'offered_small' => 'bool',

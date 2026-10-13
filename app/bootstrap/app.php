@@ -1,6 +1,7 @@
 <?php
 
 use App\Support\ApiException;
+use App\Support\BlockWhilePendingDeletion;
 use App\Support\RequestId;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
@@ -21,6 +22,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->prepend(RequestId::class);
+        $middleware->alias(['account.active' => BlockWhilePendingDeletion::class]);
         // Guests and signed-in learners share one origin; the SPA reads the XSRF-TOKEN cookie.
         $middleware->redirectGuestsTo(fn () => null);
     })

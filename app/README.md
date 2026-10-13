@@ -16,6 +16,8 @@ php artisan serve
 ```
 
 Create a pilot invite (sign-up is invite-only): `php artisan invite:create someone@example.com`.
+Emails (verification, reset) go to the log in development: `storage/logs/laravel.log`. Scheduled work: `php artisan schedule:work`.
+After restoring a backup, re-apply deletions that already happened: `php artisan accounts:replay-ledger`.
 Move the app clock outside production: `php artisan clock:set 2026-10-13T09:00:00Z` (`--reset` to undo).
 
 ## Checks
@@ -26,6 +28,7 @@ Move the app clock outside production: `php artisan clock:set 2026-10-13T09:00:0
 | `npm run typecheck && npm run test:unit` | TypeScript and the guest-store and Markdown safety tests |
 | `npm run test:e2e` | The demo script in a real browser, see [`e2e/README.md`](e2e/README.md) |
 | `npm run test:e2e:app` | Installable app, offline behaviour, cache privacy and an axe-core accessibility audit of every screen |
+| `npm run test:e2e:account` | Email verification, password reset, export download, and deletion with cancel and a real purge |
 | `npm run test:e2e:loop` | Challenge-out, defer, pause and resume, and the return refresher ending in `Retained` evidence |
 | `vendor/bin/pint --test` | Formatting |
 | `php artisan content:validate --path=../content --dev` | Content rules (prerequisite cycles, item minimums, leakage, sources) |

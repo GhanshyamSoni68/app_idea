@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFocusOnChange } from '../components/ui';
+import { DeleteSection, ExportSection } from './Account';
 import { useAuth } from '../lib/auth';
 import { clearGuest } from '../lib/guestStore';
 import { isIosSafari, useInstallPrompt } from '../lib/pwa';
@@ -46,6 +47,8 @@ export function SettingsPage() {
                 <>
                     <p className="muted">Signed in as {me.email}. Time zone: {me.time_zone ?? 'not set'}.</p>
                     <button type="button" className="btn secondary" onClick={async () => { await signOut(); nav('/'); }}>Sign out</button>
+                    <ExportSection />
+                    <DeleteSection />
                 </>
             ) : (
                 <div className="stack">

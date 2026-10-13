@@ -3,6 +3,7 @@
 use App\Http\Controllers\V1\GuestController;
 use App\Http\Controllers\V1\LearnerController;
 use App\Http\Controllers\V1\SessionController;
+use App\Modules\Identity\Http\AccountController;
 use App\Modules\Identity\Http\AuthController;
 use App\Modules\Profile\Http\ProfileController;
 use Illuminate\Support\Facades\Route;
@@ -13,6 +14,9 @@ Route::prefix('v1')->group(function () {
     Route::post('auth/sign-up', [AuthController::class, 'signUp'])->middleware('throttle:sign-up');
     Route::post('auth/sign-in', [AuthController::class, 'signIn'])->middleware('throttle:login');
     Route::post('auth/sign-out', [AuthController::class, 'signOut']);
+    Route::post('auth/verification/confirm', [AuthController::class, 'confirmVerification'])->middleware('throttle:login');
+    Route::post('auth/recovery', [AuthController::class, 'recovery'])->middleware('throttle:recovery');
+    Route::post('auth/recovery/confirm', [AuthController::class, 'recoveryConfirm'])->middleware('throttle:login');
 
     Route::get('roadmaps', [LearnerController::class, 'roadmaps']);
     Route::get('roadmaps/{slug}', [LearnerController::class, 'roadmapDetail']);
@@ -28,6 +32,16 @@ Route::prefix('v1')->group(function () {
     // Signed-in learner: every record is scoped to the owner taken from the session.
     Route::middleware(['auth', 'throttle:api'])->group(function () {
         Route::get('me', [AuthController::class, 'show']);
+        Route::post('auth/verification/resend', [AuthController::class, 'resendVerification'])->middleware('throttle:recovery');
+        Route::post('me/export', [AccountController::class, 'export']);
+        Route::get('me/export/{id}', [AccountController::class, 'exportStatus'])->whereUuid('id');
+        Route::get('me/export/{id}/download', [AccountController::class, 'exportDownload'])->whereUuid('id');
+        Route::delete('me', [AccountController::class, 'destroy']);
+        Route::post('me/deletion/cancel', [AccountController::class, 'cancel']);
+    });
+
+    // Everything else is refused while a deletion is pending.
+    Route::middleware(['auth', 'throttle:api', 'account.active'])->group(function () {
         Route::get('me/preferences', [ProfileController::class, 'show']);
         Route::put('me/preferences', [ProfileController::class, 'update']);
         Route::put('me/goal', [ProfileController::class, 'goal']);

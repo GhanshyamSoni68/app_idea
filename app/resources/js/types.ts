@@ -12,6 +12,7 @@ export interface Me {
     time_zone: string | null;
     onboarding_completed: boolean;
     subject_id: string;
+    deletion: { pending: boolean; effective_at?: string };
 }
 
 export interface ItemOption { key: string; text: string }

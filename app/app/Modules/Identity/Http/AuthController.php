@@ -5,6 +5,9 @@ namespace App\Modules\Identity\Http;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Modules\Analytics\EventRecorder;
+use App\Modules\Identity\AccountTokens;
+use App\Modules\Identity\DeletionService;
+use App\Modules\Identity\Mail\AccountMail;
 use App\Modules\Profile\ProfileService;
 use App\Support\ApiException;
 use App\Support\Clock;
@@ -20,7 +23,7 @@ use Illuminate\Validation\Rules\Password;
 /** `identity` module: invite-only sign-up, sign-in and sign-out with session cookies (docs/02, docs/09). */
 class AuthController extends Controller
 {
-    public function __construct(private ProfileService $profile) {}
+    public function __construct(private ProfileService $profile, private AccountTokens $tokens, private DeletionService $deletion) {}
 
     public function signUp(Request $request): JsonResponse
     {
@@ -68,6 +71,7 @@ class AuthController extends Controller
         EventRecorder::server('account_created', $created['subject_id'], ['was_guest' => $created['was_guest'], 'origin' => $created['was_guest'] ? 'sample_scenario' : 'invitation']);
 
         $user = User::findOrFail($created['user_id']);
+        AccountMail::verification($user->email, $this->tokens->issue($user->id, 'email_verification'));
         Auth::login($user);
         $request->session()->regenerate();
 
@@ -113,8 +117,74 @@ class AuthController extends Controller
             'email_verified' => $user->email_verified_at !== null,
             'time_zone' => $prefs['time_zone'] ?? null,
             'onboarding_completed' => $prefs !== null,
-            'deletion' => ['pending' => $user->status === 'pending_deletion'],
+            'deletion' => $this->deletionInfo($user),
             'subject_id' => $user->analytics_subject_id,
         ];
+    }
+
+    /** @return array{pending: bool, effective_at?: string} */
+    private function deletionInfo(User $user): array
+    {
+        if ($user->status !== 'pending_deletion') {
+            return ['pending' => false];
+        }
+        $d = $this->deletion->pending($user);
+
+        return ['pending' => true, 'effective_at' => $d->effective_at ?? null];
+    }
+
+    /** Confirms the address with the single-use token from the verification email. */
+    public function confirmVerification(Request $request): JsonResponse
+    {
+        $data = $request->validate(['token' => ['required', 'string', 'max:200']]);
+        $userId = $this->tokens->consume($data['token'], 'email_verification');
+        if (! $userId) {
+            throw new ApiException('token_invalid', 'That link has expired or was already used. You can ask for a new one from Settings.', 422);
+        }
+        DB::update('UPDATE users SET email_verified_at = COALESCE(email_verified_at, ?), updated_at = ? WHERE id = ?', [Clock::now(), Clock::now(), $userId]);
+
+        return response()->json(['verified' => true]);
+    }
+
+    public function resendVerification(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if ($user->email_verified_at === null) {
+            AccountMail::verification($user->email, $this->tokens->issue($user->id, 'email_verification'));
+        }
+
+        return response()->json(['sent' => $user->email_verified_at === null], 202);
+    }
+
+    /** Same response whether or not the address exists, so this cannot be used to find accounts (docs/09). */
+    public function recovery(Request $request): JsonResponse
+    {
+        $data = $request->validate(['email' => ['required', 'email:rfc', 'max:254']]);
+        $user = User::where('email_normalised', Str::lower(trim($data['email'])))->where('status', 'active')->first();
+        if ($user) {
+            AccountMail::passwordReset($user->email, $this->tokens->issue($user->id, 'password_reset'));
+        }
+
+        return response()->json(['sent' => true], 202);
+    }
+
+    /** Sets a new password with a single-use token, and signs the account out everywhere. */
+    public function recoveryConfirm(Request $request): JsonResponse
+    {
+        $password = Password::min(12);
+        if (app()->isProduction()) {
+            $password = $password->uncompromised();
+        }
+        $data = $request->validate(['token' => ['required', 'string', 'max:200'], 'password' => ['required', 'string', 'max:128', $password]]);
+        $userId = $this->tokens->consume($data['token'], 'password_reset');
+        if (! $userId) {
+            throw new ApiException('token_invalid', 'That link has expired or was already used. Ask for a new one.', 422);
+        }
+        DB::transaction(function () use ($userId, $data) {
+            DB::update('UPDATE users SET password_hash = ?, email_verified_at = COALESCE(email_verified_at, ?), updated_at = ? WHERE id = ?', [Hash::make($data['password']), Clock::now(), Clock::now(), $userId]);
+            DB::delete('DELETE FROM sessions WHERE user_id = ?', [$userId]); // using the link signs out every device
+        });
+
+        return response()->json(['reset' => true]);
     }
 }

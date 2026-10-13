@@ -1,5 +1,5 @@
 import { type FormEvent, useState } from 'react';
-import { Link, Navigate, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { api, ApiError } from '../api';
 import { OnboardingForm } from '../components/OnboardingForm';
 import { Banner, useFocusOnChange } from '../components/ui';
@@ -72,6 +72,7 @@ export function SignIn() {
     const [form, setForm] = useState({ email: '', password: '' });
     const [error, setError] = useState<ApiError | null>(null);
     const [busy, setBusy] = useState(false);
+    const justReset = (useLocation().state as { reset?: boolean } | null)?.reset === true;
 
     const submit = async (e: FormEvent) => {
         e.preventDefault();
@@ -91,6 +92,7 @@ export function SignIn() {
     return (
         <form onSubmit={submit} className="stack" noValidate>
             <h1 ref={h} tabIndex={-1}>Sign in</h1>
+            {justReset && <Banner role="status" title="Password changed.">Sign in with your new password. You were signed out everywhere.</Banner>}
             <Errors error={error} />
             <div>
                 <label className="field" htmlFor="email">Email address</label>
@@ -101,6 +103,7 @@ export function SignIn() {
                 <input id="password" type="password" autoComplete="current-password" required value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
             </div>
             <button className="btn block" type="submit" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</button>
+            <p><Link to="/forgot">Forgot your password?</Link></p>
             <p>New here? <Link to="/sample">Try the sample</Link> first, or <Link to="/sign-up">create an account</Link> with an invite.</p>
         </form>
     );

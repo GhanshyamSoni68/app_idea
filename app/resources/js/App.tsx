@@ -5,6 +5,7 @@ import { Banner } from './components/ui';
 import { useOnline } from './lib/pwa';
 import { AuthProvider, useAuth } from './lib/auth';
 import { claimBody, clearGuest, hasGuestWork, loadGuest, saveGuest } from './lib/guestStore';
+import { ForgotPage, PendingDeletion, ResetPage, VerifyBanner, VerifyPage } from './pages/Account';
 import { Onboarding, SignIn, SignUp } from './pages/Auth';
 import { GuestSample, GuestStart, Landing, SampleDone } from './pages/Guest';
 import { EvidencePage, RoadmapPage } from './pages/Lists';
@@ -78,6 +79,7 @@ function Authed() {
     useEffect(() => { if (claim.state === 'done') void refresh(); }, [claim.state]); // eslint-disable-line react-hooks/exhaustive-deps
 
     if (!me) return <Navigate to="/sign-in" replace />;
+    if (me.deletion.pending) return <Shell signedIn={false}><PendingDeletion /></Shell>;
     if (claim.state === 'running') return <Shell signedIn><p role="status">Moving your sample answers into your account…</p></Shell>;
 
     return (
@@ -87,7 +89,9 @@ function Authed() {
                     They are still safe in this browser. <button type="button" className="link" onClick={() => void claim.retry()}>Try again</button>
                 </Banner>
             )}
+            <VerifyBanner />
             <Routes>
+                <Route path="/verify" element={<VerifyPage />} />
                 <Route path="/onboarding" element={<Onboarding />} />
                 <Route path="*" element={me.onboarding_completed ? <SignedInRoutes subjectId={me.subject_id} /> : <Navigate to="/onboarding" replace />} />
             </Routes>
@@ -133,6 +137,9 @@ function Root() {
                 <Route path="/sample/done" element={<SampleDone />} />
                 <Route path="/sign-up" element={<SignUp />} />
                 <Route path="/sign-in" element={<SignIn />} />
+                <Route path="/forgot" element={<ForgotPage />} />
+                <Route path="/reset" element={<ResetPage />} />
+                <Route path="/verify" element={<VerifyPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

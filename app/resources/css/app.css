@@ -275,3 +275,10 @@ dialog::backdrop { background: rgba(8, 12, 30, 0.55); }
 .weekcard .caption { margin: 0; color: var(--text-2); font-weight: 700; font-size: 0.95rem; }
 .q-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .q-head h2 { margin: 0; }
+
+/* ---------- Sound toggle and player header ---------- */
+.player-head-end { display: inline-flex; align-items: center; gap: 12px; }
+.icon-btn { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; min-width: 44px; padding: 6px 10px; border-radius: var(--radius); border: 2px solid var(--border); background: var(--surface); color: var(--text-2); font: inherit; font-weight: 800; font-size: 0.8rem; cursor: pointer; }
+.icon-btn svg { width: 22px; height: 22px; }
+.icon-btn[aria-pressed='true'] { color: var(--action); border-color: var(--action); background: var(--action-soft, var(--surface)); }
+.icon-btn:focus-visible { outline: 3px solid var(--focus, var(--action)); outline-offset: 2px; }

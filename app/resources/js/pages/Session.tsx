@@ -5,6 +5,7 @@ import type { Answer } from '../components/ItemInput';
 import { type PlayerEngine, Player } from '../components/Player';
 import { Bubble, Mascot } from '../components/Mascot';
 import { Banner, LevelMarker, ProgressCount, useFocusOnChange } from '../components/ui';
+import { playCue } from '../lib/sound';
 import { type Context, say } from '../lib/stepSays';
 import { assistanceLabel, BASIS_LABEL, formatDate, LEVEL_EXPLAIN, MODE_LABEL } from '../lib/format';
 import type { CompleteResult, SessionPayload } from '../types';
@@ -187,6 +188,11 @@ export function SessionDone() {
         // A refresh: completing again is harmless and returns the same summary (exactly-once).
         api.post<CompleteResult>(`/sessions/${id}/complete`, { base_revision: 0 }, uuid()).then(setR).catch((e) => setError(e instanceof ApiError ? e.message : 'We could not load the summary.'));
     }, [id, r]);
+
+    // One cue for the whole session: the milestone when the roadmap just finished, otherwise lesson-complete.
+    useEffect(() => {
+        if (r) playCue(r.milestone ? 'milestone' : 'lesson-complete');
+    }, [r?.session_id]); // eslint-disable-line react-hooks/exhaustive-deps
 
     if (error) return <Banner tone="attention" role="alert" title="Summary unavailable.">{error} <Link to="/today">Back to Today</Link></Banner>;
     if (!r) return <div className="loading" role="status"><Mascot mood="hello" size={110} />Loading…</div>;

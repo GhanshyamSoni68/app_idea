@@ -5,6 +5,7 @@ import { OnboardingForm } from '../components/OnboardingForm';
 import { type PlayerEngine, Player, type PlayerStep } from '../components/Player';
 import { Mascot, Say } from '../components/Mascot';
 import { Banner, useFocusOnChange } from '../components/ui';
+import { playCue } from '../lib/sound';
 import { say } from '../lib/stepSays';
 import { GUEST_TTL_DAYS, type GuestAttempt, isPersistent, loadGuest, saveGuest } from '../lib/guestStore';
 import type { AttemptResult, SampleMission } from '../types';
@@ -167,6 +168,8 @@ export function SampleDone() {
     const h = useFocusOnChange('sample-done');
     const b = loadGuest();
     const done = Object.keys(b.sample?.attempts ?? {}).length;
+    useEffect(() => { playCue('lesson-complete'); }, []);
+
     return (
         <div className="stack">
             <div className="celebrate">

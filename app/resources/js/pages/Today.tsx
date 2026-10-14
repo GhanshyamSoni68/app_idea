@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api, ApiError, track } from '../api';
 import { Mascot, type Mood, Say } from '../components/Mascot';
+import { playCue } from '../lib/sound';
 import { Banner, useFocusOnChange } from '../components/ui';
 import { VerifyBanner } from './Account';
 import { WeekDots } from '../components/WeekDots';
@@ -73,6 +74,7 @@ export function TodayPage({ subjectId }: { subjectId: string }) {
 
                 return;
             }
+            playCue('welcome', { once: 'welcome' }); // once, on an intentional start; never on resume
             const r = await api.post<{ session: { id: string } }>('/sessions', { mode, recommendation_id: a?.recommendation_id ?? undefined, if_open: 'suspend', origin: origin ?? (mode === 'small' ? 'smaller_mode' : 'today') });
             nav(`/session/${r.session.id}`);
         } catch (e) {
@@ -92,6 +94,10 @@ export function TodayPage({ subjectId }: { subjectId: string }) {
             setBusy(false);
         }
     };
+
+    useEffect(() => {
+        if (data?.situation === 'roadmap_complete') playCue('milestone', { once: 'roadmap-complete' });
+    }, [data?.situation]);
 
     if (error && !data) return <Banner tone="attention" role="alert" title="Today could not be loaded.">{error}</Banner>;
     if (!data) return <div className="loading" role="status"><Mascot mood="hello" size={110} />Loading Today…</div>;

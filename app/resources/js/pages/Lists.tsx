@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { api, ApiError } from '../api';
 import { Avatar, Mascot, Say } from '../components/Mascot';
 import { Banner, Dialog, LevelMarker, ProgressCount, useFocusOnChange } from '../components/ui';
+import { playCue } from '../lib/sound';
+import type { Cue } from '../lib/soundPolicy';
 import { say } from '../lib/stepSays';
 import { assistanceLabel, BASIS_LABEL, formatDate, LEVEL_EXPLAIN, LIMITATION_LABEL, TOPIC_STATE } from '../lib/format';
 import type { EvidenceItem, Level, RoadmapTopic, RoadmapView } from '../types';
@@ -28,12 +30,13 @@ export function RoadmapPage() {
     }, []);
     useEffect(() => { void load(); }, [load]);
 
-    const act = async (fn: () => Promise<unknown>, message: string) => {
+    const act = async (fn: () => Promise<unknown>, message: string, cue?: Cue) => {
         setBusy(true);
         setNotice(null);
         try {
             await fn();
             setNotice(message);
+            if (cue) playCue(cue);
             await load();
         } catch (e) {
             setNotice(e instanceof ApiError ? e.message : 'We could not do that.');
@@ -75,7 +78,7 @@ export function RoadmapPage() {
                 <div className="row">
                     {paused
                         ? <button type="button" className="btn" disabled={busy} onClick={() => void act(() => api.patch(`/enrolments/${view.enrolment.id}`, { status: 'active' }), 'Resumed. Your reviews moved forward, so nothing is waiting.')}>Resume roadmap</button>
-                        : <button type="button" className="btn secondary" disabled={busy} onClick={() => void act(() => api.patch(`/enrolments/${view.enrolment.id}`, { status: 'paused' }), 'Paused. Your progress and drafts are kept.')}>Pause roadmap</button>}
+                        : <button type="button" className="btn secondary" disabled={busy} onClick={() => void act(() => api.patch(`/enrolments/${view.enrolment.id}`, { status: 'paused' }), 'Paused. Your progress and drafts are kept.', 'rest')}>Pause roadmap</button>}
                 </div>
             </div>
             {paused && <Banner title="Paused.">Your progress and drafts are kept. Reviews wait with you and nothing piles up.</Banner>}

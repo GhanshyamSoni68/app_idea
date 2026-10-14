@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Say } from '../components/Mascot';
 import { useFocusOnChange } from '../components/ui';
 import { setMascotMode, useMascotMode, type MascotMode } from '../lib/mascotPrefs';
+import { playCue, setSoundMode, useSoundMode } from '../lib/sound';
 import { MASCOT_NAME, say } from '../lib/stepSays';
 import { DeleteSection, ExportSection, VerifyBanner } from './Account';
 import { useAuth } from '../lib/auth';
@@ -15,6 +16,7 @@ export function SettingsPage() {
     const { me, signOut } = useAuth();
     const install = useInstallPrompt();
     const mascot = useMascotMode();
+    const sound = useSoundMode();
     const [theme, setTheme] = useState<string>(() => { try { return localStorage.getItem('devstep.theme') ?? 'system'; } catch { return 'system'; } });
 
     const apply = (t: string) => {
@@ -34,6 +36,16 @@ export function SettingsPage() {
                     <label className="choice" key={v}><input type="radio" name="mascot" checked={mascot === v} onChange={() => setMascotMode(v)} /><span>{label}</span></label>
                 ))}
                 <p className="small muted">Your device's reduced-motion setting is always respected. {MASCOT_NAME} never affects your evidence or progress.</p>
+            </fieldset>
+            <fieldset>
+                <legend>Sound effects</legend>
+                {([['off', 'Off'], ['on', 'On: short sounds with feedback']] as const).map(([v, label]) => (
+                    <label className="choice" key={v}>
+                        <input type="radio" name="sound" checked={sound === v} onChange={() => { setSoundMode(v); if (v === 'on') playCue('tap'); }} />
+                        <span>{label}</span>
+                    </label>
+                ))}
+                <p className="small muted">Off until you choose. Sounds only ever play beside something you can see, and never for typing, saving in the background, or time away. You can also mute from inside a lesson.</p>
             </fieldset>
             <fieldset>
                 <legend>Theme</legend>

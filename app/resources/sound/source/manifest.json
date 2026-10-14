@@ -1,0 +1,92 @@
+[
+  {
+    "id": "tap",
+    "title": "Soft tap",
+    "use": "Primary buttons only; avoid every keystroke.",
+    "file": "tap.wav",
+    "duration_seconds": 0.16,
+    "peak_dbfs": -16.7,
+    "rms_dbfs": -27.7
+  },
+  {
+    "id": "next",
+    "title": "Next step",
+    "use": "Advancing to the next exercise.",
+    "file": "next.wav",
+    "duration_seconds": 0.42,
+    "peak_dbfs": -9.9,
+    "rms_dbfs": -21.1
+  },
+  {
+    "id": "correct",
+    "title": "Correct answer",
+    "use": "An answer accepted; small, warm reward.",
+    "file": "correct.wav",
+    "duration_seconds": 0.8,
+    "peak_dbfs": -6.3,
+    "rms_dbfs": -17.8
+  },
+  {
+    "id": "try-again",
+    "title": "Try again",
+    "use": "A gentle invitation to retry, without an alarm.",
+    "file": "try-again.wav",
+    "duration_seconds": 0.76,
+    "peak_dbfs": -9.9,
+    "rms_dbfs": -21.0
+  },
+  {
+    "id": "hint",
+    "title": "Aha / hint",
+    "use": "A hint revealed or explanation understood.",
+    "file": "hint.wav",
+    "duration_seconds": 0.91,
+    "peak_dbfs": -8.3,
+    "rms_dbfs": -20.6
+  },
+  {
+    "id": "saved",
+    "title": "Progress saved",
+    "use": "Explicit save confirmation; keep autosave silent.",
+    "file": "saved.wav",
+    "duration_seconds": 0.55,
+    "peak_dbfs": -10.5,
+    "rms_dbfs": -22.2
+  },
+  {
+    "id": "lesson-complete",
+    "title": "Lesson complete",
+    "use": "Finished a practice session.",
+    "file": "lesson-complete.wav",
+    "duration_seconds": 1.25,
+    "peak_dbfs": -4.5,
+    "rms_dbfs": -17.3
+  },
+  {
+    "id": "milestone",
+    "title": "Roadmap milestone",
+    "use": "Reserved for modules or roadmap completion.",
+    "file": "milestone.wav",
+    "duration_seconds": 1.85,
+    "peak_dbfs": -4.8,
+    "rms_dbfs": -17.5
+  },
+  {
+    "id": "rest",
+    "title": "Rest / pause",
+    "use": "Calm confirmation that the roadmap is paused.",
+    "file": "rest.wav",
+    "duration_seconds": 1.35,
+    "peak_dbfs": -9.7,
+    "rms_dbfs": -20.8
+  },
+  {
+    "id": "welcome",
+    "title": "Signature welcome",
+    "use": "Optional, once on an intentional session start.",
+    "file": "welcome.wav",
+    "duration_seconds": 1.28,
+    "peak_dbfs": -5.7,
+    "rms_dbfs": -18.5
+  }
+]

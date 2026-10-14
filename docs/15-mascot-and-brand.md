@@ -72,7 +72,7 @@ Lines live in one file, grouped by context, and are chosen deterministically fro
 | OS reduced motion | Always wins: Step is still and there is no confetti, even if set to "on". |
 | Hidden | No figure or avatar appears anywhere. Step's lines stay as plain text in the same place, so no information is lost. The DevStep wordmark remains. |
 | Screen readers | Step is decorative (`alt=""`, hidden from assistive technology). Anything meaningful is text. |
-| Motion | Only transform and opacity animations, all behind `prefers-reduced-motion: no-preference`; no sound; no flashing; no auto-advance (`08` IR-13). |
+| Motion | Only transform and opacity animations, all behind `prefers-reduced-motion: no-preference`; no flashing; no auto-advance (`08` IR-13). Sound is separate and off by default (§8a). |
 | Verification | `npm run test:e2e:mascot` checks on, still, off and reduced motion, the image weight and an axe-core audit in both themes. The manual release check (`08` A-21) still applies. |
 
 ## 6. What Step must never do (and what we deliberately do not copy)
@@ -111,6 +111,32 @@ This extends the rule table in `08` §11.
 | Icons | `npm run icons` renders the app, maskable and apple-touch icons from the portrait on the brand cream. The maskable icon keeps Step inside the safe zone. |
 | Poses | There is one pose. Moods are motion and props. This is the main limit of the current approach (Open question 3). |
 
+## 8a. Sound
+
+The founder supplied a sound pack (`app/resources/sound/`, ten original synthesized cues, 44.1 kHz mono WAV, no voice, no external samples; the generating script and its integration notes are kept in `app/resources/sound/source/`). It is integrated under the PRD's calm-product rules. **Decision (founder asked for it), built**
+
+| Rule | How it is met |
+| --- | --- |
+| Optional and off by default | A "Sound effects" setting in Settings (stored on this device only), plus a mute button in the player header that works immediately. Nothing is downloaded while sound is off; a cue's file is fetched the first time it plays. |
+| Only for feedback the learner can also see | Cues play beside a visible result, never instead of one. `correct` and `try-again` play only for authoritative (auto-scored) feedback. Self-assessed answers make no sound, because they prove nothing. |
+| Never a measure of absence or failure | No sound for typing, background saving, scrolling, errors, time away or missed practice. `try-again` is a soft invitation; `rest` is only for pausing the roadmap. |
+| One cue at a time | A new cue stops the previous one; the same cue is ignored for 400 ms; a bigger moment is never cut off by a smaller one (milestone over lesson-complete over everything else). |
+| Safe failures | A blocked or failed sound is silence. It never interrupts a lesson. |
+
+| Cue | Where it plays |
+| --- | --- |
+| `correct`, `try-again` | After an auto-scored answer is checked |
+| `hint` | When a hint is shown |
+| `next` | Moving to the next step of a session |
+| `saved` | After "Save and exit" |
+| `lesson-complete` | The session or sample finish screen |
+| `milestone` | The roadmap-complete screen, or Today's roadmap-complete state (once per visit to the app) |
+| `rest` | After pausing the roadmap |
+| `welcome` | Once per visit, when the learner starts a session from Today (never on resume) |
+| `tap` | Only as the preview when the learner turns sound on. It is not attached to buttons: the pack itself warns against rapid repeated taps |
+
+The rules live in `lib/soundPolicy.ts` (pure, unit-tested) and the browser behaviour is checked by `npm run test:e2e:sound`. The pack's own note stands: it has been checked for valid PCM, length and headroom, but **final listening and loudness balance on phone speakers and headphones is still to be done by a person**. Playback volume is 0.7 until then.
+
 ## 9. Open questions for discussion
 
 1. **Name.** *Recommended default:* keep **Step** as a working name, and check availability and trademark before any public launch, together with the product name (PRD header).
@@ -118,7 +144,7 @@ This extends the rule table in `08` §11.
 3. **More poses.** *Recommended default:* commission 4 to 6 poses from the same artist (thinking, cheering, resting, pointing, celebrating a milestone) only if the pilot suggests learners like Step. Real poses will look better than motion on a single figure.
 4. **Does Step help?** *Recommended default:* treat it as a hypothesis. In the pilot, compare return and burden guardrails (PRD §13) between learners who keep Step on and those who turn it off, using an enumerated, non-identifying setting event (not built yet).
 5. **Cosmetic progress (the rest of F15).** *Recommended default:* not now. A "workshop" that gains one labelled part per completed module (`08` §11) is the safest form, because it only ever grows and carries a text alternative. Build it only if Step alone is not enough.
-6. **Sound.** *Recommended default:* none in the MVP. If added, off by default and respectful of the device's silent mode.
+6. **Sound.** Answered by §8a: built, off by default. Still open: a listening pass on real devices; whether the provenance and licence of the pack are recorded (same question as 2); and whether the default should stay off after the pilot (the pilot can compare retention and complaints).
 
 ## PRD traceability
 

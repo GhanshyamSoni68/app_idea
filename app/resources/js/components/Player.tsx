@@ -6,6 +6,9 @@ import type { AttemptResult, Item } from '../types';
 import { type Answer, answerReady, effectiveAnswer, ItemInput } from './ItemInput';
 import { Avatar, Mascot, Remark } from './Mascot';
 import { StepBar } from './Progress';
+import { SoundToggle } from './SoundToggle';
+import { playCue } from '../lib/sound';
+import { cueForResult } from '../lib/soundPolicy';
 import { say } from '../lib/stepSays';
 import { Banner, Dialog, useFocusOnChange } from './ui';
 
@@ -88,6 +91,8 @@ export function Player({ steps, startIndex, title, context, modeLabel, engine, i
         try {
             const r = await engine.check(step, effectiveAnswer(step.item, answer));
             setResults((prev) => ({ ...prev, [step.key]: r }));
+            const cue = cueForResult(OUTCOME_LABEL[r.outcome].tone, r.evidence_basis);
+            if (cue) playCue(cue); // only for authoritative feedback, and only beside the visible result
         } catch (e) {
             setError(e instanceof ApiError ? e.message : 'We could not check that answer. Your work is kept; try again.');
         } finally {
@@ -100,6 +105,7 @@ export function Player({ steps, startIndex, title, context, modeLabel, engine, i
         try {
             const h = await engine.hint(step, shown + 1);
             setHints((prev) => ({ ...prev, [step.key]: { texts: [...(prev[step.key]?.texts ?? []), h.text], remaining: h.remaining } }));
+            playCue('hint');
         } catch (e) {
             setError(e instanceof ApiError ? e.message : 'We could not load that hint.');
         }
@@ -123,6 +129,7 @@ export function Player({ steps, startIndex, title, context, modeLabel, engine, i
             else {
                 await engine.advance(index + 1);
                 setIndex(index + 1);
+                playCue('next');
             }
         } catch (e) {
             setError(e instanceof ApiError ? e.message : 'We could not continue. Your work is kept; try again.');
@@ -139,8 +146,11 @@ export function Player({ steps, startIndex, title, context, modeLabel, engine, i
     return (
         <section aria-labelledby="step-title">
             <div className="player-head">
-                <button type="button" className="btn secondary" onClick={() => void engine.saveAndExit()}>Save and exit</button>
-                <span aria-live="off">Step {index + 1} of {steps.length}</span>
+                <button type="button" className="btn secondary" onClick={() => void engine.saveAndExit().then(() => playCue('saved'))}>Save and exit</button>
+                <span className="player-head-end">
+                    <SoundToggle />
+                    <span aria-live="off">Step {index + 1} of {steps.length}</span>
+                </span>
             </div>
             <StepBar index={index} total={steps.length} />
             <p className="player-ctx">{context ?? title}{context ? ` · ${modeLabel}` : ''}</p>

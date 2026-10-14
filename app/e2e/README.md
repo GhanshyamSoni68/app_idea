@@ -34,3 +34,5 @@ release check in `docs/08` A-21 (keyboard, screen reader, 200% zoom, 320 px, red
 ## Mascot
 
 `npm run test:e2e:mascot` checks the learner's control over Step (movement, still, hidden), that reduced motion always wins, that the mascot images stay under a weight budget, and audits the screens with axe-core with Step on and off. See `docs/15-mascot-and-brand.md`.
+
+`npm run test:e2e:sound` checks the sound pack (`docs/15` §8a) with a recording stand-in for `Audio`: off by default, silent for choosing and typing, the right cue after authoritative feedback and at a finished session, one cue at a time, instant mute, files fetched only once sound is on (with the real `Audio`), and axe-core on Settings, the player and the finish screen.

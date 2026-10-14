@@ -34,7 +34,7 @@ class ExploreLifecycleTest extends TestCase
 
     private function pathFor(User $user, string $topic = 'Docker networking basics'): string
     {
-        $id = $this->actingAs($user)->postJson('/v1/explore', ['topic' => $topic])->assertStatus(202)->json('id');
+        $id = $this->actingAs($user)->postJson('/v1/explore', ['topic' => $topic, 'ack' => true])->assertStatus(202)->json('id');
         $this->postJson("/v1/explore/{$id}/start")->assertSuccessful();
 
         return $id;

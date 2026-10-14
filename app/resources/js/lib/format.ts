@@ -25,6 +25,7 @@ export const LIMITATION_LABEL: Record<string, string> = {
     small_mode: 'Done in Start small',
     guest_claim: 'Done as a guest, checked again when you joined',
     solution_revealed: 'Solution seen before answering',
+    ai_generated_unreviewed: 'From AI-made practice a person has not reviewed, so shown as Practised at most',
 };
 
 export const OUTCOME_LABEL: Record<Outcome, { word: string; glyph: string; tone: 'ok' | 'notyet' | 'neutral' }> = {

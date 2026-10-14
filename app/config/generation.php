@@ -127,6 +127,9 @@ return [
     // Prompts are versioned. Bump when any prompt text changes so the log can tie quality to a prompt version.
     'prompt_version' => '2026-10-14.1',
 
+    // The wording a learner acknowledges before their topic is sent to a provider. Bump it when the wording changes; each run records which one.
+    'consent_version' => '2026-10-14',
+
     // Generated content is labelled and its evidence is capped at this level until a person reviews it (docs/16 §7).
     'unreviewed_evidence_cap' => 'practised',
 ];

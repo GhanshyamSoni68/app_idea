@@ -748,6 +748,8 @@ and §12: no employer repositories, no secrets, no learner data.
 | Ideas for synthetic-data generators | AI as the reviewer, or ticking the checklist; pasting learner data, report text, employer code or secrets into AI tools |
 
 AI use is declared in `ai_assisted` and on the PR; the review bar is unchanged.
+
+**Exception, recorded in `16-content-engine.md`:** a separate engine can write practice on a topic a *learner* names. Its output skips human review **only** by being a different tier: visible to the requester alone, labelled wherever it appears, capped at `practised` evidence, never counted as reviewed, and promotable only by a named person who tried the exercise. Nothing above changes for authored content, and the rules in this section still govern everything an author or reviewer handles.
 Authors check generated text does not reproduce third-party material. §14
 assumes **no** AI time saving until one is measured.
 

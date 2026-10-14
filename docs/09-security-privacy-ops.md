@@ -72,6 +72,8 @@ Where a control relies on a managed-service feature (point-in-time recovery, bud
 | Guest progress | Onboarding answers, sample-scenario answers and drafts | Personal | Browser storage on the device only | Learner only | Until claimed; the browser deletes an unclaimed bundle after 30 days | — | — |
 | Backups | Everything above that is held in the database | Restricted | Platform point-in-time recovery; weekly encrypted dump in off-site storage | Operator; database and storage providers | PITR window 14 days; each dump 28 days | No | Expire ≤ 28 days after the hard delete |
 | AI tutor usage (P1) | Token counts, latency, cost; text redacted | Personal | Usage log (04 decides) | Operator | 12 months | Yes | Yes |
+| Content generation runs and calls (`16`) | Per-call provider, model, tokens, cost, latency, outcome; the **topic text the learner typed** on the run; prompts and replies only if payload logging is on | Personal (topic text); operational (the rest) | `generation_runs`, `generation_calls` | Operator | Cost and outcome rows kept; payloads 30 days; topic text erased on account deletion | Yes (topic text) | Topic text erased; rows anonymised |
+| AI-made paths (`16`) | Content written for one learner from their topic | Personal | `generated_artifacts`, owner-scoped catalogue rows | The learner; operator | Account lifetime | Yes | Deleted with the account |
 
 Authors and reviewers have no access to learner data. They work only in the content repository.
 
@@ -242,6 +244,10 @@ Signing keys support two active versions for rotation. Comparisons are constant-
 - No response cache shared between learners when the cache key includes learner text.
 - Provider configuration stays server-side. The vendor's terms must exclude training on our data and keep retention minimal. Learners see a disclosure and opt in before first use (**PRD** §12).
 - Per-user quota, global monthly cap, maximum tokens per call, a kill switch, and authored-hint fallback on failure. Latency, tokens and cost are logged with text redacted (**PRD** §11, §14).
+
+### 3.8 Content generation (`16-content-engine.md`)
+
+A second AI feature, off by default, that writes practice on a topic the learner types. It meets §3.7's rules this way: the prompt holds only the topic and level (nothing from other learners, no email or name, no answers or evidence); secret-like text and links are refused before sending; output is untrusted, gated and rendered through the same sanitiser; the model has no tools and never writes `skill_evidence`; there is no shared cache; the learner ticks "I understand" before first use and the wording version is recorded on the run; there are per-learner and global caps, a per-call token limit, a kill switch (`GENERATION_ENABLED`) and the circuit breaker; prompts and replies are not stored unless payload logging is switched on, and then for 30 days. The topic text is erased when the account is deleted. The vendor's terms and a DPA remain to be recorded (§6.6).
 
 ## 4. Controls checklist
 
@@ -476,7 +482,8 @@ stateDiagram-v2
 | Identity provider: Sign in with GitHub | GitHub | GitHub account ID, username, verified email, sign-in requests | US (unverified) | ☐ (role to confirm, §6.1) | TBD |
 | Code host and CI | GitHub (01) | No learner data in repositories or CI. The same vendor is the sign-in provider above | US (unverified) | ☐ | — |
 | Research tools: forms, video calls, transcription if used, research store | TBD (10) | Screener answers, contacts, recordings, notes | TBD | ☐ | TBD |
-| AI provider (P1, not enabled) | TBD | Question and reviewed content | TBD | ☐ | TBD |
+| AI provider (P1 tutor, not enabled) | TBD | Question and reviewed content | TBD | ☐ | TBD |
+| AI provider (content engine, off by default; `16`) | TBD | The topic text and level the learner typed | TBD (no training on our data; minimal retention) | ☐ | TBD |
 
 - [ ] A DPA (Art. 28 processor terms) accepted with every processor before it receives learner data.
 - [ ] Data-subject requests handled within one month (Art. 12(3)): access and portability through export, rectification through settings, erasure through deletion, objection and restriction through pause, opt-out or support. Confirm identity by requiring the request to come from the account's address and be confirmed while signed in.

@@ -1,7 +1,7 @@
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { BrowserRouter, Link, Navigate, NavLink, Route, Routes } from 'react-router-dom';
 import { api, uuid } from './api';
-import { EvidenceIcon, RoadmapIcon, TodayIcon } from './components/icons';
+import { EvidenceIcon, ExploreIcon, RoadmapIcon, TodayIcon } from './components/icons';
 import { Avatar, Mascot } from './components/Mascot';
 import { Banner } from './components/ui';
 import { useOnline } from './lib/pwa';
@@ -9,6 +9,7 @@ import { AuthProvider, useAuth } from './lib/auth';
 import { claimBody, clearGuest, hasGuestWork, loadGuest, saveGuest } from './lib/guestStore';
 import { ForgotPage, PendingDeletion, ResetPage, VerifyPage } from './pages/Account';
 import { Onboarding, SignIn, SignUp } from './pages/Auth';
+import { ExplorePage } from './pages/Explore';
 import { GuestSample, GuestStart, Landing, SampleDone } from './pages/Guest';
 import { EvidencePage, RoadmapPage } from './pages/Lists';
 import { SessionDone, SessionPage } from './pages/Session';
@@ -17,6 +18,8 @@ import { TodayPage } from './pages/Today';
 
 function Shell({ children, signedIn }: { children: ReactNode; signedIn: boolean }) {
     const online = useOnline();
+    const { me } = useAuth();
+    const explore = signedIn && !!me?.features?.explore; // only when the operator has switched generation on
 
     return (
         <div className="shell">
@@ -25,7 +28,7 @@ function Shell({ children, signedIn }: { children: ReactNode; signedIn: boolean 
                 <Link className="brand" to={signedIn ? '/today' : '/'}><Avatar size={38} /><span className="wordmark">Dev<b>Step</b></span></Link>
                 {signedIn && (
                     <nav className="main" aria-label="Main">
-                        <NavLink to="/today"><TodayIcon />Today</NavLink><NavLink to="/roadmap"><RoadmapIcon />Roadmap</NavLink><NavLink to="/evidence"><EvidenceIcon />Evidence</NavLink>
+                        <NavLink to="/today"><TodayIcon />Today</NavLink><NavLink to="/roadmap"><RoadmapIcon />Roadmap</NavLink><NavLink to="/evidence"><EvidenceIcon />Evidence</NavLink>{explore && <NavLink to="/explore"><ExploreIcon />Explore</NavLink>}
                     </nav>
                 )}
                 <Link to="/settings">Settings</Link>
@@ -40,7 +43,7 @@ function Shell({ children, signedIn }: { children: ReactNode; signedIn: boolean 
             </main>
             {signedIn && (
                 <nav className="tabbar" aria-label="Main">
-                    <NavLink to="/today"><TodayIcon />Today</NavLink><NavLink to="/roadmap"><RoadmapIcon />Roadmap</NavLink><NavLink to="/evidence"><EvidenceIcon />Evidence</NavLink>
+                    <NavLink to="/today"><TodayIcon />Today</NavLink><NavLink to="/roadmap"><RoadmapIcon />Roadmap</NavLink><NavLink to="/evidence"><EvidenceIcon />Evidence</NavLink>{explore && <NavLink to="/explore"><ExploreIcon />Explore</NavLink>}
                 </nav>
             )}
         </div>
@@ -108,6 +111,7 @@ function SignedInRoutes({ subjectId }: { subjectId: string }) {
             <Route path="/session/:id/done" element={<SessionDone />} />
             <Route path="/roadmap" element={<RoadmapPage />} />
             <Route path="/evidence" element={<EvidencePage />} />
+            <Route path="/explore" element={<ExplorePage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="*" element={<Navigate to="/today" replace />} />
         </Routes>

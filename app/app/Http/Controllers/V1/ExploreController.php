@@ -31,12 +31,14 @@ class ExploreController extends Controller
         $data = $request->validate([
             'topic' => ['required', 'string', 'max:300'],
             'level' => ['sometimes', Rule::in(array_keys(ExploreService::LEVELS))],
-        ]);
+            // AI processing is opt-in after disclosure (docs/09 §3.7, C59): the learner ticks a box saying they understand.
+            'ack' => ['required', 'accepted'],
+        ], ['ack.required' => 'Please tick the box to say you understand.', 'ack.accepted' => 'Please tick the box to say you understand.']);
         try {
-            $id = $this->explore->request(Learner::of($request->user()), $data['topic'], $data['level'] ?? 'some');
+            $id = $this->explore->request(Learner::of($request->user()), $data['topic'], $data['level'] ?? 'some', (string) config('generation.consent_version'));
         } catch (GenerationException $e) {
             throw match (true) {
-                $e->code_ === 'topic_rejected' => new ApiException('topic_rejected', $e->getMessage(), 422, false, null, ['topic' => [$e->getMessage()]]),
+                $e->code_ === 'topic_rejected' => new ApiException('topic_rejected', $e->getMessage(), 422, false, null, [['field' => 'topic', 'code' => 'topic_rejected', 'message' => $e->getMessage()]]),
                 str_starts_with($e->code_, 'budget') => new ApiException('explore_limit', $e->getMessage(), 429, true),
                 default => new ApiException($e->code_, $e->getMessage(), 503, true),
             };

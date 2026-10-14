@@ -8,7 +8,7 @@ export type Context =
     | 'landing' | 'onboarding' | 'sample_intro' | 'today_ready' | 'today_resume' | 'today_done' | 'today_returning' | 'today_paused'
     | 'today_nothing' | 'today_first' | 'feedback_ok' | 'feedback_notyet' | 'feedback_self' | 'hint' | 'reveal' | 'complete_practised'
     | 'complete_demonstrated' | 'complete_topic' | 'complete_roadmap' | 'challenge_start' | 'challenge_pass' | 'challenge_try'
-    | 'roadmap' | 'evidence_empty' | 'evidence' | 'offline' | 'paused_roadmap' | 'settings' | 'signin' | 'signup' | 'sample_done' | 'saved';
+    | 'explore' | 'explore_working' | 'explore_ready' | 'explore_trouble' | 'roadmap' | 'evidence_empty' | 'evidence' | 'offline' | 'paused_roadmap' | 'settings' | 'signin' | 'signup' | 'sample_done' | 'saved';
 
 export const LINES: Record<Context, string[]> = {
     landing: ['Hi, I am Step. One small task at a time, and I will keep track of what you can really do.', 'Hello. I am Step. Let us find one useful thing to practise.'],
@@ -33,6 +33,10 @@ export const LINES: Record<Context, string[]> = {
     challenge_start: ['Two short questions, no hints, no timer. Whatever happens, you will know where to start.'],
     challenge_pass: ['You already knew this one, so it is completed.'],
     challenge_try: ['Good to know where to start. The mission is next.'],
+    explore: ['Tell me what you want to practise. I will make a short path for it.', 'Anything about software is fair game. Start with a few words.'],
+    explore_working: ['I am planning your path. It takes a minute; you can stay or come back later.'],
+    explore_ready: ['Your path is ready. Start it now, or look it over first.'],
+    explore_trouble: ['That did not work out this time, and nothing was changed. You can try again.'],
     roadmap: ['This is the whole path, one topic at a time. You never need to look further than the next one.'],
     evidence_empty: ['Nothing here yet. Your first attempt will show up as practised.'],
     evidence: ['This is what you can show, with dates and limits. It only goes up.'],

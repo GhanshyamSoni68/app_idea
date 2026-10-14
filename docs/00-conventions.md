@@ -172,4 +172,5 @@ final list). All under `/v1`, JSON, authenticated unless noted.
 | `12-delivery-plan.md` | Phases, epics, milestones, risks |
 | `13-decisions-and-open-questions.md` | Consolidated decision log for discussion |
 | `14-app-phase.md` | Installable web app, gated store apps, caching privacy rules, accessibility gate |
-| `15-mascot-and-brand.md` | Step the mascot: role, voice, rules, controls, visual system, artwork pipeline |
+| `15-mascot-and-brand.md` | Step the mascot: role, voice, rules, controls, visual system, artwork pipeline, sound |
+| `16-content-engine.md` | The model-agnostic content engine, quality gates, logging, and the labelled AI-content tier |

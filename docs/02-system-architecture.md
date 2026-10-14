@@ -10,7 +10,7 @@ Define DevStep's logical architecture (system context, containers, module bounda
 
 ## Summary
 
-- **One codebase, two processes.** A modular monolith serves the API; the same build runs the scheduler/worker on a database-backed job queue. No Redis, no microservices (PRD §11, Fowler [8]).
+- **One codebase, two processes.** A modular monolith serves the API; the same build runs the scheduler/worker on a database-backed job queue. No Redis, no microservices (PRD §11, Fowler [8]). The optional content engine (`16`) is one more module, `generation`, on the same queue; with it off, nothing in it runs.
 - **Nine modules, acyclic call graph.** `catalogue` is read-only at runtime; no module reads another module's tables; `analytics` and `notifications` are strictly downstream.
 - **Progress is transactional; side effects are not.** Core event subscribers (`AttemptEvaluated` → `scheduling`, `roadmap`) run inside the request transaction; analytics and email run after commit via the job queue, so they cannot block learning.
 - **Server-side evaluation, CDN-delivered content.** Learner-facing content bundles are immutable, versioned and cached at the CDN without answer keys; every attempt references the exact published content version.

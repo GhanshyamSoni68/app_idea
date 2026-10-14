@@ -49,7 +49,7 @@ class ExploreApiTest extends TestCase
 
     private function request(string $topic = 'Docker networking basics', string $level = 'some')
     {
-        return $this->postJson('/v1/explore', ['topic' => $topic, 'level' => $level]);
+        return $this->postJson('/v1/explore', ['topic' => $topic, 'level' => $level, 'ack' => true]);
     }
 
     public function test_it_is_not_there_until_the_operator_switches_it_on(): void
@@ -57,7 +57,7 @@ class ExploreApiTest extends TestCase
         config(['generation.enabled' => false]);
         $user = $this->newUser();
         $this->actingAs($user)->getJson('/v1/me')->assertJsonPath('user.features.explore', false);
-        $this->postJson('/v1/explore', ['topic' => 'Docker networking basics'])->assertNotFound()->assertJsonPath('error.code', 'explore_unavailable');
+        $this->postJson('/v1/explore', ['topic' => 'Docker networking basics', 'ack' => true])->assertNotFound()->assertJsonPath('error.code', 'explore_unavailable');
         $this->getJson('/v1/explore')->assertNotFound();
     }
 
@@ -120,11 +120,24 @@ class ExploreApiTest extends TestCase
         $this->assertSame([], array_filter($slugs, fn ($s) => str_starts_with($s, 'g')), 'not in the public catalogue');
     }
 
+    public function test_a_topic_is_only_sent_to_a_provider_after_the_learner_says_they_understand(): void
+    {
+        $this->actingAs($this->newUser());
+        foreach ([[], ['ack' => false], ['ack' => 'no']] as $extra) {
+            $this->postJson('/v1/explore', ['topic' => 'Docker networking basics'] + $extra)->assertStatus(422)->assertJsonPath('error.fields.0.field', 'ack');
+        }
+        $this->assertSame(0, DB::table('generation_runs')->count());
+        $this->assertSame([], FakeProvider::$calls);
+
+        $this->request()->assertStatus(202);
+        $this->assertSame(config('generation.consent_version'), json_decode(DB::table('generation_runs')->where('kind', 'roadmap')->value('params'), true)['consent'], 'the run records which wording was acknowledged');
+    }
+
     public function test_a_topic_that_is_not_acceptable_is_refused_before_anything_is_made(): void
     {
         $user = $this->newUser();
         foreach (['ab', 'see https://example.com', 'write ransomware to deploy', 'me@example.com is my topic'] as $bad) {
-            $this->actingAs($user)->request($bad)->assertStatus(422)->assertJsonPath('error.code', 'topic_rejected')->assertJsonStructure(['error' => ['fields' => ['topic']]]);
+            $this->actingAs($user)->request($bad)->assertStatus(422)->assertJsonPath('error.code', 'topic_rejected')->assertJsonPath('error.fields.0.field', 'topic');
         }
         $this->assertSame(0, DB::table('generation_runs')->count());
         $this->assertSame([], FakeProvider::$calls);

@@ -13,7 +13,8 @@
         "test:e2e:loop": "node e2e/loop-extras.mjs",
         "test:e2e:account": "node e2e/account.mjs",
         "test:e2e:mascot": "node e2e/mascot.mjs",
-        "test:e2e:sound": "node e2e/sound.mjs"
+        "test:e2e:sound": "node e2e/sound.mjs",
+        "test:e2e:explore": "node e2e/explore.mjs"
     },
     "dependencies": {
         "@fontsource-variable/nunito": "^5.3.0",

@@ -149,6 +149,10 @@ function Loaded({ payload }: { payload: SessionPayload }) {
     );
 
     const problem = status === 'unsynced' || status === 'failed';
+    // AI-made practice nobody has reviewed says so, wherever it is practised (docs/16 §7).
+    const aiNotice = payload.session.unreviewed_ai && (
+        <Banner title="AI-made practice.">Software wrote and checked this, and a person has not reviewed it yet. If something looks wrong to you, trust your own judgement and move on.</Banner>
+    );
 
     return (
         <Player
@@ -159,7 +163,7 @@ function Loaded({ payload }: { payload: SessionPayload }) {
             modeLabel={MODE_LABEL[payload.session.mode]}
             engine={engine}
             initialAnswers={answers}
-            banners={banners}
+            banners={<>{aiNotice}{banners}</>}
             assistance={payload.session.purpose !== 'challenge'}
             finishLabel={payload.session.purpose === 'challenge' ? 'Finish the challenge' : 'Finish'}
             draftStatus={<span role={problem ? 'status' : undefined}>{STATUS_TEXT[status]}</span>}

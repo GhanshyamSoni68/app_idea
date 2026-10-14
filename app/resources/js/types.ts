@@ -13,6 +13,7 @@ export interface Me {
     onboarding_completed: boolean;
     subject_id: string;
     deletion: { pending: boolean; effective_at?: string };
+    features?: { explore: boolean };
 }
 
 export interface ItemOption { key: string; text: string }
@@ -68,7 +69,7 @@ export interface Step {
 }
 
 export interface SessionPayload {
-    session: { id: string; mode: Mode; purpose: string; status: string; estimated_minutes: number; context: string | null; current_step: number; content_version_id: string | null };
+    session: { id: string; mode: Mode; purpose: string; status: string; estimated_minutes: number; context: string | null; current_step: number; content_version_id: string | null; unreviewed_ai?: boolean };
     steps: Step[];
     draft: { revision: number; step_key: string; data: Record<string, unknown>; device_label: string | null; saved_at: string } | null;
     resumed: boolean;
@@ -132,7 +133,7 @@ export interface RoadmapTopic {
 }
 export interface RoadmapView {
     enrolment: { id: string; status: string; completed_at: string | null };
-    roadmap: { title: string; outcome: string; estimated_effort: string; coverage_note: string; version: number };
+    roadmap: { title: string; outcome: string; estimated_effort: string; coverage_note: string; version: number; made_for_you?: boolean; reviewed?: boolean };
     progress: { completed_required: number; total_required: number; percent: number };
     modules: { module_key: string; title: string; topics: RoadmapTopic[] }[];
 }
@@ -163,3 +164,20 @@ export interface SampleMission {
     estimated_minutes: { practise: number; small: number };
     steps: { key: string; kind: 'scenario' | 'explanation' | 'response'; title: string; body: string; stop_after: boolean; item: Item | null }[];
 }
+
+// "Learn something else" (docs/16 §8)
+export interface PathSummary {
+    id: string;
+    status: 'active' | 'paused' | 'ended' | 'migrated';
+    title: string;
+    made_for_you: boolean;
+    reviewed: boolean;
+    progress: { completed_required: number; total_required: number; percent: number };
+}
+
+export type ExploreStage = 'queued' | 'plan' | 'first-mission' | 'draft' | 'gates' | 'verify' | 'publishing' | string;
+
+export type ExploreState =
+    | { id: string; status: 'working'; stage: ExploreStage }
+    | { id: string; status: 'ready'; stage: string; title: string; outcome: string; topics: { title: string; minutes: number }[]; ready_count: number; enrolment_id: string | null; coverage_note: string }
+    | { id: string; status: 'rejected' | 'failed'; stage: string; reason: string | null; message: string };

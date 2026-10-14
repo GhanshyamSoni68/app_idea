@@ -45,7 +45,7 @@ final class ExploreService
     }
 
     /** @return string the run id */
-    public function request(Learner $learner, string $rawTopic, string $level): string
+    public function request(Learner $learner, string $rawTopic, string $level, string $consent): string
     {
         if (! self::enabled()) {
             throw new ApiException('explore_unavailable', 'Making a path on your own topic is not available yet.', 404);
@@ -59,7 +59,7 @@ final class ExploreService
             throw ApiException::conflict('explore_busy', 'We are still making your last path. It will be ready in a moment.');
         }
 
-        $runId = $this->log->startRun('roadmap', $learner->id, $topic, ['level' => $level, 'minutes' => 10]);
+        $runId = $this->log->startRun('roadmap', $learner->id, $topic, ['level' => $level, 'minutes' => 10, 'consent' => $consent]);
         EventRecorder::server('explore_requested', $learner->subjectId, ['level' => $level]);
         dispatch(new GenerateExplorePath($runId));
 

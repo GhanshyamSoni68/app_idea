@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { api, ApiError } from '../api';
 import { Avatar, Mascot, Say } from '../components/Mascot';
 import { Banner, Dialog, LevelMarker, ProgressCount, useFocusOnChange } from '../components/ui';
@@ -21,7 +21,8 @@ export function RoadmapPage() {
     const load = useCallback(async () => {
         try {
             const list = await api.get<{ enrolments: { id: string; status: string }[] }>('/enrolments');
-            const current = list.enrolments.find((e) => ['active', 'paused'].includes(e.status));
+            // The path in focus: the active one, else the most recently paused (the server lists the active one first).
+            const current = list.enrolments.find((e) => e.status === 'active') ?? list.enrolments.find((e) => e.status === 'paused');
             if (!current) { setError('You have not enrolled in a roadmap yet. Start from Today.'); return; }
             setView(await api.get<RoadmapView>(`/enrolments/${current.id}`));
         } catch (e) {
@@ -70,6 +71,14 @@ export function RoadmapPage() {
         <div className="stack">
             <h1 ref={h} tabIndex={-1}>Roadmap</h1>
             <Say mood={paused ? 'rest' : 'guide'} size={100}>{say(paused ? 'paused_roadmap' : 'roadmap')}</Say>
+            {view.roadmap.made_for_you && (
+                <Banner title={view.roadmap.reviewed ? 'Made for you.' : 'Made for you, not reviewed yet.'}>
+                    {view.roadmap.reviewed
+                        ? 'This path was written by software for you, and a person has reviewed it.'
+                        : 'Software wrote and checked this path. A person has not reviewed it yet, so evidence from it shows as Practised at most.'}{' '}
+                    <Link to="/explore">Your paths</Link>
+                </Banner>
+            )}
             <div className="card path-head">
                 <h2>{view.roadmap.title}</h2>
                 <p className="muted small">Version {view.roadmap.version} · {view.roadmap.estimated_effort}</p>

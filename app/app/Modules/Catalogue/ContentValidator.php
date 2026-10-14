@@ -17,7 +17,7 @@ final class ContentValidator
 
     /**
      * @param  array<string, mixed>  $content  Output of ContentLoader::load()
-     * @param  array{allow_unreviewed?:bool, allow_partial?:bool}  $options
+     * @param  array{allow_unreviewed?:bool, allow_partial?:bool, allow_unsourced?:bool}  $options
      * @return list<array{severity:string,code:string,path:string,message:string}>
      */
     public function validate(array $content, array $options = []): array
@@ -25,10 +25,11 @@ final class ContentValidator
         $this->findings = [];
         $lenientReview = (bool) ($options['allow_unreviewed'] ?? false);
         $partial = (bool) ($options['allow_partial'] ?? false);
+        $unsourced = (bool) ($options['allow_unsourced'] ?? false);
 
         $this->skills($content);
         foreach ($content['missions'] as $dirId => $mission) {
-            $this->mission((string) $dirId, $mission, $content, $lenientReview);
+            $this->mission((string) $dirId, $mission, $content, $lenientReview, $unsourced);
         }
         foreach ($content['roadmaps'] as $slug => $roadmap) {
             $this->roadmap((string) $slug, $roadmap, $content, $partial);
@@ -85,7 +86,7 @@ final class ContentValidator
         }
     }
 
-    private function mission(string $dirId, array $mission, array $content, bool $lenientReview): void
+    private function mission(string $dirId, array $mission, array $content, bool $lenientReview, bool $unsourced = false): void
     {
         $front = $mission['front'];
         $path = "missions/{$dirId}";
@@ -194,7 +195,8 @@ final class ContentValidator
 
         // Sources (PRD §8).
         if (empty($front['sources'])) {
-            $this->error('V10', $path, 'At least one source with a URL and an accessed date is required.');
+            // Generated content (docs/16) has no sources: it cannot cite what no person has opened. It is labelled instead.
+            $this->add($unsourced ? 'warning' : 'error', 'V10', $path, 'At least one source with a URL and an accessed date is required.');
         }
         foreach ($front['sources'] ?? [] as $s) {
             if (empty($s['url']) || ! preg_match('#^https://#', (string) $s['url']) || empty($s['accessed'])) {

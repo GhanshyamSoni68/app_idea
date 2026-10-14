@@ -88,6 +88,9 @@ final class DeletionService
     public static function erase(string $userId, string $subjectId): void
     {
         DB::delete('DELETE FROM analytics_events WHERE subject_id = ?', [$subjectId]);
+        // Generation records keep cost and quality figures, but what the learner typed does not outlive the account (docs/16 §6).
+        DB::update("UPDATE generation_runs SET topic = NULL, params = '{}'::jsonb WHERE user_id = ?", [$userId]);
+        DB::delete('DELETE FROM generated_artifacts WHERE owner_user_id = ?', [$userId]);
         DB::delete('DELETE FROM users WHERE id = ?', [$userId]);
     }
 

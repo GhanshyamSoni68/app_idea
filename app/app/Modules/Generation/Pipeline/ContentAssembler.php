@@ -210,6 +210,15 @@ final class ContentAssembler
         return $content;
     }
 
+    /** Missions added to a path that is already published: the skills are re-sent (they match by key), the roadmap is not. */
+    public static function missionsBundle(array $roadmap, array $missions): array
+    {
+        $content = ['skills' => $roadmap['skills'], 'skill_prerequisites' => $roadmap['prerequisites'], 'roadmaps' => [], 'missions' => $missions];
+        $content['hash'] = hash('sha256', json_encode($content));
+
+        return $content;
+    }
+
     public static function loaderSlug(string $heading): string
     {
         return ContentLoader::slug($heading);

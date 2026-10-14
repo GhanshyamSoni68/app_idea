@@ -68,6 +68,16 @@ final class EvidenceService
             $level = 'practised'; // a failed challenge earns practised only (CH-4)
         }
 
+        // AI-made content nobody has reviewed cannot demonstrate a skill, however well it was answered (docs/16 §7). The cap
+        // is on the evidence, not on progress; the Evidence screen says why.
+        if ($this->isUnreviewedGenerated((string) $attempt->content_version_id)) {
+            $capLevel = (string) config('generation.unreviewed_evidence_cap');
+            if (self::RANK[$level] > self::RANK[$capLevel]) {
+                $level = $capLevel;
+            }
+            $limitations[] = 'ai_generated_unreviewed';
+        }
+
         $before = $this->highestLevel($attempt->user_id, $item->skill_id);
         DB::insert(
             'INSERT INTO skill_evidence (id, user_id, skill_id, level, basis, assistance, source, attempt_id, content_version_id, objective_key, objective_major, limitations, observed_at)
@@ -78,6 +88,15 @@ final class EvidenceService
         );
 
         return ['skill_id' => $item->skill_id, 'from_level' => $before, 'to_level' => $level, 'basis' => $attempt->evidence_basis];
+    }
+
+    private function isUnreviewedGenerated(string $contentVersionId): bool
+    {
+        return (bool) DB::selectOne(
+            "SELECT 1 FROM content_versions cv JOIN content_releases cr ON cr.id = cv.release_id
+             WHERE cv.id = ? AND cr.origin = 'generated' AND cr.review_status = 'unreviewed'",
+            [$contentVersionId],
+        );
     }
 
     /** retained: unassisted met on a different item, >= 7 learner days after an earlier demonstration (docs/05 §6.1). */

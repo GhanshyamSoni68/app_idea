@@ -91,7 +91,10 @@ final class DeletionService
         // Generation records keep cost and quality figures, but what the learner typed does not outlive the account (docs/16 §6).
         DB::update("UPDATE generation_runs SET topic = NULL, params = '{}'::jsonb WHERE user_id = ?", [$userId]);
         DB::delete('DELETE FROM generated_artifacts WHERE owner_user_id = ?', [$userId]);
+        $paths = DB::table('roadmaps')->where('owner_user_id', $userId)->pluck('id')->all();
         DB::delete('DELETE FROM users WHERE id = ?', [$userId]);
+        // The learner's own paths are not shared content: once their attempts and evidence are gone, nothing refers to them.
+        (new \App\Modules\Generation\GeneratedCatalogue)->purgePaths($paths);
     }
 
     /** Re-apply every purge in the ledger, for use after restoring a backup taken before they happened. */

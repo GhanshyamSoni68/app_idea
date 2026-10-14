@@ -14,14 +14,21 @@ use RuntimeException;
  */
 final class ContentPublisher
 {
-    /** @return array{release_id:string, missions:int, items:int, roadmap_versions:int, skipped:int} */
-    public function publish(array $content, string $publishedBy, ?string $sourceRef = null): array
+    private ?string $ownerId = null;
+
+    /**
+     * @param  array{origin?:string, review_status?:string, owner_user_id?:string}  $provenance  Generated content is labelled here (docs/16 §7)
+     * @return array{release_id:string, missions:int, items:int, roadmap_versions:int, skipped:int}
+     */
+    public function publish(array $content, string $publishedBy, ?string $sourceRef = null, array $provenance = []): array
     {
-        return DB::transaction(function () use ($content, $publishedBy, $sourceRef) {
+        return DB::transaction(function () use ($content, $publishedBy, $sourceRef, $provenance) {
+            $this->ownerId = $provenance['owner_user_id'] ?? null;
             $releaseId = Ids::new();
             DB::insert(
-                'INSERT INTO content_releases (id, release_key, source_ref, manifest_hash, published_by, published_at) VALUES (?, ?, ?, ?, ?, ?)',
-                [$releaseId, Clock::now()->format('Y-m-d\THis').'-'.substr($content['hash'], 0, 8).'-'.substr($releaseId, -4), $sourceRef, $content['hash'], $publishedBy, Clock::now()],
+                'INSERT INTO content_releases (id, release_key, source_ref, manifest_hash, published_by, published_at, origin, review_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                [$releaseId, Clock::now()->format('Y-m-d\THis').'-'.substr($content['hash'], 0, 8).'-'.substr($releaseId, -4), $sourceRef, $content['hash'], $publishedBy, Clock::now(),
+                    $provenance['origin'] ?? 'authored', $provenance['review_status'] ?? 'reviewed'],
             );
 
             $skillIds = $this->skills($content);
@@ -137,7 +144,7 @@ final class ContentPublisher
         $roadmap = DB::selectOne('SELECT id FROM roadmaps WHERE slug = ?', [$slug]);
         if (! $roadmap) {
             $roadmapId = Ids::new();
-            DB::insert('INSERT INTO roadmaps (id, slug) VALUES (?, ?)', [$roadmapId, $slug]);
+            DB::insert('INSERT INTO roadmaps (id, slug, owner_user_id) VALUES (?, ?, ?)', [$roadmapId, $slug, $this->ownerId]);
         } else {
             $roadmapId = $roadmap->id;
         }

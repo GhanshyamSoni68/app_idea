@@ -34,10 +34,16 @@ class LearnerController extends Controller
 
     public function enrolments(Request $request): JsonResponse
     {
-        $rows = DB::select('SELECT * FROM roadmap_enrolments WHERE user_id = ? ORDER BY enrolled_at DESC', [$request->user()->id]);
+        $rows = DB::select(
+            "SELECT e.*, rv.title, rv.coverage_note, r.owner_user_id
+             FROM roadmap_enrolments e JOIN roadmap_versions rv ON rv.id = e.roadmap_version_id JOIN roadmaps r ON r.id = e.roadmap_id
+             WHERE e.user_id = ? ORDER BY (e.status = 'active') DESC, e.enrolled_at DESC",
+            [$request->user()->id],
+        );
 
         return response()->json(['enrolments' => array_map(fn ($e) => [
             'id' => $e->id, 'status' => $e->status, 'enrolled_at' => $e->enrolled_at, 'completed_at' => $e->completed_at, 'progress' => $this->roadmap->progress($e),
+            'title' => $e->title, 'made_for_you' => $e->owner_user_id !== null, 'reviewed' => $this->roadmap->versionReviewed($e->roadmap_version_id),
         ], $rows)]);
     }
 
@@ -78,6 +84,15 @@ class LearnerController extends Controller
         return response()->json(['enrolment' => ['id' => $updated->id, 'status' => $updated->status, 'progress' => $this->roadmap->progress($updated)]]);
     }
 
+    /** Make this path the focus (docs/16 §8). The one that was in focus is kept exactly as it was. */
+    public function focus(Request $request, string $id): JsonResponse
+    {
+        $learner = Learner::of($request->user());
+        $e = $this->roadmap->focus($learner->id, $learner->subjectId, $id, $learner->timeZone);
+
+        return response()->json(['enrolment' => ['id' => $e->id, 'status' => $e->status, 'progress' => $this->roadmap->progress($e)]]);
+    }
+
     public function defer(Request $request, string $id): JsonResponse
     {
         $user = $request->user();
@@ -104,7 +119,7 @@ class LearnerController extends Controller
         $rows = DB::select(
             "SELECT r.slug, rv.title, rv.outcome, rv.estimated_effort_text, rv.required_topic_count, rv.version
              FROM roadmaps r JOIN roadmap_versions rv ON rv.roadmap_id = r.id AND rv.status = 'published'
-             WHERE rv.version = (SELECT max(version) FROM roadmap_versions WHERE roadmap_id = r.id AND status = 'published')",
+             WHERE r.owner_user_id IS NULL AND rv.version = (SELECT max(version) FROM roadmap_versions WHERE roadmap_id = r.id AND status = 'published')",
         );
 
         return response()->json(['roadmaps' => $rows])->header('Cache-Control', 'public, max-age=300');
@@ -113,7 +128,7 @@ class LearnerController extends Controller
     public function roadmapDetail(string $slug): JsonResponse
     {
         $v = DB::selectOne(
-            "SELECT rv.* FROM roadmap_versions rv JOIN roadmaps r ON r.id = rv.roadmap_id WHERE r.slug = ? AND rv.status = 'published' ORDER BY rv.version DESC LIMIT 1",
+            "SELECT rv.* FROM roadmap_versions rv JOIN roadmaps r ON r.id = rv.roadmap_id WHERE r.slug = ? AND r.owner_user_id IS NULL AND rv.status = 'published' ORDER BY rv.version DESC LIMIT 1",
             [$slug],
         );
         if (! $v) {

@@ -85,11 +85,14 @@ final class FakeContent
             if ($type === 'single_choice' || $type === 'multi_select') {
                 $keys = ['a', 'b', 'c', 'd'];
                 $good = self::correct($topic, $slot, $type, $keys);
-                $texts = ['a' => 'Collect evidence about it, then change one thing and compare.', 'b' => 'Replace the whole approach right away and hope that this helps.', 'c' => 'Leave it alone for a while to see whether it improves unaided.', 'd' => 'Ask the most senior person to decide without examining anything first.'];
+                // Correct options are written shorter than the distractors, so the answer cannot be found by length (gate Q07).
+                $goods = ['Collect evidence first, then change one thing.', 'Compare against the same measure after each change.'];
+                $bads = ['Replace the whole approach right away and hope that this helps.', 'Leave it alone for a while to see whether it improves unaided.', 'Ask the most senior person to decide without examining anything first.'];
+                $gi = $bi = 0;
                 foreach ($keys as $k) {
                     $isGood = in_array($k, $good, true);
                     $base['options'][] = [
-                        'key' => $k, 'text' => $texts[$k], 'correct' => $isGood,
+                        'key' => $k, 'text' => $isGood ? $goods[$gi++ % 2] : $bads[$bi++ % 3], 'correct' => $isGood,
                         'feedback' => $isGood
                             ? 'Yes. This gives you evidence to work from, so the next step is a decision and not a guess.'
                             : 'Not this one. It skips the evidence, so you cannot tell whether the change helped or hurt.',

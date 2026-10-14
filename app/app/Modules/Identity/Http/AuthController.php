@@ -119,6 +119,7 @@ class AuthController extends Controller
             'onboarding_completed' => $prefs !== null,
             'deletion' => $this->deletionInfo($user),
             'subject_id' => $user->analytics_subject_id,
+            'features' => ['explore' => \App\Modules\Generation\ExploreService::enabled()],
         ];
     }
 

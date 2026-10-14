@@ -45,11 +45,11 @@ final class GenerationService
 
     /**
      * @param  array{level?:string, minutes?:int}  $opts
-     * @return array{run_id:string, artifact_id:string, plan:array<string, mixed>, roadmap:array<string, mixed>}
+     * @return array{run_id:string, artifact_id:string, plan:array<string, mixed>, roadmap:array<string, mixed>, tally:RunTally}
      *
      * @throws GenerationException
      */
-    public function planRoadmap(?string $userId, string $rawTopic, array $opts = [], ?string $runId = null): array
+    public function planRoadmap(?string $userId, string $rawTopic, array $opts = [], ?string $runId = null, bool $finish = true): array
     {
         if (! config('generation.enabled')) {
             throw GenerationException::disabled();
@@ -77,9 +77,11 @@ final class GenerationService
             }
 
             $artifactId = $this->store($runId, $userId, 'roadmap_plan', $roadmap['slug'], ['plan' => $plan, 'roadmap' => $roadmap], ['warnings' => $findings]);
-            $this->log->finish($runId, 'accepted', null, null, $tally);
+            if ($finish) {
+                $this->log->finish($runId, 'accepted', null, null, $tally);
+            }
 
-            return ['run_id' => $runId, 'artifact_id' => $artifactId, 'plan' => $plan, 'roadmap' => $roadmap];
+            return ['run_id' => $runId, 'artifact_id' => $artifactId, 'plan' => $plan, 'roadmap' => $roadmap, 'tally' => $tally];
         } catch (GenerationException $e) {
             $this->fail($runId, $e, $tally);
 
@@ -176,7 +178,8 @@ final class GenerationService
     private function fail(string $runId, GenerationException $e, RunTally $tally, int $rounds = 0): void
     {
         $status = in_array($e->code_, ['topic_rejected', 'quality'], true) ? 'rejected' : 'failed';
-        $this->log->finish($runId, $status, $e->code_, $e->detail === [] ? null : $e->detail, $tally, $rounds);
+        // getMessage() is learner-safe by construction (GenerationException), so it is kept for the status screen.
+        $this->log->finish($runId, $status, $e->code_, $e->detail + ['message' => $e->getMessage()], $tally, $rounds);
     }
 
     /** @param  array<string, mixed>  $content @param  array<string, mixed>  $quality */

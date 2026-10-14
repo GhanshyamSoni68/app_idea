@@ -17,9 +17,17 @@ use Illuminate\Support\Facades\DB;
  */
 final class RoadmapService
 {
+    /**
+     * The path in focus: the active one, else the most recently paused. A learner may hold several paths (docs/16 §8), but
+     * only one is active, and Today, sessions and topic actions all work on that one.
+     */
     public function current(string $userId): ?object
     {
-        return DB::selectOne("SELECT * FROM roadmap_enrolments WHERE user_id = ? AND status IN ('active', 'paused')", [$userId]);
+        return DB::selectOne(
+            "SELECT * FROM roadmap_enrolments WHERE user_id = ? AND status IN ('active', 'paused')
+             ORDER BY (status = 'active') DESC, paused_at DESC NULLS LAST, enrolled_at DESC LIMIT 1",
+            [$userId],
+        );
     }
 
     public function find(string $userId, string $enrolmentId): object
@@ -42,33 +50,120 @@ final class RoadmapService
             if ($existing) {
                 return [$existing, false];
             }
-            $version = DB::selectOne(
-                "SELECT rv.* FROM roadmap_versions rv JOIN roadmaps r ON r.id = rv.roadmap_id
-                 WHERE r.slug = ? AND rv.status = 'published' ORDER BY rv.version DESC LIMIT 1",
-                [$slug],
-            );
-            if (! $version) {
-                throw new ApiException('roadmap_unavailable', 'That roadmap is not available yet.', 404);
+            return [$this->insertEnrolment($userId, $subjectId, $this->visibleVersion($userId, $slug)), true];
+        });
+    }
+
+    /** The latest published version of a roadmap this learner may use: a public one, or one made for them (docs/16 §7). */
+    private function visibleVersion(string $userId, string $slug): object
+    {
+        $version = DB::selectOne(
+            "SELECT rv.* FROM roadmap_versions rv JOIN roadmaps r ON r.id = rv.roadmap_id
+             WHERE r.slug = ? AND rv.status = 'published' AND (r.owner_user_id IS NULL OR r.owner_user_id = ?) ORDER BY rv.version DESC LIMIT 1",
+            [$slug, $userId],
+        );
+        if (! $version) {
+            throw new ApiException('roadmap_unavailable', 'That roadmap is not available yet.', 404);
+        }
+
+        return $version;
+    }
+
+    private function insertEnrolment(string $userId, string $subjectId, object $version, string $status = 'active'): object
+    {
+        $id = Ids::new();
+        $now = Clock::now();
+        DB::insert(
+            'INSERT INTO roadmap_enrolments (id, user_id, roadmap_id, roadmap_version_id, status, enrolled_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            [$id, $userId, $version->roadmap_id, $version->id, $status, $now, $now, $now],
+        );
+        DB::insert(
+            'INSERT INTO topic_progress (id, user_id, enrolment_id, roadmap_version_id, topic_id)
+             SELECT gen_random_uuid(), ?, ?, ?, id FROM roadmap_topics WHERE roadmap_version_id = ?',
+            [$userId, $id, $version->id, $version->id],
+        );
+        DB::afterCommit(fn () => EventRecorder::server('roadmap_enrolled', $subjectId, [
+            'roadmap_enrolment_id' => $id, 'roadmap_id' => $version->roadmap_id, 'roadmap_version_id' => $version->id,
+            'required_topic_count' => (int) $version->required_topic_count,
+        ], ['roadmap_version_id' => $version->id]));
+
+        return DB::selectOne('SELECT * FROM roadmap_enrolments WHERE id = ?', [$id]);
+    }
+
+    /**
+     * Start a path alongside the one in focus and make it the focus (docs/16 §8). If the learner already holds this
+     * roadmap, it is simply brought into focus. Returns [enrolment, created].
+     *
+     * @return array{0: object, 1: bool}
+     */
+    public function startPath(string $userId, string $subjectId, string $slug, string $timeZone): array
+    {
+        return DB::transaction(function () use ($userId, $subjectId, $slug, $timeZone) {
+            $version = $this->visibleVersion($userId, $slug);
+            DB::select('SELECT id FROM roadmap_enrolments WHERE user_id = ? FOR UPDATE', [$userId]);
+            $held = DB::selectOne("SELECT * FROM roadmap_enrolments WHERE user_id = ? AND roadmap_id = ? AND status IN ('active', 'paused')", [$userId, $version->roadmap_id]);
+            if ($held) {
+                return [$this->focus($userId, $subjectId, $held->id, $timeZone), false];
             }
-            $id = Ids::new();
-            $now = Clock::now();
-            DB::insert(
-                "INSERT INTO roadmap_enrolments (id, user_id, roadmap_id, roadmap_version_id, status, enrolled_at, created_at, updated_at) VALUES (?, ?, ?, ?, 'active', ?, ?, ?)",
-                [$id, $userId, $version->roadmap_id, $version->id, $now, $now, $now],
-            );
-            DB::insert(
-                'INSERT INTO topic_progress (id, user_id, enrolment_id, roadmap_version_id, topic_id)
-                 SELECT gen_random_uuid(), ?, ?, ?, id FROM roadmap_topics WHERE roadmap_version_id = ?',
-                [$userId, $id, $version->id, $version->id],
-            );
-            $enrolment = DB::selectOne('SELECT * FROM roadmap_enrolments WHERE id = ?', [$id]);
-            DB::afterCommit(fn () => EventRecorder::server('roadmap_enrolled', $subjectId, [
-                'roadmap_enrolment_id' => $id, 'roadmap_id' => $version->roadmap_id, 'roadmap_version_id' => $version->id,
-                'required_topic_count' => (int) $version->required_topic_count,
-            ], ['roadmap_version_id' => $version->id]));
+            $this->park($userId, $subjectId, null);
+            $enrolment = $this->insertEnrolment($userId, $subjectId, $version);
+            $this->reactivateReviews($userId, null, $timeZone);
 
             return [$enrolment, true];
         });
+    }
+
+    /**
+     * Make one of the learner's paths the focus. The path that was in focus is parked with everything kept: progress, drafts
+     * and reviews (reviews belong to the learner, not to a path, so nothing owed is lost or hidden). If the learner had
+     * explicitly paused everything, reviews that were waiting are shifted forward by the days away, as a resume does.
+     */
+    public function focus(string $userId, string $subjectId, string $enrolmentId, string $timeZone): object
+    {
+        return DB::transaction(function () use ($userId, $subjectId, $enrolmentId, $timeZone) {
+            DB::select('SELECT id FROM roadmap_enrolments WHERE user_id = ? FOR UPDATE', [$userId]);
+            $target = DB::selectOne('SELECT * FROM roadmap_enrolments WHERE id = ? AND user_id = ?', [$enrolmentId, $userId]);
+            if (! $target) {
+                throw ApiException::notFound('That path');
+            }
+            if (! in_array($target->status, ['active', 'paused'], true)) {
+                throw ApiException::conflict('enrolment_not_current', 'That path is no longer current.');
+            }
+            if ($target->status === 'active') {
+                return $target;
+            }
+            $this->park($userId, $subjectId, $target->id);
+            $now = Clock::now();
+            DB::update("UPDATE roadmap_enrolments SET status = 'active', paused_at = NULL, updated_at = ? WHERE id = ?", [$now, $target->id]);
+            $this->reactivateReviews($userId, $target->paused_at, $timeZone);
+            DB::afterCommit(fn () => EventRecorder::server('enrolment_resumed', $subjectId, ['roadmap_enrolment_id' => $target->id, 'paused_days' => 0], ['roadmap_version_id' => $target->roadmap_version_id], $target->id.'|focus|'.$now->timestamp));
+
+            return DB::selectOne('SELECT * FROM roadmap_enrolments WHERE id = ?', [$target->id]);
+        });
+    }
+
+    /** Set the active path aside without touching reviews, and suspend its open session so Today does not resume into it. */
+    private function park(string $userId, string $subjectId, ?string $exceptId): void
+    {
+        $active = DB::selectOne("SELECT * FROM roadmap_enrolments WHERE user_id = ? AND status = 'active' FOR UPDATE", [$userId]);
+        if (! $active || $active->id === $exceptId) {
+            return;
+        }
+        $now = Clock::now();
+        DB::update("UPDATE roadmap_enrolments SET status = 'paused', paused_at = ?, updated_at = ? WHERE id = ?", [$now, $now, $active->id]);
+        DB::update("UPDATE learning_sessions SET status = 'suspended', last_activity_at = ? WHERE user_id = ? AND status = 'open'", [$now, $userId]);
+        DB::afterCommit(fn () => EventRecorder::server('enrolment_paused', $subjectId, ['roadmap_enrolment_id' => $active->id], ['roadmap_version_id' => $active->roadmap_version_id], $active->id.'|parked|'.$now->timestamp));
+    }
+
+    /** Reviews that an explicit pause suspended come back, shifted by the days away (no debt, R05). Parking never suspends any. */
+    private function reactivateReviews(string $userId, mixed $pausedAt, string $timeZone): void
+    {
+        if (! DB::selectOne("SELECT 1 FROM review_schedule WHERE user_id = ? AND status = 'suspended' LIMIT 1", [$userId])) {
+            return;
+        }
+        $since = $pausedAt ?? DB::selectOne("SELECT max(paused_at) AS p FROM roadmap_enrolments WHERE user_id = ? AND paused_at IS NOT NULL", [$userId])->p;
+        $days = $since ? max(0, LearnerDay::diffDays(LearnerDay::of(CarbonImmutable::parse($since), $timeZone), LearnerDay::of(Clock::now(), $timeZone))) : 0;
+        DB::update("UPDATE review_schedule SET status = 'active', due_on = due_on + ?::int, updated_at = now() WHERE user_id = ? AND status = 'suspended'", [$days, $userId]);
     }
 
     /**
@@ -145,6 +240,18 @@ final class RoadmapService
         );
 
         return DB::selectOne('SELECT state FROM topic_progress WHERE enrolment_id = ? AND topic_id = ?', [$enrolment->id, $topic->id]);
+    }
+
+    /** True unless some published mission of this version came from a release nobody has reviewed (AI-made practice, docs/16 §7). */
+    public function versionReviewed(string $versionId): bool
+    {
+        return ! DB::selectOne(
+            "SELECT 1 FROM topic_activities ta
+             JOIN content_versions cv ON cv.content_kind = 'mission' AND cv.content_key = ta.ref_key AND cv.status = 'published'
+             JOIN content_releases cr ON cr.id = cv.release_id
+             WHERE ta.roadmap_version_id = ? AND ta.role = 'core' AND cr.review_status = 'unreviewed' LIMIT 1",
+            [$versionId],
+        );
     }
 
     /** @return array{completed_required:int,total_required:int,percent:int} */
@@ -230,6 +337,8 @@ final class RoadmapService
                 'roadmap_version_id' => $version->id,
             ],
             'roadmap' => [
+                'made_for_you' => DB::selectOne('SELECT owner_user_id FROM roadmaps WHERE id = ?', [$version->roadmap_id])->owner_user_id !== null,
+                'reviewed' => $this->versionReviewed($version->id),
                 'title' => $version->title,
                 'outcome' => $version->outcome,
                 'estimated_effort' => $version->estimated_effort_text,

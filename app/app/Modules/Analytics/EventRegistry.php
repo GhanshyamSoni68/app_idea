@@ -135,6 +135,20 @@ final class EventRegistry
                 'topic_kind' => ['enum', 'required', 'optional'],
                 'from_state' => ['enum', 'not_started', 'in_progress'],
             ]],
+            // Explore (docs/16): the learner's topic text is never an event property. Only bounded numbers and enums.
+            'explore_requested' => ['source' => 'server', 'props' => [
+                'level' => ['enum', 'new', 'some', 'experienced'],
+            ]],
+            'explore_ready' => ['source' => 'server', 'props' => [
+                'topic_count' => ['int', 0, 20],
+                'seconds' => ['int', 0, 86400],
+            ]],
+            'explore_failed' => ['source' => 'server', 'props' => [
+                'reason' => ['enum', 'topic_rejected', 'quality', 'unavailable', 'budget', 'other'],
+            ]],
+            'explore_started' => ['source' => 'server', 'props' => [
+                'roadmap_enrolment_id' => 'uuid',
+            ]],
             'export_requested' => ['source' => 'server', 'props' => []],
             'account_deletion_requested' => ['source' => 'server', 'props' => []],
             'return_screen_seen' => ['source' => 'client', 'props' => [

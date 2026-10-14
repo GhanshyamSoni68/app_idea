@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\V1\ExploreController;
 use App\Http\Controllers\V1\GuestController;
 use App\Http\Controllers\V1\LearnerController;
 use App\Http\Controllers\V1\SessionController;
@@ -61,9 +62,16 @@ Route::prefix('v1')->group(function () {
         Route::post('enrolments', [LearnerController::class, 'enrol']);
         Route::get('enrolments/{id}', [LearnerController::class, 'enrolment'])->whereUuid('id');
         Route::patch('enrolments/{id}', [LearnerController::class, 'patchEnrolment'])->whereUuid('id');
+        Route::post('enrolments/{id}/focus', [LearnerController::class, 'focus'])->whereUuid('id');
         Route::post('topics/{id}/defer', [LearnerController::class, 'defer'])->whereUuid('id');
         Route::delete('topics/{id}/defer', [LearnerController::class, 'bringBack'])->whereUuid('id');
         Route::post('topics/{id}/challenge', [LearnerController::class, 'challenge'])->whereUuid('id');
         Route::get('evidence', [LearnerController::class, 'evidence']);
+
+        // "Learn something else" (docs/16 §8)
+        Route::get('explore', [ExploreController::class, 'index']);
+        Route::post('explore', [ExploreController::class, 'store'])->middleware('throttle:explore');
+        Route::get('explore/{id}', [ExploreController::class, 'show'])->whereUuid('id');
+        Route::post('explore/{id}/start', [ExploreController::class, 'start'])->whereUuid('id');
     });
 });

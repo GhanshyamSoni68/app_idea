@@ -141,6 +141,11 @@ final class SessionService
                 'started_at' => $s->started_at, 'estimated_minutes' => $plan['minutes'], 'context' => $plan['context'] ?? null,
                 'current_step' => min($answered === 0 ? 0 : $this->firstOpenStep($plan, $attempts), count($plan['steps']) - 1),
                 'content_version_id' => $s->content_version_id,
+                // AI-made practice a person has not reviewed is labelled wherever it appears (docs/16 §7).
+                'unreviewed_ai' => $s->content_version_id !== null && (bool) DB::selectOne(
+                    "SELECT 1 FROM content_versions cv JOIN content_releases cr ON cr.id = cv.release_id WHERE cv.id = ? AND cr.origin = 'generated' AND cr.review_status = 'unreviewed'",
+                    [$s->content_version_id],
+                ),
             ],
             'steps' => $steps,
             'draft' => $draft ? ['revision' => (int) $draft->revision, 'step_key' => $draft->step_key, 'data' => json_decode($draft->payload, true), 'device_label' => $draft->device_label, 'saved_at' => $draft->updated_at] : null,

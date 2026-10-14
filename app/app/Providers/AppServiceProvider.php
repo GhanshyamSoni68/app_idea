@@ -30,6 +30,7 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('recovery', fn (Request $r) => [Limit::perHour(5)->by(strtolower((string) $r->input('email')).'|'.$r->ip()), Limit::perHour(20)->by($r->ip())]);
         RateLimiter::for('sign-up', fn (Request $r) => [Limit::perHour(10)->by($r->ip())]);
         RateLimiter::for('guest', fn (Request $r) => [Limit::perMinute(60)->by($r->ip())]);
+        RateLimiter::for('explore', fn (Request $r) => [Limit::perHour(10)->by($r->user()?->id ?: $r->ip())]);
         RateLimiter::for('api', fn (Request $r) => [Limit::perMinute(240)->by($r->user()?->id ?: $r->ip())]);
     }
 }
